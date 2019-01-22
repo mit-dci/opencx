@@ -1,9 +1,8 @@
-package cmd
+package cxrpc
 
 import (
 	"net/rpc"
 	"encoding/hex"
-	"github.com/mit-dci/opencx/cxrpc"
 )
 
 var (

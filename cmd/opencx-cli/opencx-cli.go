@@ -1,8 +1,11 @@
-package cmd
+package main
 
 import (
+	"log"
 	"fmt"
 	"os"
+
+	"github.com/mit-dci/opencx/cxrpc"
 )
 
 // opencx-cli is the client, opencx is the server
@@ -10,12 +13,21 @@ func main() {
 	commandArg := os.Args[1:]
 
 	// TODO just for now
-	println(commandArg)
+	err := parseCommands(commandArg)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func parseCommands(commands []string) error {
 	var args []string
-	cmd := args[0]
+
+	if len(commands) == 0 {
+		return fmt.Errorf("Please specify arguments for exchange CLI")
+	}
+	cmd := commands[0]
+
+	client := new(cxrpc.OpencxRPCClient)
 	if len(commands) > 1 {
 		args = commands[1:]
 	}
@@ -28,7 +40,10 @@ func parseCommands(commands []string) error {
 		password := args[1]
 
 		// construct JSON and send through rpc
-		err := OpencxRPCClient.Register(username, password)
+		err := client.Register(username, password)
+		if err != nil {
+			return fmt.Errorf("Error registering, probably username is taken")
+		}
 		// method that uses rpc should also set token to instance of client if returned
 	}
 	if cmd == "login" {
@@ -37,7 +52,7 @@ func parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "vieworderbook" {
-		// run method that
+		// run method that returns orders in json
 	}
 	return nil
 }
