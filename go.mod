@@ -1,1 +1,1 @@
-module opencx
+module github.com/mit-dci/opencx

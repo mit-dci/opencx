@@ -23,8 +23,10 @@ func parseCommands(commands []string) error {
 		if len(args) != 2 {
 			return fmt.Errorf("Must specify two arguments: username and password. Instead, %d arguments were specified", len(args))
 		}
+
 		username := args[0]
 		password := args[1]
+
 		// construct JSON and send through rpc
 		err := OpencxRPCClient.Register(username, password)
 		// method that uses rpc should also set token to instance of client if returned
