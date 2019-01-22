@@ -25,7 +25,7 @@ func(cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) error {
 
 	// delete this after you get a database working
 	inDatabase := false
-	if !inDatabase {
+	if inDatabase {
 		return fmt.Errorf("username in database")
 	}
 

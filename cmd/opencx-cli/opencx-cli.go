@@ -8,6 +8,12 @@ import (
 	"github.com/mit-dci/opencx/cxrpc"
 )
 
+
+var (
+	defaultServer = "localhost"
+	defaultPort = 1234
+)
+
 // opencx-cli is the client, opencx is the server
 func main() {
 	commandArg := os.Args[1:]
@@ -27,7 +33,10 @@ func parseCommands(commands []string) error {
 	}
 	cmd := commands[0]
 
-	client := new(cxrpc.OpencxRPCClient)
+	client := cxrpc.OpencxRPCClient{
+		Server: defaultServer,
+		Port: defaultPort,
+	}
 	if len(commands) > 1 {
 		args = commands[1:]
 	}
@@ -42,7 +51,7 @@ func parseCommands(commands []string) error {
 		// construct JSON and send through rpc
 		err := client.Register(username, password)
 		if err != nil {
-			return fmt.Errorf("Error registering, probably username is taken")
+			return fmt.Errorf("Error registering: %s", err)
 		}
 		// method that uses rpc should also set token to instance of client if returned
 	}

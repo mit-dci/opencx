@@ -5,13 +5,10 @@ import (
 	"encoding/hex"
 )
 
-var (
-	defaultServer = "localhost"
-	defaultPort = 1234
-)
-
 // OpencxRPCClient is a RPC client for the opencx server
 type OpencxRPCClient struct {
+	Server string
+	Port   int
 	token  []byte
 }
 
@@ -22,8 +19,14 @@ func(cl *OpencxRPCClient) Register(username string, password string) error {
 	args := &RegisterArgs{username, password}
 	var token []byte
 
-	client, err := rpc.Dial("tcp", defaultServer + ":" + string(defaultPort))
-	client.Call("OpencxRPC.Register", args, token)
+	client, err := rpc.Dial("tcp", cl.Server + ":" + string(cl.Port))
+	if err != nil {
+		return err
+	}
+	err = client.Call("OpencxRPC.Register", args, token)
+	if err != nil {
+		return err
+	}
 
 	res, err := hex.DecodeString("sampleToken")
 	if err != nil {
