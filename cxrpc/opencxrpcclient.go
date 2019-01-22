@@ -1,6 +1,7 @@
 package cxrpc
 
 import (
+	"fmt"
 	"net/rpc"
 	"encoding/hex"
 )
@@ -19,7 +20,7 @@ func(cl *OpencxRPCClient) Register(username string, password string) error {
 	args := &RegisterArgs{username, password}
 	var token []byte
 
-	client, err := rpc.Dial("tcp", cl.Server + ":" + string(cl.Port))
+	client, err := rpc.Dial("tcp", cl.Server + ":" + fmt.Sprintf("%d",cl.Port))
 	if err != nil {
 		return err
 	}

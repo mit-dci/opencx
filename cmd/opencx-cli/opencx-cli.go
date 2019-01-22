@@ -11,7 +11,7 @@ import (
 
 var (
 	defaultServer = "localhost"
-	defaultPort = 1234
+	defaultPort = 12345
 )
 
 // opencx-cli is the client, opencx is the server
@@ -37,6 +37,7 @@ func parseCommands(commands []string) error {
 		Server: defaultServer,
 		Port: defaultPort,
 	}
+
 	if len(commands) > 1 {
 		args = commands[1:]
 	}
@@ -51,7 +52,7 @@ func parseCommands(commands []string) error {
 		// construct JSON and send through rpc
 		err := client.Register(username, password)
 		if err != nil {
-			return fmt.Errorf("Error registering: %s", err)
+			return fmt.Errorf("%s",err)
 		}
 		// method that uses rpc should also set token to instance of client if returned
 	}
