@@ -1,18 +1,22 @@
 package main
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/mit-dci/opencx/cxrpc"
 )
 
-
 var (
 	defaultServer = "localhost"
-	defaultPort = 12345
+	defaultPort   = 12345
 )
+
+// TODO figure out this, call in functions specific to method
+type openCxClient struct {
+	RPCClient *cxrpc.OpencxRPCClient
+}
 
 // opencx-cli is the client, opencx is the server
 func main() {
@@ -33,9 +37,10 @@ func parseCommands(commands []string) error {
 	}
 	cmd := commands[0]
 
-	client := cxrpc.OpencxRPCClient{
-		Server: defaultServer,
-		Port: defaultPort,
+	// TODO figure out if this is right
+	client, err := cxrpc.NewOpencxRPCClient(defaultServer, defaultPort)
+	if err != nil {
+		return err
 	}
 
 	if len(commands) > 1 {
@@ -45,6 +50,8 @@ func parseCommands(commands []string) error {
 		if len(args) != 2 {
 			return fmt.Errorf("Must specify two arguments: username and password. Instead, %d arguments were specified", len(args))
 		}
+
+		// TODO call register method here, that method does rpc.Call with the appropriate stuff
 
 		// construct JSON and send through rpc
 		// call client register function with args

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"fmt"
 	"net"
 	"net/rpc"
 
@@ -16,8 +17,8 @@ func main() {
 		log.Fatal("register error:", err)
 	}
 
-	rpc.HandleHTTP()
-	listener, err := net.Listen("tcp", ":1234")
+	listener, err := net.Listen("tcp", ":12345")
+	fmt.Printf("Running server on %s\n", listener.Addr().String())
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}

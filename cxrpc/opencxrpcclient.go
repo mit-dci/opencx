@@ -8,8 +8,7 @@ import (
 
 // OpencxRPCClient is a RPC client for the opencx server
 type OpencxRPCClient struct {
-	Server string
-	Port   int
+	conn   *rpc.Client
 	token  []byte
 }
 
@@ -25,6 +24,10 @@ func(cl *OpencxRPCClient) Register(args []string) error {
 	//	return err
 	// }
 
+	if err != nil {
+		return err
+	}
+
 	s := fmt.Sprintf("%x", "sampleToken")
 	res, err := hex.DecodeString(s)
 	if err != nil {
@@ -39,16 +42,12 @@ func NewOpencxRPCClient(server string, port int) (*OpencxRPCClient, error) {
 	var err error
 
 	cl := new(OpencxRPCClient)
-	cl = &OpencxRPCClient{
-		Server: server,
-		Port: port,
-	}
 
-	client, err := rpc.Dial("tcp", cl.Server + ":" + fmt.Sprintf("%d",cl.Port))
+	cl.conn, err = rpc.Dial("tcp", server + ":" + fmt.Sprintf("%d",port))
+	println(server + ":" + fmt.Sprintf("%d", port))
 	if err != nil {
 		return nil, err
 	}
-	client.Call("OpencxRPC.Register", RegisterArgs{"a","b"}, nil)
 
 	return cl, nil
 }

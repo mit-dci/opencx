@@ -6,13 +6,13 @@ import (
 
 // RegisterArgs holds the args for register
 type RegisterArgs struct {
-	username string
-	password string
+	Username string
+	Password string
 }
 
 // RegisterReply holds the data for the reply
 type RegisterReply struct {
-	token []byte
+	Token []byte
 }
 
 // Register registers the user for an account with a username and password
@@ -29,8 +29,9 @@ func(cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) error {
 		return fmt.Errorf("username in database")
 	}
 
+	fmt.Println("recieved register")
 	// put this in database
-	reply.token = []byte("sampleToken")
+	reply.Token = []byte("sampleToken")
 
 	return nil
 }
