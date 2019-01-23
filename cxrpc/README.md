@@ -5,7 +5,7 @@ RPC is just a starting point for being able to accept network I/O
 
 The `register` and `login` commands send stuff in plaintext as far as I know so they might be replaced
 ## register
-This commands checks that there is no user with the same username, and if not, registers you and returns a token to be included in authenticated commands.
+This commands checks that there is no user with the same username, and if there isn't, registers you and returns a token to be included in authenticated commands.
 
 Arguments:
  - Username (string)

@@ -1,23 +1,78 @@
 package main
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"net"
 	"net/rpc"
+	"os"
+	"os/user"
+
+	"github.com/mit-dci/opencx/cxserver"
 
 	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/db/ocxredis"
+)
+
+var (
+	logFilename = "dblog.txt"
+	defaultRoot = ".opencx/"
+	defaultPort = 12345
 )
 
 func main() {
+	var err error
 
-	rpc1 := new(cxrpc.OpencxRPC)
-	err := rpc.Register(rpc1)
+	usr, err := user.Current()
 	if err != nil {
-		log.Fatal("register error:", err)
+		log.Fatalf("Error getting user, needed for directories: \n%s", err)
+	}
+	defaultRoot = usr.HomeDir + "/" + defaultRoot
+	defaultLogPath := defaultRoot + logFilename
+
+	// Create root directory
+	createRoot(defaultRoot)
+
+	db := new(ocxredis.DB)
+
+	// Set path where output will be written to for all things database
+	err = db.SetLogPath(defaultLogPath)
+	if err != nil {
+		log.Fatalf("Error setting logger path: \n%s", err)
 	}
 
-	listener, err := net.Listen("tcp", ":12345")
+	// Check and load config params
+	// Start database? That can happen in SetupClient maybe, for DBs that can be started natively in go
+	// Check if DB has saved files, if not then start new DB, if so then load old DB
+	err = db.SetupClient()
+	if err != nil {
+		log.Fatalf("Error setting up redis client: \n%s", err)
+	}
+
+	// Anyways, here's where we set the server
+	ocxServer := new(cxserver.OpencxServer)
+	ocxServer.OpencxDB = db
+	ocxServer.OpencxRoot = defaultRoot
+	ocxServer.OpencxPort = defaultPort
+
+	// store in .opencx/
+	// nevermind redis is really annoying
+	// err = db.SetDataDirectory(defaultStoreLocation)
+	// if err != nil {
+	// 	log.Fatalf("Error setting data directory: \n%s", err)
+	// }
+
+	// Register RPC Commands and set server
+	rpc1 := new(cxrpc.OpencxRPC)
+	rpc1.Server = ocxServer
+
+	err = rpc.Register(rpc1)
+	if err != nil {
+		log.Fatalf("Error registering RPC Interface: \n%s", err)
+	}
+
+	// Start RPC Server
+	listener, err := net.Listen("tcp", ":"+fmt.Sprintf("%d", defaultPort))
 	fmt.Printf("Running server on %s\n", listener.Addr().String())
 	if err != nil {
 		log.Fatal("listen error:", err)
@@ -26,4 +81,12 @@ func main() {
 	defer listener.Close()
 	rpc.Accept(listener)
 
+}
+
+// createRoot exists to make main more readable
+func createRoot(rootDir string) {
+	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
+		fmt.Printf("Creating root directory at %s\n", rootDir)
+		os.Mkdir(rootDir, os.ModePerm)
+	}
 }

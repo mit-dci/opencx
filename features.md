@@ -58,3 +58,13 @@ Withdraw will send a transaction to the blockchain.
 `ocx deleteaccount`
 
 For authentication, let's just do some user data storage and send a random token that expires in 30 minutes or something. Server checks token, client stores token and sends it with json.
+
+## Storage
+For now we're using Redis but that may change.
+
+I would use a database that is able to be started from go without a system call, but I figure speed is more important for an exchange for now, and if this were go peer-to-peer, there would need to be other changes to the database. Also badgerdb is easy enough to use that it can be  switched to super easily if necessary
+
+# Sync
+The exchange needs to be synced to determine the number of confirmations a transaction has, and should be if it wants to send transactions.
+
+This means there needs to be a way of easily interacting with running nodes
