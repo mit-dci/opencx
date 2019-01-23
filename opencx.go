@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net"
-	"net/http"
 	"net/rpc"
 
 	"github.com/mit-dci/opencx/cxrpc"
@@ -23,6 +22,7 @@ func main() {
 		log.Fatal("listen error:", err)
 	}
 
-	go http.Serve(listener, nil)
+	defer listener.Close()
+	rpc.Accept(listener)
 
 }

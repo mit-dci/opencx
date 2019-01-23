@@ -46,13 +46,11 @@ func parseCommands(commands []string) error {
 			return fmt.Errorf("Must specify two arguments: username and password. Instead, %d arguments were specified", len(args))
 		}
 
-		username := args[0]
-		password := args[1]
-
 		// construct JSON and send through rpc
-		err := client.Register(username, password)
+		// call client register function with args
+		err := client.Register(args)
 		if err != nil {
-			return fmt.Errorf("%s",err)
+			return err
 		}
 		// method that uses rpc should also set token to instance of client if returned
 	}
