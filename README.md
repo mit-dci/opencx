@@ -3,7 +3,7 @@ A centralized exchange to help understand what a DEX should be
 
 # Requirements
  - Go 1.11+
- - [https://redis.io/](Redis 5.0+) (not needed for client)
+ - [Redis 5.0+](https://redis.io/) (not needed for client)
 
 # How to run opencx server / exchange
 First clone the repo and install dependencies:
