@@ -32,23 +32,25 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) error {
 	// check for username in database
 	// if yes return error
 
-	// TODO: get a database working for user account info and token holding
 	// TODO: make a generic CreateAndStoreToken(username) function
 	// TODO: make a generic CheckToken(username) function
 
-	err := cl.Server.OpencxDB.CreateAccount(args.Username, args.Password)
+	success, err := cl.Server.OpencxDB.CreateAccount(args.Username, args.Password)
 	if err != nil {
 		return fmt.Errorf("Error creating account: \n%s", err)
 	}
 
 	// delete this after you get a database working
-	inDatabase := false
-	if inDatabase {
-		return fmt.Errorf("username in database")
+	if !success {
+		reply.Token = nil
+		fmt.Printf("Username %s already exists\n", args.Username)
+		return nil
 	}
 
 	fmt.Printf("Registering user with username %s\n", args.Username)
 	// put this in database
+
+	// TODO: once tokens are implemented, remove this
 	reply.Token = []byte("sampleToken")
 
 	return nil
@@ -58,12 +60,13 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) error {
 func (cl *OpencxRPC) Login(args LoginArgs, reply *LoginReply) error {
 	success, err := cl.Server.OpencxDB.CheckCredentials(args.Username, args.Password)
 	if err != nil {
-		return fmt.Errorf("Error creating account: \n%s", err)
+		return fmt.Errorf("Error logging in: \n%s", err)
 	}
 
 	if !success {
-		return fmt.Errorf("Credentials incorrect")
+		return fmt.Errorf("Credentials incorrect or username doesn't exist")
 	}
 
+	reply.Token = []byte("sampleToken")
 	return nil
 }

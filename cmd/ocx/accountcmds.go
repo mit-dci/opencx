@@ -20,12 +20,33 @@ func(cl *openCxClient) Register(args []string) error {
 		return fmt.Errorf("Error calling 'Register' service method:\n%s", err)
 	}
 
-	fmt.Printf("Reply: \n%s\n", registerReply)
+	if registerReply.Token == nil {
+		return fmt.Errorf("Username already exists")
+	}
 
+	cl.Printf("Successfully registered\n")
+	cl.Token = registerReply.Token
 	return nil
 }
 
 func(cl *openCxClient) Login(args []string) error {
-	// TODO
+
+	loginArgs := new(cxrpc.LoginArgs)
+	loginReply := new(cxrpc.LoginReply)
+
+	loginArgs.Username = args[0]
+	loginArgs.Password = args[1]
+
+	err := cl.Call("OpencxRPC.Login", loginArgs, loginReply)
+	if err != nil {
+		return fmt.Errorf("Error calling 'Login' service method:\n%s", err)
+	}
+
+	if loginReply.Token == nil {
+		return fmt.Errorf("Credentials incorrect")
+	}
+
+	cl.Printf("Successfully logged in\n")
+	cl.Token = loginReply.Token
 	return nil
 }

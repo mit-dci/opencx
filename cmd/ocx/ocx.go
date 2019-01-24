@@ -15,6 +15,7 @@ var (
 
 // TODO figure out this, call in functions specific to method
 type openCxClient struct {
+	Token []byte
 	RPCClient *cxrpc.OpencxRPCClient
 }
 
@@ -42,14 +43,27 @@ func main() {
 func (cl *openCxClient) setupCxClient(server string, port int) error {
 	var err error
 
-	cl.RPCClient, err = cxrpc.NewOpencxRPCClient(server, port)
+	cl.RPCClient = new(cxrpc.OpencxRPCClient)
+
+	// TODO: change to file logging when it's needed, not now
+	cl.RPCClient.SetupLogger(os.Stdout)
 	if err != nil {
 		return err
 	}
+
+	err = cl.RPCClient.SetupConnection(server, port)
+	if err != nil {
+		return err
+	}
+
 
 	return nil
 }
 
 func (cl *openCxClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	return cl.RPCClient.Call(serviceMethod, args, reply)
+}
+
+func (cl *openCxClient) Printf(format string, v ...interface{}) {
+	cl.RPCClient.Printf(format, v...)
 }

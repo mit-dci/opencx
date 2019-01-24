@@ -61,7 +61,7 @@ func (db *DB) SetLogPath(logPath string) error {
 
 	mw := io.MultiWriter(os.Stdout, logFile)
 	db.logger = log.New(mw, "OPENCX DATABASE: ", log.LstdFlags)
-	db.LogPrintf("Loggers have been set up at %s\n", logPath)
+	db.LogPrintf("Logger has been set up at %s\n", logPath)
 	return nil
 }
 
