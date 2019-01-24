@@ -43,5 +43,31 @@ func(cl *openCxClient) parseCommands(commands []string) error {
 	if cmd == "vieworderbook" {
 		// run method that returns orders in json
 	}
+	if cmd == "nologinuseless" {
+		if len(args) > 0 {
+			cl.Username = args[0]
+		} else {
+			cl.Username = "fakeusername"
+		}
+		err := cl.AuthCommand(args, cl.uselessFunction)
+		if err != nil {
+			return fmt.Errorf("Error when calling useless function when not logged in:\n%s", err)
+		}
+	}
+	if cmd == "loginuseless" {
+		if len(args) < 2 {
+			return fmt.Errorf("Must specify at least two arguments: username and password. Instead, %d arguments were specified", len(args))
+		}
+
+		err := cl.Login(args[0:2])
+		if err != nil {
+			return fmt.Errorf("Error calling login when parsing:\n%s", err)
+		}
+
+		err = cl.AuthCommand(args[2:], cl.uselessFunction)
+		if err != nil {
+			return fmt.Errorf("Error when calling useless function when logged in:\n%s", err)
+		}
+	}
 	return nil
 }

@@ -25,6 +25,7 @@ func(cl *openCxClient) Register(args []string) error {
 	}
 
 	cl.Printf("Successfully registered\n")
+	cl.Username = registerArgs.Username
 	cl.Token = registerReply.Token
 	return nil
 }
@@ -47,6 +48,7 @@ func(cl *openCxClient) Login(args []string) error {
 	}
 
 	cl.Printf("Successfully logged in\n")
+	cl.Username = loginArgs.Username
 	cl.Token = loginReply.Token
 	return nil
 }

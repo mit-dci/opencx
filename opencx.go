@@ -59,7 +59,7 @@ func main() {
 	// nevermind redis is really annoying
 	// err = db.SetDataDirectory(defaultStoreLocation)
 	// if err != nil {
-	// 	log.Fatalf("Error setting data directory: \n%s", err)
+	//	log.Fatalf("Error setting data directory: \n%s", err)
 	// }
 
 	// Register RPC Commands and set server
@@ -77,6 +77,8 @@ func main() {
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
+
+	// TODO: do TLS stuff here so its secure
 
 	defer listener.Close()
 	rpc.Accept(listener)

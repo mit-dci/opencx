@@ -15,6 +15,7 @@ var (
 
 // TODO figure out this, call in functions specific to method
 type openCxClient struct {
+	Username string
 	Token []byte
 	RPCClient *cxrpc.OpencxRPCClient
 }

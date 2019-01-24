@@ -51,7 +51,10 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) error {
 	// put this in database
 
 	// TODO: once tokens are implemented, remove this
-	reply.Token = []byte("sampleToken")
+	reply.Token, err = cl.Server.OpencxDB.CreateStoreToken(args.Username)
+	if err != nil {
+		return fmt.Errorf("Token creation failed: \n%s", err)
+	}
 
 	return nil
 }
@@ -67,6 +70,10 @@ func (cl *OpencxRPC) Login(args LoginArgs, reply *LoginReply) error {
 		return fmt.Errorf("Credentials incorrect or username doesn't exist")
 	}
 
-	reply.Token = []byte("sampleToken")
+	reply.Token, err = cl.Server.OpencxDB.CreateStoreToken(args.Username)
+	if err != nil {
+		return fmt.Errorf("Token creation failed: \n%s", err)
+	}
+	fmt.Printf("Token: %s\n", reply.Token)
 	return nil
 }

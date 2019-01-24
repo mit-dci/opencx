@@ -7,4 +7,5 @@ type OpencxServer struct {
 	OpencxDB   *ocxredis.DB
 	OpencxRoot string
 	OpencxPort int
+	// TODO: Put TLS stuff here
 }

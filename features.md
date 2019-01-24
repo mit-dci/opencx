@@ -30,8 +30,10 @@ Un-permissioned commands (and simple mockups of how it might work):
 `ocx login username password`
 
  - View orderbook
-`ocx vieworderbook`
+`ocx vieworderbook assetwant assethave`
+
 Or maybe we want dark pools? Could be a feature, probably out of scope, would be difficult to do if you want to match in a decentralized way. Decentralized matching for confidential _orders_ is probably very difficult, aside from the whole decentralized matching problem.
+
  - Get price (really just getorderbook but with a few more operations)
 `ocx getprice`
 
@@ -68,3 +70,36 @@ I would use a database that is able to be started from go without a system call,
 The exchange needs to be synced to determine the number of confirmations a transaction has, and should be if it wants to send transactions.
 
 This means there needs to be a way of easily interacting with running nodes
+
+# Current features
+
+ - [x] RPC Interface
+ - [x] DB Interface
+ - [ ] Tesnet interface
+ - [ ] Wallets
+ - [ ] Register
+  - [x] RPC Command in interface
+  - [x] Database k/v for username and password
+  - [ ] Respond with generated token
+ - [ ] Login
+  - [x] RPC Command in interface
+  - [x] Database k/v for username and password
+  - [ ] Respond with generated token
+ - [ ] Place order
+  - [ ] Orders in DB
+  - [ ] Different coins in DB
+  - [ ] Account balances for said coins in DB
+ - [ ] Get balance
+  - [ ] Different coins in DB
+  - [ ] Account balances for said coins in DB
+ - [ ] View orderbook
+  - [ ] Orders in DB
+ - [ ] Get Address
+  - [ ] Testnet interface
+  - [ ] Deposit addresses in DB
+ - [ ] Deposit
+  - [ ] Testnet interface
+  - [ ] Deposit confirmations variable
+  - [ ] How to confirm deposit
+  - [ ] Create master private key
+  - [ ] Create derived keys for deposit addresses
