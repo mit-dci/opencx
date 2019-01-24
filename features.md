@@ -77,14 +77,14 @@ This means there needs to be a way of easily interacting with running nodes
  - [x] DB Interface
  - [ ] Tesnet interface
  - [ ] Wallets
- - [ ] Register
+ - [x] Register
   - [x] RPC Command in interface
   - [x] Database k/v for username and password
-  - [ ] Respond with generated token
- - [ ] Login
+  - [x] Respond with generated token
+ - [x] Login
   - [x] RPC Command in interface
   - [x] Database k/v for username and password
-  - [ ] Respond with generated token
+  - [x] Respond with generated token
  - [ ] Place order
   - [ ] Orders in DB
   - [ ] Different coins in DB
