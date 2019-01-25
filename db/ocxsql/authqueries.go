@@ -3,7 +3,7 @@ package ocxsql
 // CreateStoreToken creates a token for username and stores it for a certain amount of time
 func(db *DB) CreateStoreToken(username string) ([]byte, error) {
 	// TODO later
-	return nil, nil
+	return []byte("tokensDeprecatedForNow"), nil
 }
 
 // CheckToken checks the token assigned to a user

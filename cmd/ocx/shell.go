@@ -45,9 +45,19 @@ func(cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Must specify 2 currencies to view the pair's orderbook")
 		}
 
-		err := cl.ViewOrderbook(args[0],args[1])
+		err := cl.ViewOrderbook(args[0:1])
 		if err != nil {
 			return fmt.Errorf("Error viewing orderbook: \n%s", err)
+		}
+	}
+	if cmd == "getbalance" {
+		if len(args) != 2 {
+			return fmt.Errorf("Must specify 2 currencies to view the pair's orderbook")
+		}
+
+		err := cl.GetBalance(args)
+		if err != nil {
+			return fmt.Errorf("Error getting balance: \n%s", err)
 		}
 	}
 	if cmd == "nologinuseless" {

@@ -1,10 +1,15 @@
 package ocxsql
 
-// this is just here so it can be "implemented"
+import (
+	"fmt"
+)
 
 // CreateAccount creates an account
 func(db *DB) CreateAccount(username string, password string) (bool, error) {
-	// TODO later
+	err := db.InitializeAccount(username)
+	if err != nil {
+		return false, fmt.Errorf("Error when trying to create an account: \n%s", err)
+	}
 	return true, nil
 }
 

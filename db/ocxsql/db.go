@@ -19,18 +19,22 @@ var (
 	// definitely move this to a config file
 	rootPass        = ""
 	balanceSchema   = "balances"
+	balanceTable    = []string{"btc", "ltc", "vtc"}
 )
 
 // DB contains the sql DB type as well as a logger
 type DB struct {
-	DBHandler *sql.DB
-	logger *log.Logger
+	DBHandler     *sql.DB
+	logger        *log.Logger
+	balanceSchema string
+	balanceTables []string
 }
 
 // SetupClient sets up the mysql client and driver
 func(db *DB) SetupClient() error {
 	var err error
 
+	db.balanceSchema = balanceSchema
 	// Create users and schemas and assign permissions to opencx
 	err = db.RootInitSchemas(rootPass)
 	if err != nil {
@@ -44,6 +48,7 @@ func(db *DB) SetupClient() error {
 	}
 
 	db.DBHandler = dbHandle
+	db.balanceTables = balanceTable
 
 	err = db.DBHandler.Ping()
 	if err != nil {
@@ -100,24 +105,18 @@ func (db *DB) InitializeTables() error {
 	var err error
 
 	// Use the balance schema
-	_, err = db.DBHandler.Exec("USE " + balanceSchema + ";")
+	_, err = db.DBHandler.Exec("USE " + db.balanceSchema + ";")
 	if err != nil {
 		return fmt.Errorf("Could not use balance schema: \n%s", err)
 	}
 
-	_, err = db.DBHandler.Exec("CREATE TABLE btc (name TEXT, balance BIGINT)")
-	if err != nil {
-		return fmt.Errorf("Could not create table btc: \n%s", err)
-	}
+	for _, assetString := range db.balanceTables {
 
-	_, err = db.DBHandler.Exec("CREATE TABLE ltc (name TEXT, balance BIGINT)")
-	if err != nil {
-		return fmt.Errorf("Could not create table btc: \n%s", err)
-	}
-
-	_, err = db.DBHandler.Exec("CREATE TABLE vtc (name TEXT, balance BIGINT)")
-	if err != nil {
-		return fmt.Errorf("Could not create table btc: \n%s", err)
+		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (name TEXT, balance BIGINT);", assetString)
+		_, err = db.DBHandler.Exec(tableQuery)
+		if err != nil {
+			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
+		}
 	}
 	return nil
 }
@@ -148,13 +147,13 @@ func(db *DB) RootInitSchemas(rootPassword string) error {
 
 	// check schema
 	// if schema not there make it
-	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + balanceSchema + ";")
+	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + db.balanceSchema + ";")
 	if err != nil {
 		return fmt.Errorf("Could not create balance schema: \n%s", err)
 	}
 
 	// grant permissions to default user
-	createPermsQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", balanceSchema, defaultUsername)
+	createPermsQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", db.balanceSchema, defaultUsername)
 	_, err = rootHandler.Exec(createPermsQuery)
 	if err != nil {
 		return fmt.Errorf("Could not grant permissions to %s: \n%s", defaultUsername, err)

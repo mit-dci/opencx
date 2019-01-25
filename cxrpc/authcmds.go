@@ -18,6 +18,7 @@ type AuthReply struct {
 // DoAuthenticatedThing does an important, authenticated thing
 func (cl *OpencxRPC) DoAuthenticatedThing(args AuthArgs, reply *AuthReply) error {
 	var err error
+
 	reply.Success, err = cl.Server.OpencxDB.CheckToken(args.Username, args.Token)
 	if err != nil {
 		return fmt.Errorf("Error checking token: \n%s", err)
