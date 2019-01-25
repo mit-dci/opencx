@@ -37,4 +37,4 @@ Once you've registered you can now get your balance:
 
 `ocx getbalance username asset`
 
-This will (unsurprisingly) return your balance if you entered everything.
+This will (unsurprisingly) return your balance if you entered everything correctly.
