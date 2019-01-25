@@ -65,9 +65,10 @@ Withdraw will send a transaction to the blockchain.
 For authentication, let's just do some user data storage and send a random token that expires in 30 minutes or something. Server checks token, client stores token and sends it with json.
 
 ## Storage
-For now we're using Redis but that may change.
+~~For now we're using Redis but that may change.~~
+That changed we're using MySQL because it supports transactions (begin, commit, rollback) and I'd have to implement my own locks for redis that would be annoying, and if it were scaled up then it would be .
 
-I would use a database that is able to be started from go without a system call, but I figure speed is more important for an exchange for now, and if this were go peer-to-peer, there would need to be other changes to the database. Also badgerdb is easy enough to use that it can be  switched to super easily if necessary
+I would use a database that is able to be started from go without a system call, but I figure speed is more important for an exchange for now, and if this were go peer-to-peer, there would need to be other changes to the database. Also badgerdb is easy enough to use that it can be switched to super easily if necessary
 
 # Sync
 The exchange needs to be synced to determine the number of confirmations a transaction has, and should be if it wants to send transactions.
@@ -92,9 +93,9 @@ This means there needs to be a way of easily interacting with running nodes
   - [ ] Orders in DB
   - [ ] Different coins in DB
   - [ ] Account balances for said coins in DB
- - [ ] Get balance
-  - [ ] Different coins in DB
-  - [ ] Account balances for said coins in DB
+ - [x] Get balance
+  - [x] Different coins in DB
+  - [x] Account balances for said coins in DB
  - [ ] View orderbook
   - [ ] Orders in DB
  - [ ] Get Address
