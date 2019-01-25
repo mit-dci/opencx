@@ -56,7 +56,7 @@ func (server *OpencxServer) NewChildAddress() error {
 	return nil
 }
 
-// setupServerWallet just loads a private key from a file wallet
+// SetupServerWallet just loads a private key from a file wallet
 func (server *OpencxServer) SetupServerWallet(keypath string) error {
 	privkey, err := lnutil.ReadKeyFile(keypath)
 	if err != nil {
