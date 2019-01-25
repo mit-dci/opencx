@@ -25,6 +25,7 @@ func(db *DB) CreateStoreToken(username string) ([]byte, error) {
 
 	tokenString := fmt.Sprintf("%x", randHash.Sum(nil))
 
+	// store token for 20 seconds
 	status := db.dbClient.Set(qString, tokenString, 20 * time.Second)
 	err := status.Err()
 	if err != nil {

@@ -41,7 +41,14 @@ func(cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "vieworderbook" {
-		// run method that returns orders in json
+		if len(args) != 2 {
+			return fmt.Errorf("Must specify 2 currencies to view the pair's orderbook")
+		}
+
+		err := cl.ViewOrderbook(args[0],args[1])
+		if err != nil {
+			return fmt.Errorf("Error viewing orderbook: \n%s", err)
+		}
 	}
 	if cmd == "nologinuseless" {
 		if len(args) > 0 {

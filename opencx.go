@@ -11,7 +11,7 @@ import (
 	"github.com/mit-dci/opencx/cxserver"
 
 	"github.com/mit-dci/opencx/cxrpc"
-	"github.com/mit-dci/opencx/db/ocxredis"
+	"github.com/mit-dci/opencx/db/ocxsql"
 )
 
 var (
@@ -33,7 +33,7 @@ func main() {
 	// Create root directory
 	createRoot(defaultRoot)
 
-	db := new(ocxredis.DB)
+	db := new(ocxsql.DB)
 
 	// Set path where output will be written to for all things database
 	err = db.SetLogPath(defaultLogPath)
@@ -46,7 +46,7 @@ func main() {
 	// Check if DB has saved files, if not then start new DB, if so then load old DB
 	err = db.SetupClient()
 	if err != nil {
-		log.Fatalf("Error setting up redis client: \n%s", err)
+		log.Fatalf("Error setting up sql client: \n%s", err)
 	}
 
 	// Anyways, here's where we set the server
@@ -55,12 +55,8 @@ func main() {
 	ocxServer.OpencxRoot = defaultRoot
 	ocxServer.OpencxPort = defaultPort
 
-	// store in .opencx/
-	// nevermind redis is really annoying
-	// err = db.SetDataDirectory(defaultStoreLocation)
-	// if err != nil {
-	//	log.Fatalf("Error setting data directory: \n%s", err)
-	// }
+	// defer the db to when it closes
+	defer ocxServer.OpencxDB.DBHandler.Close()
 
 	// Register RPC Commands and set server
 	rpc1 := new(cxrpc.OpencxRPC)

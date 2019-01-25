@@ -11,6 +11,9 @@
 
  - Accounts
 
+## Important note
+There are multiple ways to create an "exchange," one of which is what I'm currently trying to make, but hopefully the APIs I make are robust enough such that the other type can be made as well. There are **Dealer markets** and **Auction markets**. I'm currently making a dealer market, which uses competitive buy and sell orders and a market maker, in this case the exchange, to actually facilitate trades. Auction markets are _very_ similar, in fact the exact same but without a market maker.
+
 ## Wallets
 
 Of course users have their own wallets, but there needs to be some way to make a deposit to a certain account.
