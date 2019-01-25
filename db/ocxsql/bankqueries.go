@@ -1,7 +1,11 @@
 package ocxsql
 
 import (
+	// "database/sql"
+
 	"github.com/mit-dci/opencx/match"
+	// mysql is just the driver, always interact with database/sql api
+	// _ "github.com/go-sql-driver/mysql"
 )
 
 // ExchangeCoins exchanges coins between a buyer and a seller (with a fee of course)
