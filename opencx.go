@@ -7,6 +7,7 @@ import (
 	"net/rpc"
 	"os"
 	"os/user"
+	"path/filepath"
 
 	"github.com/mit-dci/opencx/cxserver"
 
@@ -15,9 +16,10 @@ import (
 )
 
 var (
-	logFilename = "dblog.txt"
-	defaultRoot = ".opencx/"
-	defaultPort = 12345
+	logFilename        = "dblog.txt"
+	defaultRoot        = ".opencx/"
+	defaultPort        = 12345
+	defaultKeyFileName = "privkey.hex"
 )
 
 func main() {
@@ -41,6 +43,8 @@ func main() {
 		log.Fatalf("Error setting logger path: \n%s", err)
 	}
 
+
+
 	// Check and load config params
 	// Start database? That can happen in SetupClient maybe, for DBs that can be started natively in go
 	// Check if DB has saved files, if not then start new DB, if so then load old DB
@@ -55,6 +59,10 @@ func main() {
 	ocxServer.OpencxRoot = defaultRoot
 	ocxServer.OpencxPort = defaultPort
 
+	// Check that the private key exists and if it does, load it
+	defaultKeyPath := filepath.Join(defaultRoot, defaultKeyFileName)
+	ocxServer.SetupServerWallet(defaultKeyPath)
+
 	// defer the db to when it closes
 	defer ocxServer.OpencxDB.DBHandler.Close()
 
@@ -62,7 +70,6 @@ func main() {
 	rpc1 := new(cxrpc.OpencxRPC)
 	rpc1.Server = ocxServer
 
-	rpc1.Server.NewChildAddress()
 	err = rpc.Register(rpc1)
 	if err != nil {
 		log.Fatalf("Error registering RPC Interface: \n%s", err)
