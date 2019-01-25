@@ -19,7 +19,8 @@ var (
 	// definitely move this to a config file
 	rootPass        = ""
 	balanceSchema   = "balances"
-	balanceTable    = []string{"btc", "ltc", "vtc"}
+	depositSchema   = "deposit"
+	assetArray      = []string{"btc", "ltc", "vtc"}
 )
 
 // DB contains the sql DB type as well as a logger
@@ -27,7 +28,8 @@ type DB struct {
 	DBHandler     *sql.DB
 	logger        *log.Logger
 	balanceSchema string
-	balanceTables []string
+	depositSchema string
+	assetArray    []string
 }
 
 // SetupClient sets up the mysql client and driver
@@ -35,6 +37,7 @@ func(db *DB) SetupClient() error {
 	var err error
 
 	db.balanceSchema = balanceSchema
+	db.depositSchema = depositSchema
 	// Create users and schemas and assign permissions to opencx
 	err = db.RootInitSchemas(rootPass)
 	if err != nil {
@@ -48,7 +51,7 @@ func(db *DB) SetupClient() error {
 	}
 
 	db.DBHandler = dbHandle
-	db.balanceTables = balanceTable
+	db.assetArray = assetArray
 
 	err = db.DBHandler.Ping()
 	if err != nil {
@@ -56,9 +59,16 @@ func(db *DB) SetupClient() error {
 	}
 
 	// Initialize Balance tables (order tables soon)
-	err = db.InitializeTables()
+	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
+	err = db.InitializeTables(balanceSchema, "name TEXT, balance BIGINT")
 	if err != nil {
-		return fmt.Errorf("Could not initialize tables: \n%s", err)
+		return fmt.Errorf("Could not initialize balance tables: \n%s", err)
+	}
+
+	// Initialize Deposit tables (order tables soon)
+	err = db.InitializeTables(depositSchema, "name TEXT, address TEXT")
+	if err != nil {
+		return fmt.Errorf("Could not initialize deposit tables: \n%s", err)
 	}
 
 	return nil
@@ -100,19 +110,19 @@ func (db *DB) LogErrorf(format string, v ...interface{}) {
 	db.logger.Printf("ERROR: "+format, v...)
 }
 
-// InitializeTables initializes all of the tables necessary for the exchange to run.
-func (db *DB) InitializeTables() error {
+// InitializeTables initializes all of the tables necessary for the exchange to run. The schema string can be either balanceSchema or depositSchema.
+func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 	var err error
 
 	// Use the balance schema
-	_, err = db.DBHandler.Exec("USE " + db.balanceSchema + ";")
+	_, err = db.DBHandler.Exec("USE " + schemaName + ";")
 	if err != nil {
 		return fmt.Errorf("Could not use balance schema: \n%s", err)
 	}
 
-	for _, assetString := range db.balanceTables {
+	for _, assetString := range db.assetArray {
 
-		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (name TEXT, balance BIGINT);", assetString)
+		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
@@ -145,18 +155,32 @@ func(db *DB) RootInitSchemas(rootPassword string) error {
 		return fmt.Errorf("Could not create default user: \n%s", err)
 	}
 
-	// check schema
-	// if schema not there make it
+	// check balance schema
+	// if balance schema not there make it
 	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + db.balanceSchema + ";")
 	if err != nil {
 		return fmt.Errorf("Could not create balance schema: \n%s", err)
 	}
 
 	// grant permissions to default user
-	createPermsQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", db.balanceSchema, defaultUsername)
-	_, err = rootHandler.Exec(createPermsQuery)
+	balancePermsQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", db.balanceSchema, defaultUsername)
+	_, err = rootHandler.Exec(balancePermsQuery)
 	if err != nil {
-		return fmt.Errorf("Could not grant permissions to %s: \n%s", defaultUsername, err)
+		return fmt.Errorf("Could not grant permissions to %s while creating balance table: \n%s", defaultUsername, err)
+	}
+
+	// check deposit schema
+	// if deposit schema not there make it
+	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + db.depositSchema + ";")
+	if err != nil {
+		return fmt.Errorf("Could not create deposit schema: \n%s", err)
+	}
+
+	// grant permissions to default user
+	depositPermsQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", db.depositSchema, defaultUsername)
+	_, err = rootHandler.Exec(depositPermsQuery)
+	if err != nil {
+		return fmt.Errorf("Could not grant permissions to %s while creating deposit table: \n%s", defaultUsername, err)
 	}
 
 	return nil

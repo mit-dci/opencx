@@ -90,9 +90,9 @@ This means there needs to be a way of easily interacting with running nodes
   - [x] Database k/v for username and password
   - [x] Respond with generated token
  - [ ] Place order
-  - [ ] Orders in DB
-  - [ ] Different coins in DB
-  - [ ] Account balances for said coins in DB
+  - [ ] Orders and trading pairs in DB
+  - [x] Different coins in DB
+  - [x] Account balances for said coins in DB
  - [x] Get balance
   - [x] Different coins in DB
   - [x] Account balances for said coins in DB
@@ -107,3 +107,5 @@ This means there needs to be a way of easily interacting with running nodes
   - [ ] How to confirm deposit
   - [ ] Create master private key
   - [ ] Create derived keys for deposit addresses
+ - [ ] Signing
+  - [ ] Sign all messages to/from for identification

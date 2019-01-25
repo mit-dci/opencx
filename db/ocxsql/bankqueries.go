@@ -19,14 +19,21 @@ func (db *DB) ExchangeCoins(buyOrder *match.Order, sellOrder *match.Order) error
 
 // InitializeAccount initializes all database values for an account with username 'username'
 func (db *DB) InitializeAccount(username string) error {
-	// Balances table, username is one column and balances are all the other columns
-	// SELECT username FROM balances...
+	var err error
+
+	// Use the balance schema
+	_, err = db.DBHandler.Exec("USE " + db.balanceSchema + ";")
+	if err != nil {
+		return fmt.Errorf("Could not use balance schema: \n%s", err)
+	}
+
+	// begin the transaction
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
 		return fmt.Errorf("Error beginning transaction while initializing accounts: \n%s", err)
 	}
 
-	for _, assetString := range db.balanceTables {
+	for _, assetString := range db.assetArray {
 		insertBalanceQueries := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", assetString, username, 0)
 		_, err := tx.Exec(insertBalanceQueries)
 		if err != nil {
@@ -34,6 +41,7 @@ func (db *DB) InitializeAccount(username string) error {
 		}
 	}
 
+	// commit the transaction
 	err = tx.Commit()
 	if err != nil {
 		return fmt.Errorf("Error committing transaction: \n%s", err)
@@ -43,9 +51,17 @@ func (db *DB) InitializeAccount(username string) error {
 
 // GetBalance gets the balance of an account
 func (db *DB) GetBalance(username string, asset string) (uint64, error) {
+	var err error
 
+	// Use the balance schema
+	_, err = db.DBHandler.Exec("USE " + db.balanceSchema + ";")
+	if err != nil {
+		return 0, fmt.Errorf("Could not use balance schema: \n%s", err)
+	}
+
+	// Check if the asset exists
 	validTable := false
-	for _, elem := range db.balanceTables {
+	for _, elem := range db.assetArray {
 		if asset == elem {
 			validTable = true
 		}

@@ -62,6 +62,7 @@ func main() {
 	rpc1 := new(cxrpc.OpencxRPC)
 	rpc1.Server = ocxServer
 
+	rpc1.Server.NewChildAddress()
 	err = rpc.Register(rpc1)
 	if err != nil {
 		log.Fatalf("Error registering RPC Interface: \n%s", err)
