@@ -90,33 +90,33 @@ Only once the current height and height stored in the DB differ by the # of conf
  - [ ] Tesnet interface
  - [ ] Wallets
  - [x] Register
-  - [x] RPC Command in interface
-  - [x] Database k/v for username and password
-  - [x] Respond with generated token
+   - [x] RPC Command in interface
+   - [x] Database k/v for username and password
+   - [x] Respond with generated token
  - [x] Login
-  - [x] RPC Command in interface
-  - [x] Database k/v for username and password
-  - [x] Respond with generated token
+   - [x] RPC Command in interface
+   - [x] Database k/v for username and password
+   - [x] Respond with generated token
  - [ ] Place order
-  - [ ] Orders and trading pairs in DB
-  - [x] Different coins in DB
-  - [x] Account balances for said coins in DB
+   - [ ] Orders and trading pairs in DB
+   - [x] Different coins in DB
+   - [x] Account balances for said coins in DB
  - [x] Get balance
-  - [x] Different coins in DB
-  - [x] Account balances for said coins in DB
+   - [x] Different coins in DB
+   - [x] Account balances for said coins in DB
  - [ ] View orderbook
-  - [ ] Orders in DB
+   - [ ] Orders in DB
  - [ ] Get Address
-  - [ ] Testnet interface
-  - [ ] Deposit addresses in DB
+   - [ ] Testnet interface
+   - [ ] Deposit addresses in DB
  - [ ] Deposit
-  - [ ] Testnet interface
-  - [ ] Deposit confirmations variable
-  - [ ] How to confirm deposit
-  - [ ] Create master private key
-  - [ ] Create derived keys for deposit addresses
+   - [ ] Testnet interface
+   - [ ] Deposit confirmations variable
+   - [ ] How to confirm deposit
+   - [ ] Create master private key
+   - [ ] Create derived keys for deposit addresses
  - [ ] Signing
-  - [ ] Sign all messages to/from for identification
+   - [ ] Sign all messages to/from for identification
 
 #### Decentralization notes
 
