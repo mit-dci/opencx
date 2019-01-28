@@ -59,10 +59,6 @@ func main() {
 	ocxServer.OpencxRoot = defaultRoot
 	ocxServer.OpencxPort = defaultPort
 
-	// Check that the private key exists and if it does, load it
-	defaultKeyPath := filepath.Join(defaultRoot, defaultKeyFileName)
-	ocxServer.SetupServerWallet(defaultKeyPath)
-
 	// defer the db to when it closes
 	defer ocxServer.OpencxDB.DBHandler.Close()
 
