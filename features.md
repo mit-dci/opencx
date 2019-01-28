@@ -83,6 +83,51 @@ Maybe also keep the block header, I need something to check that it's not an orp
 
 Only once the current height and height stored in the DB differ by the # of confirmations stored along with the deposit, do we make a DB update on the balances table.
 
+# Matching
+
+Here's a rough draft of the matching algorithm:
+```python
+def oppositeSide(order):
+    if order.side == "buy":
+        return "sell"
+    elif order.side == "sell":
+        return "buy"
+    raise Exception("Order does not have a compatible side")
+
+def IncomingOrderEventHandler(incomingOrder):
+    # whatever I may have messed up with this whole python thing, this is pseudocode at this point
+
+    thisSideOrders = append(db.GetSortedOrders(incomingOrder.price, incomingOrder.side), incomingOrder)
+    oppositeSideOrders = db.GetSortedOrders(incomingOrder.price, oppositeSide(incomingOrder))
+
+    # GetSortedOrders will return orders sorted by timestamp by default
+    # This will be something like SELECT * FROM orders.btc_ltcbuyorders WHERE price=x SORT BY timestamp
+    # or if on the other side SELECT * FROM orders.ltc_btcbuyorders WHERE price=x SORT BY timestamp
+
+    while len(oppositeSideOrders) > 0 && len(thisSideOrders) > 0
+        sideOne = thisSideOrders[0]
+        sideTwo = oppositeSideOrders[0]
+        if sideOne.volume > sideTwo.volume:
+            db.CreditAccount(sideOne.account, sideTwo.volume)
+            db.CreditAccount(sideTwo.account, sideTwo.volume)
+            db.DeleteOrder(sideTwo)
+            thisSideOrders[0].volume -= sideTwo.volume
+        elif sideTwo.volume > sideOne.volume:
+            db.CreditAccount(sideOne.account, sideOne.volume)
+            db.CreditAccount(sideTwo.account, sideOne.volume)
+            db.DeleteOrder(sideOne)
+            oppositeSideOrders[0].volume -= sideOne.volume
+        else:
+            volume = sideOne.volume
+            db.DeleteOrder(sideOne)
+            db.DeleteOrder(sideTwo)
+            db.CreditAccount(sideOne.account, equalVolume)
+            db.CreditAccount(sideTwo.account, equalVolume)
+
+# I think this algorithm is right
+
+```
+
 # Current features
 
  - [x] RPC Interface
