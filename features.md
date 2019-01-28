@@ -104,7 +104,7 @@ def IncomingOrderEventHandler(incomingOrder):
     # This will be something like SELECT * FROM orders.btc_ltcbuyorders WHERE price=x SORT BY timestamp
     # or if on the other side SELECT * FROM orders.ltc_btcbuyorders WHERE price=x SORT BY timestamp
 
-    while len(oppositeSideOrders) > 0 && len(thisSideOrders) > 0
+    while len(oppositeSideOrders) > 0 and len(thisSideOrders) > 0
         sideOne = thisSideOrders[0]
         sideTwo = oppositeSideOrders[0]
         if sideOne.volume > sideTwo.volume:
