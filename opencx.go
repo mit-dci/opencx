@@ -7,7 +7,6 @@ import (
 	"net/rpc"
 	"os"
 	"os/user"
-	"path/filepath"
 
 	"github.com/mit-dci/opencx/cxserver"
 
