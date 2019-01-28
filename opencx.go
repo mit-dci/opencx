@@ -61,7 +61,39 @@ func main() {
 
 	// Check that the private key exists and if it does, load it
 	defaultKeyPath := filepath.Join(defaultRoot, defaultKeyFileName)
-	ocxServer.SetupServerWallet(defaultKeyPath)
+	ocxServer.SetupServerKeys(defaultKeyPath)
+
+	// fmt.Printf("Trying to do stuff\n")
+	// btcBlocks, ltcBlocks, vtcBlocks, err := ocxServer.SetupChainhooks()
+
+	// // Start event handler for receiving btc blocks
+	// go func() {
+	//	for {
+	//		newBTCBlock := <- btcBlocks
+	//		fmt.Printf("Trying to start btc hook\n")
+	//		ocxServer.HandleBlock(newBTCBlock, "btc")
+	//	}
+	// }()
+
+	// // Start event handler for receiving ltc blocks
+	// go func() {
+	//	for {
+	//		newLTCBlock := <- ltcBlocks
+	//		fmt.Printf("Trying to start ltc hook\n")
+	//		ocxServer.HandleBlock(newLTCBlock, "ltc")
+	//	}
+	// }()
+
+	// // Start event handler for receiving vtc blocks
+	// go func() {
+	//	for {
+	//		newVTCBlock := <- vtcBlocks
+	//		fmt.Printf("Trying to start ltc hook\n")
+	//		ocxServer.HandleBlock(newVTCBlock, "vtc")
+	//	}
+	// }()
+
+	ocxServer.SetupWallets()
 
 	// defer the db to when it closes
 	defer ocxServer.OpencxDB.DBHandler.Close()
@@ -77,7 +109,7 @@ func main() {
 
 	// Start RPC Server
 	listener, err := net.Listen("tcp", ":"+fmt.Sprintf("%d", defaultPort))
-	fmt.Printf("Running server on %s\n", listener.Addr().String())
+	// fmt.Printf("Running server on %s\n", listener.Addr().String())
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
