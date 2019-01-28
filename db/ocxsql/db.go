@@ -13,23 +13,25 @@ import (
 
 // turn into config options
 var (
-	defaultUsername = "opencx"
-	defaultPassword = "testpass"
+	defaultUsername      = "opencx"
+	defaultPassword      = "testpass"
 
 	// definitely move this to a config file
-	rootPass        = ""
-	balanceSchema   = "balances"
-	depositSchema   = "deposit"
-	assetArray      = []string{"btc", "ltc", "vtc"}
+	rootPass             = ""
+	balanceSchema        = "balances"
+	depositSchema        = "deposit"
+	pendingDepositSchema = "pending_deposits"
+	assetArray           = []string{"btc", "ltc", "vtc"}
 )
 
 // DB contains the sql DB type as well as a logger
 type DB struct {
-	DBHandler     *sql.DB
-	logger        *log.Logger
-	balanceSchema string
-	depositSchema string
-	assetArray    []string
+	DBHandler            *sql.DB
+	logger               *log.Logger
+	balanceSchema        string
+	depositSchema        string
+	pendingDepositSchema string
+	assetArray           []string
 }
 
 // SetupClient sets up the mysql client and driver
@@ -38,6 +40,7 @@ func(db *DB) SetupClient() error {
 
 	db.balanceSchema = balanceSchema
 	db.depositSchema = depositSchema
+	db.pendingDepositSchema = pendingDepositSchema
 	// Create users and schemas and assign permissions to opencx
 	err = db.RootInitSchemas(rootPass)
 	if err != nil {
@@ -71,6 +74,11 @@ func(db *DB) SetupClient() error {
 		return fmt.Errorf("Could not initialize deposit tables: \n%s", err)
 	}
 
+	// Initialize pending_deposits table
+	err = db.InitializeTables(pendingDepositSchema, "name TEXT, expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64)")
+	if err != nil {
+		return fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
+	}
 	return nil
 }
 
@@ -181,6 +189,20 @@ func(db *DB) RootInitSchemas(rootPassword string) error {
 	_, err = rootHandler.Exec(depositPermsQuery)
 	if err != nil {
 		return fmt.Errorf("Could not grant permissions to %s while creating deposit table: \n%s", defaultUsername, err)
+	}
+
+	// check pending deposit schema
+	// if pending deposit schema not there make it
+	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + db.pendingDepositSchema + ";")
+	if err != nil {
+		return fmt.Errorf("Could not create pending deposit schema: \n%s", err)
+	}
+
+	// grant permissions to default user
+	pendingDepositQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", db.pendingDepositSchema, defaultUsername)
+	_, err = rootHandler.Exec(pendingDepositQuery)
+	if err != nil {
+		return fmt.Errorf("Could not grant permissions to %s while creating pending deposit table: \n%s", defaultUsername, err)
 	}
 
 	return nil
