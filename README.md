@@ -8,7 +8,8 @@ A centralized exchange to help understand what a DEX should be
 # How to run opencx server / exchange
 First clone the repo and install dependencies:
 ```sh
-git clone git@github.com/mit-dci/opencx
+git clone git@github.com/mit-dci/opencx.git
+cd opencx
 go get
 ```
 
