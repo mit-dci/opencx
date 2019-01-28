@@ -163,46 +163,41 @@ func(db *DB) RootInitSchemas(rootPassword string) error {
 		return fmt.Errorf("Could not create default user: \n%s", err)
 	}
 
-	// check balance schema
-	// if balance schema not there make it
-	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + db.balanceSchema + ";")
+	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.balanceSchema)
 	if err != nil {
-		return fmt.Errorf("Could not create balance schema: \n%s", err)
+		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
 	}
 
-	// grant permissions to default user
-	balancePermsQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", db.balanceSchema, defaultUsername)
-	_, err = rootHandler.Exec(balancePermsQuery)
+	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.depositSchema)
 	if err != nil {
-		return fmt.Errorf("Could not grant permissions to %s while creating balance table: \n%s", defaultUsername, err)
+		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
 	}
 
-	// check deposit schema
-	// if deposit schema not there make it
-	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + db.depositSchema + ";")
+	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.pendingDepositSchema)
 	if err != nil {
-		return fmt.Errorf("Could not create deposit schema: \n%s", err)
+		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
 	}
 
-	// grant permissions to default user
-	depositPermsQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", db.depositSchema, defaultUsername)
-	_, err = rootHandler.Exec(depositPermsQuery)
-	if err != nil {
-		return fmt.Errorf("Could not grant permissions to %s while creating deposit table: \n%s", defaultUsername, err)
-	}
+	return nil
+}
+
+
+// Helper function for db
+func rootCreateSchemaForUser(rootHandler *sql.DB, username string, schemaString string) error {
+	var err error
 
 	// check pending deposit schema
 	// if pending deposit schema not there make it
-	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + db.pendingDepositSchema + ";")
+	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + schemaString + ";")
 	if err != nil {
-		return fmt.Errorf("Could not create pending deposit schema: \n%s", err)
+		return fmt.Errorf("Could not create %s schema: \n%s", schemaString, err)
 	}
 
 	// grant permissions to default user
-	pendingDepositQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", db.pendingDepositSchema, defaultUsername)
-	_, err = rootHandler.Exec(pendingDepositQuery)
+	schemaQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", schemaString, username)
+	_, err = rootHandler.Exec(schemaQuery)
 	if err != nil {
-		return fmt.Errorf("Could not grant permissions to %s while creating pending deposit table: \n%s", defaultUsername, err)
+		return fmt.Errorf("Could not grant permissions to %s while creating %s schema: \n%s", schemaString, username, err)
 	}
 
 	return nil

@@ -12,6 +12,7 @@ import (
 
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/db/ocxsql"
+	"github.com/mit-dci/opencx/match"
 )
 
 var (
@@ -42,7 +43,10 @@ func main() {
 		log.Fatalf("Error setting logger path: \n%s", err)
 	}
 
-
+	assetPairs := match.GenerateAssetPairs()
+	for i, elem := range assetPairs {
+		fmt.Printf("Pair %d: %s\n", i, elem)
+	}
 
 	// Check and load config params
 	// Start database? That can happen in SetupClient maybe, for DBs that can be started natively in go
