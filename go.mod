@@ -22,7 +22,7 @@ require (
 	github.com/vertcoin/lyra2re v0.0.0-20170910033546-8bfa142041c2 // indirect
 	gitlab.com/NebulousLabs/fastrand v0.0.0-20181126182046-603482d69e40 // indirect
 	gitlab.com/NebulousLabs/go-upnp v0.0.0-20181011194642-3a71999ed0d3 // indirect
-	golang.org/x/crypto v0.0.0-20190123085648-057139ce5d2b // indirect
+	golang.org/x/crypto v0.0.0-20190128193316-c7b33c32a30b // indirect
 	golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3 // indirect
 	golang.org/x/sys v0.0.0-20190124100055-b90733256f2e // indirect
 	golang.org/x/text v0.3.0 // indirect

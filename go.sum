@@ -52,6 +52,8 @@ gitlab.com/NebulousLabs/go-upnp v0.0.0-20181011194642-3a71999ed0d3 h1:qXqiXDgeQx
 gitlab.com/NebulousLabs/go-upnp v0.0.0-20181011194642-3a71999ed0d3/go.mod h1:sleOmkovWsDEQVYXmOJhx69qheoMTmCuPYyiCFCihlg=
 golang.org/x/crypto v0.0.0-20190123085648-057139ce5d2b h1:Elez2XeF2p9uyVj0yEUDqQ56NFcDtcBNkYP7yv8YbUE=
 golang.org/x/crypto v0.0.0-20190123085648-057139ce5d2b/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
+golang.org/x/crypto v0.0.0-20190128193316-c7b33c32a30b h1:Ib/yptP38nXZFMwqWSip+OKuMP9OkyDe3p+DssP8n9w=
+golang.org/x/crypto v0.0.0-20190128193316-c7b33c32a30b/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/net v0.0.0-20190119204137-ed066c81e75e h1:MDa3fSUp6MdYHouVmCCNz/zaH2a6CRcxY3VhT/K3C5Q=
 golang.org/x/net v0.0.0-20190119204137-ed066c81e75e/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3 h1:ulvT7fqt0yHWzpJwI57MezWnYDVpCAYBVuYst/L+fAY=
