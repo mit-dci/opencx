@@ -4,22 +4,22 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/mit-dci/opencx/db/ocxsql"
-	"github.com/mit-dci/lit/btcutil/hdkeychain"
-	"github.com/mit-dci/lit/lnutil"
-	"github.com/mit-dci/lit/uspv"
-	"github.com/mit-dci/lit/wire"
-	"github.com/mit-dci/lit/wallit"
 	"github.com/mit-dci/lit/btcutil/base58"
-	"github.com/mit-dci/lit/logging"
+	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/lnutil"
+	"github.com/mit-dci/lit/logging"
+	"github.com/mit-dci/lit/uspv"
+	"github.com/mit-dci/lit/wallit"
+	"github.com/mit-dci/lit/wire"
+	"github.com/mit-dci/opencx/db/ocxsql"
 )
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
-	OpencxDB             *ocxsql.DB
-	OpencxRoot           string
-	OpencxPort           int
+	OpencxDB   *ocxsql.DB
+	OpencxRoot string
+	OpencxPort int
 	// Hehe it's the vault, pls don't steal
 	OpencxBTCTestPrivKey *hdkeychain.ExtendedKey
 	OpencxVTCTestPrivKey *hdkeychain.ExtendedKey
@@ -27,7 +27,7 @@ type OpencxServer struct {
 	HeightEventChan      chan lnutil.HeightEvent
 
 	// TODO: Or implement client required signatures and pubkeys instead of usernames
-	BTCHook              *uspv.SPVCon
+	BTCHook *uspv.SPVCon
 }
 
 // TODO now that I know how to use this hdkeychain stuff, let's figure out how to create addresses to store
@@ -71,7 +71,7 @@ func (server *OpencxServer) SetupWallets() error {
 	// ltcRoot := server.createSubRoot(coinparam.LiteCoinTestNet4Params.Name)
 	// vtcRoot := server.createSubRoot(coinparam.VertcoinTestNetParams.Name)
 
-	btcwallet, _, err := wallit.NewWallit(server.OpencxBTCTestPrivKey, coinparam.TestNet3Params.StartHeight, true, "localhost:18333", btcRoot, "", &coinparam.TestNet3Params)
+	btcwallet, _, err := wallit.NewWallit(server.OpencxBTCTestPrivKey, coinparam.TestNet3Params.StartHeight, true, "1", btcRoot, "", &coinparam.TestNet3Params)
 	if err != nil {
 		return fmt.Errorf("Error setting up wallet: \n%s", err)
 	}
@@ -135,7 +135,7 @@ func (server *OpencxServer) HandleBlock(block *wire.MsgBlock, coin string) error
 }
 
 // LetMeKnowHeight creates a channel to listen for height events
-func(server *OpencxServer) LetMeKnowHeight() chan lnutil.HeightEvent {
+func (server *OpencxServer) LetMeKnowHeight() chan lnutil.HeightEvent {
 	server.HeightEventChan = make(chan lnutil.HeightEvent, 1)
 	return server.HeightEventChan
 }
@@ -153,12 +153,12 @@ func (server *OpencxServer) createSubRoot(subRoot string) string {
 // HeightHandler is a handler for different chains' block channels
 func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, coinType coinparam.Params) {
 	for {
-		h := <- incomingBlockHeight
+		h := <-incomingBlockHeight
 
 		logging.Debugf("A Block on the %s chain came in at height %d!\n", coinType.Name, h)
 		if server.HeightEventChan != nil {
 			heightEvent := lnutil.HeightEvent{
-				Height: h,
+				Height:   h,
 				CoinType: coinType.HDCoinType,
 			}
 			server.HeightEventChan <- heightEvent
