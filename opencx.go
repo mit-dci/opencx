@@ -13,6 +13,7 @@ import (
 
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/db/ocxsql"
+	"github.com/mit-dci/lit/lnutil"
 )
 
 var (
@@ -63,37 +64,14 @@ func main() {
 	defaultKeyPath := filepath.Join(defaultRoot, defaultKeyFileName)
 	ocxServer.SetupServerKeys(defaultKeyPath)
 
-	// fmt.Printf("Trying to do stuff\n")
-	// btcBlocks, ltcBlocks, vtcBlocks, err := ocxServer.SetupChainhooks()
+	heightEventChannel := ocxServer.LetMeKnowHeight()
+	go heightEventHandler(heightEventChannel)
+	err = ocxServer.SetupBTCChainhook()
+	if err != nil {
+		log.Fatalf("Error setting up btc chainhook:\n%s", err)
+	}
 
-	// // Start event handler for receiving btc blocks
-	// go func() {
-	//	for {
-	//		newBTCBlock := <- btcBlocks
-	//		fmt.Printf("Trying to start btc hook\n")
-	//		ocxServer.HandleBlock(newBTCBlock, "btc")
-	//	}
-	// }()
-
-	// // Start event handler for receiving ltc blocks
-	// go func() {
-	//	for {
-	//		newLTCBlock := <- ltcBlocks
-	//		fmt.Printf("Trying to start ltc hook\n")
-	//		ocxServer.HandleBlock(newLTCBlock, "ltc")
-	//	}
-	// }()
-
-	// // Start event handler for receiving vtc blocks
-	// go func() {
-	//	for {
-	//		newVTCBlock := <- vtcBlocks
-	//		fmt.Printf("Trying to start ltc hook\n")
-	//		ocxServer.HandleBlock(newVTCBlock, "vtc")
-	//	}
-	// }()
-
-	ocxServer.SetupWallets()
+	// ocxServer.SetupWallets()
 
 	// defer the db to when it closes
 	defer ocxServer.OpencxDB.DBHandler.Close()
@@ -104,12 +82,12 @@ func main() {
 
 	err = rpc.Register(rpc1)
 	if err != nil {
-		log.Fatalf("Error registering RPC Interface: \n%s", err)
+		log.Fatalf("Error registering RPC Interface:\n%s", err)
 	}
 
 	// Start RPC Server
 	listener, err := net.Listen("tcp", ":"+fmt.Sprintf("%d", defaultPort))
-	// fmt.Printf("Running server on %s\n", listener.Addr().String())
+	fmt.Printf("Running RPC server on %s\n", listener.Addr().String())
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
@@ -126,5 +104,13 @@ func createRoot(rootDir string) {
 	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
 		fmt.Printf("Creating root directory at %s\n", rootDir)
 		os.Mkdir(rootDir, os.ModePerm)
+	}
+}
+
+// TODO: Clean up the rest of the code then figure out if this should be removed
+func heightEventHandler(HeightEventChan chan lnutil.HeightEvent) {
+	for {
+		_ = <- HeightEventChan
+		// Why does this work
 	}
 }
