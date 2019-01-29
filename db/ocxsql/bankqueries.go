@@ -2,6 +2,9 @@ package ocxsql
 
 import (
 	"fmt"
+
+	"github.com/mit-dci/lit/coinparam"
+
 	// "database/sql"
 
 	"github.com/mit-dci/opencx/match"
@@ -85,7 +88,7 @@ func (db *DB) GetBalance(username string, asset string) (uint64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("Error scanning for amount: \n%s", err)
 	}
-	db.LogPrintf("%s balance for %s: %d\n",username, asset, *amount)
+	db.LogPrintf("%s balance for %s: %d\n", username, asset, *amount)
 
 	err = res.Close()
 	if err != nil {
@@ -98,5 +101,56 @@ func (db *DB) GetBalance(username string, asset string) (uint64, error) {
 
 // GetBalances gets all balances of an account
 func (db *DB) GetBalances(username string) error {
+	return nil
+}
+
+// UpdateDeposits happens when a block is sent in, it updates the deposits table with correct deposits
+func (db *DB) UpdateDeposits(amounts []uint64, coinType coinparam.Params) error {
+
+	db.LogPrintf("Updating deposits for a block!\n")
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		return fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
+	}
+
+	_, err = tx.Exec("USE " + db.balanceSchema + ";")
+	if err != nil {
+		return fmt.Errorf("Error using balance schema: \n%s", err)
+	}
+
+	for _, amt := range amounts {
+		currentBalanceQuery := fmt.Sprintf("SELECT balance FROM btc WHERE name='%s';", "dan")
+		res, err := tx.Query(currentBalanceQuery)
+		if err != nil {
+			return fmt.Errorf("Error when getting the current balance: \n%s", err)
+		}
+
+		// Get the first result for balance
+		res.Next()
+		balance := new(uint64)
+		err = res.Scan(balance)
+		if err != nil {
+			return fmt.Errorf("Error when scanning for name: \n%s", err)
+		}
+		err = res.Close()
+		if err != nil {
+			return fmt.Errorf("Error when closing rows: \n%s", err)
+		}
+
+		// Update the balance
+		// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
+		insertBalanceQuery := fmt.Sprintf("UPDATE btc SET balance='%d' WHERE name='%s';", *balance+amt, "dan")
+		_, err = tx.Exec(insertBalanceQuery)
+		if err != nil {
+			return fmt.Errorf("Error inserting into balance table: \n%s", err)
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("Error committing transaction: \n%s", err)
+	}
+	db.LogPrintf("Done updating deposits for this block!\n")
+
 	return nil
 }

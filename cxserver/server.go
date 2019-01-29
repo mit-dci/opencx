@@ -107,7 +107,7 @@ func (server *OpencxServer) SetupUserAddress(username string) error {
 // SetupBTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupBTCChainhook() error {
 	btcHook := new(uspv.SPVCon)
-	// logging.Debugf(3)
+	// logging.SetLogLevel(3)
 
 	btcHook.Param = &coinparam.TestNet3Params
 
@@ -116,13 +116,14 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 	// Okay now why can I put in "yes" as that parameter or "yup" like that makes no sense as being a remoteNode. "yes" is a remoteNode??
 	// maybe isThereAHost should be what its called or something
 	logging.Debugf("Starting BTC Chainhook\n")
+	blockChan := btcHook.RawBlocks()
 	_, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, "1", btcRoot, "", btcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
 	}
 	logging.Debugf("BTC Chainhook started\n")
 
-	go server.HeightHandler(btcheightChan, *btcHook.Param)
+	go server.HeightHandler(btcheightChan, blockChan, *btcHook.Param)
 
 	server.BTCHook = btcHook
 	return nil
@@ -132,12 +133,6 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 func (server *OpencxServer) HandleBlock(block *wire.MsgBlock, coin string) error {
 	server.OpencxDB.LogPrintf("Handling block with hash %s for %s chain\n", block.BlockHash().String(), coin)
 	return nil
-}
-
-// LetMeKnowHeight creates a channel to listen for height events
-func (server *OpencxServer) LetMeKnowHeight() chan lnutil.HeightEvent {
-	server.HeightEventChan = make(chan lnutil.HeightEvent, 1)
-	return server.HeightEventChan
 }
 
 // createSubRoot creates sub root directories that hold info for each chain
@@ -150,18 +145,15 @@ func (server *OpencxServer) createSubRoot(subRoot string) string {
 	return subRootDir
 }
 
-// HeightHandler is a handler for different chains' block channels
-func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, coinType coinparam.Params) {
+// HeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
+func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, blockChan chan *wire.MsgBlock, coinType coinparam.Params) {
 	for {
 		h := <-incomingBlockHeight
 
 		logging.Debugf("A Block on the %s chain came in at height %d!\n", coinType.Name, h)
-		if server.HeightEventChan != nil {
-			heightEvent := lnutil.HeightEvent{
-				Height:   h,
-				CoinType: coinType.HDCoinType,
-			}
-			server.HeightEventChan <- heightEvent
-		}
+		block := <-blockChan
+		logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), h)
+		server.ingestTransactionListAndHeight(block.Transactions, h, coinType)
+
 	}
 }

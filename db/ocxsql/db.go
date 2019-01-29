@@ -1,11 +1,11 @@
 package ocxsql
 
 import (
-	"fmt"
-	"os"
-	"log"
-	"io"
 	"database/sql"
+	"fmt"
+	"io"
+	"log"
+	"os"
 
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
@@ -13,8 +13,8 @@ import (
 
 // turn into config options
 var (
-	defaultUsername      = "opencx"
-	defaultPassword      = "testpass"
+	defaultUsername = "opencx"
+	defaultPassword = "testpass"
 
 	// definitely move this to a config file
 	rootPass             = ""
@@ -35,7 +35,7 @@ type DB struct {
 }
 
 // SetupClient sets up the mysql client and driver
-func(db *DB) SetupClient() error {
+func (db *DB) SetupClient() error {
 	var err error
 
 	db.balanceSchema = balanceSchema
@@ -48,7 +48,7 @@ func(db *DB) SetupClient() error {
 	}
 
 	// open db handle
-	dbHandle, err := sql.Open("mysql", defaultUsername + ":" + defaultPassword + "@/")
+	dbHandle, err := sql.Open("mysql", defaultUsername+":"+defaultPassword+"@/")
 	if err != nil {
 		return fmt.Errorf("Error opening database: \n%s", err)
 	}
@@ -63,7 +63,7 @@ func(db *DB) SetupClient() error {
 
 	// Initialize Balance tables (order tables soon)
 	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
-	err = db.InitializeTables(balanceSchema, "name TEXT, balance BIGINT")
+	err = db.InitializeTables(balanceSchema, "name TEXT, balance BIGINT(64)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize balance tables: \n%s", err)
 	}
@@ -140,11 +140,11 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 }
 
 // RootInitSchemas initalizes the schemas, creates users, and grants permissions to those users
-func(db *DB) RootInitSchemas(rootPassword string) error {
+func (db *DB) RootInitSchemas(rootPassword string) error {
 	var err error
 
 	// Log in to root
-	rootHandler, err := sql.Open("mysql", "root:" + rootPassword + "@/")
+	rootHandler, err := sql.Open("mysql", "root:"+rootPassword+"@/")
 	if err != nil {
 		return fmt.Errorf("Error opening root db: \n%s", err)
 	}
@@ -180,7 +180,6 @@ func(db *DB) RootInitSchemas(rootPassword string) error {
 
 	return nil
 }
-
 
 // Helper function for db
 func rootCreateSchemaForUser(rootHandler *sql.DB, username string, schemaString string) error {
