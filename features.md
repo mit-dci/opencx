@@ -130,6 +130,8 @@ def IncomingOrderEventHandler(incomingOrder):
 
 I also need to make some thing in the `match` package to generate the `ltc_btcsellorders` and `btc_ltcbuyorders` table and make sure that orders ALWAYS are the same stuff and you never end up with a unique pair that doesn't exist (because now there would just be the btc/ltc, btc/vtc, ltc/vtc pairs technically, never btc/btc, vtc/vtc, ltc/ltc, vtc/ltc, ltc/btc, vtc/btc) because you only need `n(n-1)/2` pairs to represent all unique pairs. I just have to make sure it's correct and nothing will go wrong.
 
+One thing to think about - Exchanges like Binance have a native asset, BNB, where pretty much every pair goes through. Is it good enough to have a reserve asset like this or should I really add every possible trading pair? It seems like more trading pairs means more possibilities for arbitrage and price manipulation but that guess isn't really based on anything concrete.
+
 # Current features
 
  - [x] RPC Interface
