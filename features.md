@@ -102,7 +102,7 @@ def IncomingOrderEventHandler(incomingOrder):
 
     # GetSortedOrders will return orders sorted by timestamp by default
     # This will be something like SELECT * FROM orders.btc_ltcbuyorders WHERE price=x SORT BY timestamp
-    # or if on the other side SELECT * FROM orders.ltc_btcbuyorders WHERE price=x SORT BY timestamp
+    # or if on the other side SELECT * FROM orders.ltc_btcsellorders WHERE price=x SORT BY timestamp
 
     while len(oppositeSideOrders) > 0 and len(thisSideOrders) > 0
         sideOne = thisSideOrders[0]
@@ -127,6 +127,8 @@ def IncomingOrderEventHandler(incomingOrder):
 # I think this algorithm is right
 
 ```
+
+I also need to make some thing in the `match` package to generate the `ltc_btcsellorders` and `btc_ltcbuyorders` table and make sure that orders ALWAYS are the same stuff and you never end up with a unique pair that doesn't exist (because now there would just be the btc/ltc, btc/vtc, ltc/vtc pairs technically, never btc/btc, vtc/vtc, ltc/ltc, vtc/ltc, ltc/btc, vtc/btc) because you only need `n(n-1)/2` pairs to represent all unique pairs. I just have to make sure it's correct and nothing will go wrong.
 
 # Current features
 
