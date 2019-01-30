@@ -27,7 +27,6 @@ type OpencxServer struct {
 	HeightEventChan      chan lnutil.HeightEvent
 
 	// TODO: Or implement client required signatures and pubkeys instead of usernames
-	BTCHook *uspv.SPVCon
 }
 
 // TODO now that I know how to use this hdkeychain stuff, let's figure out how to create addresses to store
@@ -117,22 +116,31 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 	// maybe isThereAHost should be what its called or something
 	logging.Debugf("Starting BTC Chainhook\n")
 	blockChan := btcHook.RawBlocks()
-	_, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, "1", btcRoot, "", btcHook.Param)
+	txHeightChan, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, "1", btcRoot, "", btcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
 	}
 	logging.Debugf("BTC Chainhook started\n")
 
+	go server.TransactionHandler(txHeightChan)
 	go server.HeightHandler(btcheightChan, blockChan, *btcHook.Param)
 
-	server.BTCHook = btcHook
 	return nil
 }
 
+// TransactionHandler handles incoming transactions
+func (server *OpencxServer) TransactionHandler(incomingTxChan chan lnutil.TxAndHeight) {
+	for {
+		fmt.Printf("Waiting for incoming transaction...\n")
+		txHeight := <-incomingTxChan
+
+		fmt.Printf("Got transaction at height: %d, txid: %s, outputs: %d\n", txHeight.Height, txHeight.Tx.TxHash().String(), len(txHeight.Tx.TxOut))
+	}
+}
+
 // HandleBlock handles a block coming in TODO: change coin to not a string if appropriate
-func (server *OpencxServer) HandleBlock(block *wire.MsgBlock, coin string) error {
-	server.OpencxDB.LogPrintf("Handling block with hash %s for %s chain\n", block.BlockHash().String(), coin)
-	return nil
+func (server *OpencxServer) HandleBlock(blockChan chan *wire.MsgBlock, coinHook *uspv.SPVCon) {
+	return
 }
 
 // createSubRoot creates sub root directories that hold info for each chain

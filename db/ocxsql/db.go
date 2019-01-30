@@ -21,6 +21,7 @@ var (
 	balanceSchema        = "balances"
 	depositSchema        = "deposit"
 	pendingDepositSchema = "pending_deposits"
+	depositAddressSchema = "deposit_addrs"
 	assetArray           = []string{"btc", "ltc", "vtc"}
 )
 
@@ -80,6 +81,7 @@ func (db *DB) SetupClient() error {
 		return fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
 	}
 	return nil
+
 }
 
 // SetLogPath sets the log path for the database, and tells it to also print to stdout. This should be changed in the future so only verbose clients log to stdout

@@ -6,6 +6,7 @@ require (
 	github.com/awalterschulze/gographviz v0.0.0-20181013152038-b2885df04310 // indirect
 	github.com/bitgoin/lyra2rev2 v0.0.0-20161212102046-bae9ad2043bb // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
+	github.com/btcsuite/btcd v0.0.0-20190115013929-ed77733ec07d
 	github.com/dchest/blake256 v1.0.0 // indirect
 	github.com/deedlefake/crypto v0.0.0-20170910233742-2f50d39c528d // indirect
 	github.com/fatih/color v1.7.0 // indirect
@@ -25,5 +26,4 @@ require (
 	golang.org/x/crypto v0.0.0-20190128193316-c7b33c32a30b // indirect
 	golang.org/x/net v0.0.0-20190125091013-d26f9f9a57f3 // indirect
 	golang.org/x/sys v0.0.0-20190124100055-b90733256f2e // indirect
-	golang.org/x/text v0.3.0 // indirect
 )
