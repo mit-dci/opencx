@@ -2,10 +2,11 @@ package cxserver
 
 import (
 	"fmt"
+	"math"
 
-	"github.com/mit-dci/lit/bech32"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/wire"
+	"github.com/mit-dci/opencx/util"
 )
 
 // IngestTransactionListAndHeight processes a transaction list and corresponding height
@@ -18,16 +19,19 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	for _, tx := range txList {
 		for _, output := range tx.TxOut {
 
-			// TODO: need to write some stuff to check what kind of script it is, because the current stuff doesn't have enough, or I'm just very wrong
-			addFromPkH, err := bech32.SegWitAddressEncode(coinType.Bech32Prefix, output.PkScript)
-			if err != nil {
-				fmt.Printf("Height: %d, Non P2PKH/P2WPKH/P2WSH output detected, txid: %s\n", height, tx.TxHash())
-			} else {
-				fmt.Printf("Address %s received %d testnet satoshis in txid %s\n", addFromPkH, output.Value, tx.TxHash())
-			}
-			fmt.Printf("pkScript: %x\n", output.PkScript)
+			scriptType, data := util.ScriptType(output.PkScript)
+			if scriptType == "P2PKH" {
+				fmt.Printf("Script: %x\n", output.PkScript)
+				fmt.Printf("Data: %x\n", data)
+				addr, err := util.NewAddressPubKeyHash(data, &coinType)
+				if err != nil {
+					return fmt.Errorf("Error converting pubkeyhash into address while ingesting transaction: \n%s", err)
+				}
 
-			// fmt.Printf("Address: %s\n", txscript.ExtractPkScriptAddrs(output.PkScript, coinType))
+				fmt.Printf("Address %s got %f BTC in tx %s\n", addr, float64(output.Value)/(math.Pow10(8)), tx.TxHash().String())
+			} else {
+				fmt.Printf("Script type: %s\n", scriptType)
+			}
 		}
 		amounts = append(amounts, sumTxOut(tx.TxOut))
 	}

@@ -27,6 +27,7 @@ var (
 
 // DB contains the sql DB type as well as a logger
 type DB struct {
+	keychain             *Keychain
 	DBHandler            *sql.DB
 	logger               *log.Logger
 	balanceSchema        string

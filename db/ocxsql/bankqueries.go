@@ -44,6 +44,10 @@ func (db *DB) InitializeAccount(username string) error {
 		}
 	}
 
+	// for _, assetString := range db.assetArray {
+	// 	// insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s')", assetString, username)
+	// }
+
 	// commit the transaction
 	err = tx.Commit()
 	if err != nil {
