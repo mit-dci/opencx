@@ -21,6 +21,8 @@ I'm guessing the exchange makes an address when you say you want to deposit, or 
 
 Basically money always comes in to the exchange, the exchange keeps track of your balance (and holds the funds in their wallets so they could pull a mtgox)
 
+ONCE money comes in to the exchange, send it to a pool address?
+
 ## Interacting with the exchange
 The exchange needs to have a few functions that the user interacts with:
 
