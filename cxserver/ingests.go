@@ -62,7 +62,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 		}
 	}
 
-	if height%1000 == 0 {
+	if height%10000 == 0 {
 		logging.Infof("Finished ingesting block at height %d. There were %d deposits.\n", height, len(deposits))
 	}
 	return nil
