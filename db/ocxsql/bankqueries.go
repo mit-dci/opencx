@@ -44,9 +44,37 @@ func (db *DB) InitializeAccount(username string) error {
 		}
 	}
 
-	// for _, assetString := range db.assetArray {
-	// 	// insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s')", assetString, username)
-	// }
+	// Use the deposit schema
+	_, err = db.DBHandler.Exec("USE " + db.depositSchema + ";")
+	if err != nil {
+		return fmt.Errorf("Could not use balance schema: \n%s", err)
+	}
+
+	for _, assetString := range db.assetArray {
+		var addr string
+		if assetString == "btc" {
+			addr, err = db.keychain.NewAddressBTC(username)
+			if err != nil {
+				return fmt.Errorf("Error creating new btc address: \n%s", err)
+			}
+		} else if assetString == "ltc" {
+			addr, err = db.keychain.NewAddressLTC(username)
+			if err != nil {
+				return fmt.Errorf("Error creating new ltc address: \n%s", err)
+			}
+		} else if assetString == "vtc" {
+			addr, err = db.keychain.NewAddressVTC(username)
+			if err != nil {
+				return fmt.Errorf("Error creating new vtc address: \n%s", err)
+			}
+		}
+
+		insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s')", assetString, username, addr)
+		_, err := tx.Exec(insertDepositAddrQuery)
+		if err != nil {
+			return fmt.Errorf("Error creating deposit address: \n%s", err)
+		}
+	}
 
 	// commit the transaction
 	err = tx.Commit()
