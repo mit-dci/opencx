@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/rpc"
@@ -26,6 +27,8 @@ var (
 func main() {
 	var err error
 
+	logging.SetLogLevel(2)
+
 	usr, err := user.Current()
 	if err != nil {
 		log.Fatalf("Error getting user, needed for directories: \n%s", err)
@@ -39,7 +42,7 @@ func main() {
 	db := new(ocxsql.DB)
 
 	// Set path where output will be written to for all things database
-	err = db.SetLogPath(defaultLogPath)
+	err = SetLogPath(defaultLogPath)
 	if err != nil {
 		log.Fatalf("Error setting logger path: \n%s", err)
 	}
@@ -98,6 +101,18 @@ func main() {
 	defer listener.Close()
 	rpc.Accept(listener)
 
+}
+
+// SetLogPath sets the log path for the database, and tells it to also print to stdout. This should be changed in the future so only verbose clients log to stdout
+func SetLogPath(logPath string) error {
+	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		panic(err)
+	}
+
+	mw := io.MultiWriter(logFile)
+	logging.SetLogFile(mw)
+	return nil
 }
 
 // createRoot exists to make main more readable
