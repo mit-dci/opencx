@@ -8,7 +8,7 @@ import (
 
 type authFunction func(args []string) error
 
-func(cl *openCxClient) AuthCommand(args []string, fn authFunction) error {
+func (cl *openCxClient) AuthCommand(args []string, fn authFunction) error {
 	authArgs := new(cxrpc.AuthArgs)
 	authReply := new(cxrpc.AuthReply)
 
@@ -21,7 +21,7 @@ func(cl *openCxClient) AuthCommand(args []string, fn authFunction) error {
 	}
 
 	if !authReply.Success {
-		cl.Printf("Authentication failed for function %s\n", fn)
+		cl.Printf("Authentication failed for function: %v\n", fn)
 		return nil
 	}
 

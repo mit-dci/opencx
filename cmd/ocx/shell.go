@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func(cl *openCxClient) parseCommands(commands []string) error {
+func (cl *openCxClient) parseCommands(commands []string) error {
 	var args []string
 
 	if len(commands) == 0 {
@@ -52,12 +52,22 @@ func(cl *openCxClient) parseCommands(commands []string) error {
 	}
 	if cmd == "getbalance" {
 		if len(args) != 2 {
-			return fmt.Errorf("Must specify 2 currencies to view the pair's orderbook")
+			return fmt.Errorf("Must specify username and token to get balance for token")
 		}
 
 		err := cl.GetBalance(args)
 		if err != nil {
 			return fmt.Errorf("Error getting balance: \n%s", err)
+		}
+	}
+	if cmd == "getdepositaddress" {
+		if len(args) != 2 {
+			return fmt.Errorf("Must specify username and token to get deposit address for toke")
+		}
+
+		err := cl.GetDepositAddress(args)
+		if err != nil {
+			return fmt.Errorf("Error getting deposit address: \n%s", err)
 		}
 	}
 	if cmd == "nologinuseless" {
