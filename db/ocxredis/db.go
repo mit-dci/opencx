@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/mit-dci/lit/logging"
+
 	"github.com/go-redis/redis"
 )
 
@@ -60,30 +62,6 @@ func (db *DB) SetLogPath(logPath string) error {
 	}
 
 	mw := io.MultiWriter(os.Stdout, logFile)
-	db.logger = log.New(mw, "OPENCX DATABASE: ", log.LstdFlags)
-	db.LogPrintf("Logger has been set up at %s\n", logPath)
+	logging.SetLogFile(mw)
 	return nil
-}
-
-// These methods can be removed, but these are used frequently so maybe the
-// time spent writing these cuts down on the time spent writing logger
-
-// LogPrintf is like printf but you don't have to go db.logger every time
-func (db *DB) LogPrintf(format string, v ...interface{}) {
-	db.logger.Printf(format, v...)
-}
-
-// LogPrintln is like println but you don't have to go db.logger every time
-func (db *DB) LogPrintln(v ...interface{}) {
-	db.logger.Println(v...)
-}
-
-// LogPrint is like print but you don't have to go db.logger every time
-func (db *DB) LogPrint(v ...interface{}) {
-	db.logger.Print(v...)
-}
-
-// LogErrorf is like printf but with error at the beginning
-func (db *DB) LogErrorf(format string, v ...interface{}) {
-	db.logger.Printf("ERROR: "+format, v...)
 }

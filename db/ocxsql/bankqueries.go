@@ -158,7 +158,6 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 // UpdateBalance updates a single balance
 func (db *DB) UpdateBalance(username string, amount uint64) (err error) {
 
-	// db.LogPrintf("Updating deposits for a block!\n")
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
 		return
