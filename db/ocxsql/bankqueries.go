@@ -4,25 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/mit-dci/opencx/util"
-
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/logging"
-
-	// "database/sql"
-
 	"github.com/mit-dci/opencx/match"
-	// mysql is just the driver, always interact with database/sql api
-	// _ "github.com/go-sql-driver/mysql"
+	"github.com/mit-dci/opencx/util"
 )
-
-// ExchangeCoins exchanges coins between a buyer and a seller (with a fee of course)
-func (db *DB) ExchangeCoins(buyOrder *match.Order, sellOrder *match.Order) error {
-	// check balances
-	// if balances check out then make the trade, update balances
-
-	return nil
-}
 
 // GetBalance gets the balance of an account
 func (db *DB) GetBalance(username string, asset string) (uint64, error) {
@@ -69,11 +55,6 @@ func (db *DB) GetBalance(username string, asset string) (uint64, error) {
 
 	return *amount, nil
 
-}
-
-// GetBalances gets all balances of an account
-func (db *DB) GetBalances(username string) error {
-	return nil
 }
 
 // UpdateDeposits happens when a block is sent in, it updates the deposits table with correct deposits
@@ -293,7 +274,7 @@ func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Error scanning for amount: \n%s", err)
 	}
-	logging.Infof("%s deposit for %s: %s\n", username, asset, *depositAddr)
+	logging.Debugf("Username %s's deposit address for %s: %s\n", username, asset, *depositAddr)
 
 	err = res.Close()
 	if err != nil {

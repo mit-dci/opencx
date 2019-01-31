@@ -3,11 +3,7 @@ package ocxsql
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"log"
-	"os"
-
-	"github.com/mit-dci/lit/logging"
 
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
@@ -88,18 +84,6 @@ func (db *DB) SetupClient() error {
 
 }
 
-// SetLogPath sets the log path for the database, and tells it to also print to stdout. This should be changed in the future so only verbose clients log to stdout
-func (db *DB) SetLogPath(logPath string) error {
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-	if err != nil {
-		panic(err)
-	}
-
-	mw := io.MultiWriter(os.Stdout, logFile)
-	logging.SetLogFile(mw)
-	return nil
-}
-
 // InitializeTables initializes all of the tables necessary for the exchange to run. The schema string can be either balanceSchema or depositSchema.
 func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 	var err error
@@ -112,7 +96,7 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 
 	for _, assetString := range db.assetArray {
 
-		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", assetString, schemaSpec)
+		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
