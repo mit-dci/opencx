@@ -4,47 +4,66 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/logging"
 	"github.com/mit-dci/lit/wire"
+	"github.com/mit-dci/opencx/match"
 	"github.com/mit-dci/opencx/util"
 )
 
 // IngestTransactionListAndHeight processes a transaction list and corresponding height
-func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx, height int32, coinType coinparam.Params) error {
+func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx, height uint64, coinType *coinparam.Params) (err error) {
 	// get list of addresses we own
 	// check the sender, amounts, receiver of all the transactions
 	// check if the receiver is us
 	// if so, add the deposit to the table, create a # of confirmations past the height at which it was received
-	amounts := make([]uint64, len(txList))
+
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("Error ingesting transaction list: \n%s", err)
+			return
+		}
+	}()
+	addressesWeOwn, err := server.OpencxDB.GetDepositAddressMap(coinType)
+	if err != nil {
+		return
+	}
+	var deposits []match.Deposit
+
 	for _, tx := range txList {
 		for _, output := range tx.TxOut {
 
 			scriptType, data := util.ScriptType(output.PkScript)
 			if scriptType == "P2PKH" {
-				// fmt.Printf("Script: %x\n", output.PkScript)
-				// fmt.Printf("Data: %x\n", data)
-				_, err := util.NewAddressPubKeyHash(data, &coinType)
-				if err != nil {
-					return fmt.Errorf("Error converting pubkeyhash into address while ingesting transaction: \n%s", err)
+				var addr string
+				if addr, err = util.NewAddressPubKeyHash(data, coinType); err != nil {
+					return
 				}
 
-				// fmt.Printf("Address %s got %f BTC in tx %s\n", addr, float64(output.Value)/(math.Pow10(8)), tx.TxHash().String())
-			} else {
-				// fmt.Printf("Script type: %s\n", scriptType)
+				if name, found := addressesWeOwn[addr]; found {
+					newDeposit := match.Deposit{
+						Name:                name,
+						Address:             addr,
+						Amount:              uint64(output.Value),
+						Txid:                tx.TxHash().String(),
+						CoinType:            coinType,
+						BlockHeightReceived: height,
+						Confirmations:       (uint64(output.Value) / (10 ^ 8)) + 1,
+					}
+
+					deposits = append(deposits, newDeposit)
+				}
 			}
 		}
-		amounts = append(amounts, sumTxOut(tx.TxOut))
 	}
-	err := server.OpencxDB.UpdateDeposits(amounts, coinType)
-	if err != nil {
-		return fmt.Errorf("Error while ingesting transaction list and height: \n%s", err)
+
+	if len(deposits) > 0 {
+		if err = server.OpencxDB.UpdateDeposits(deposits, height, coinType); err != nil {
+			return
+		}
+	}
+
+	if height%1000 == 0 {
+		logging.Infof("Finished ingesting block at height %d. There were %d deposits.\n", height, len(deposits))
 	}
 	return nil
-}
-
-func sumTxOut(outputs []*wire.TxOut) uint64 {
-	var amount uint64
-	for _, output := range outputs {
-		amount += uint64(output.Value)
-	}
-	return amount
 }

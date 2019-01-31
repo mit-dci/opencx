@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/mit-dci/lit/logging"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/db/ocxsql"
@@ -45,7 +46,7 @@ func main() {
 
 	assetPairs := match.GenerateAssetPairs()
 	for i, elem := range assetPairs {
-		fmt.Printf("Pair %d: %s\n", i, elem)
+		logging.Infof("Pair %d: %s\n", i, elem)
 	}
 
 	// Check and load config params
@@ -102,7 +103,7 @@ func main() {
 // createRoot exists to make main more readable
 func createRoot(rootDir string) {
 	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
-		fmt.Printf("Creating root directory at %s\n", rootDir)
+		logging.Infof("Creating root directory at %s\n", rootDir)
 		os.Mkdir(rootDir, os.ModePerm)
 	}
 }

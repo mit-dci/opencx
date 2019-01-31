@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/mit-dci/lit/logging"
+
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mit-dci/opencx/util"
@@ -78,7 +80,7 @@ func (db *DB) SetupClient() error {
 	}
 
 	// Initialize pending_deposits table
-	err = db.InitializeTables(pendingDepositSchema, "name TEXT, expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64)")
+	err = db.InitializeTables(pendingDepositSchema, "name TEXT, expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
 	if err != nil {
 		return fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
 	}
@@ -94,32 +96,8 @@ func (db *DB) SetLogPath(logPath string) error {
 	}
 
 	mw := io.MultiWriter(os.Stdout, logFile)
-	db.logger = log.New(mw, "OPENCX DATABASE: ", log.LstdFlags)
-	db.LogPrintf("Logger has been set up at %s\n", logPath)
+	logging.SetLogFile(mw)
 	return nil
-}
-
-// These methods can be removed, but these are used frequently so maybe the
-// time spent writing these cuts down on the time spent writing logger
-
-// LogPrintf is like printf but you don't have to go db.logger every time
-func (db *DB) LogPrintf(format string, v ...interface{}) {
-	db.logger.Printf(format, v...)
-}
-
-// LogPrintln is like println but you don't have to go db.logger every time
-func (db *DB) LogPrintln(v ...interface{}) {
-	db.logger.Println(v...)
-}
-
-// LogPrint is like print but you don't have to go db.logger every time
-func (db *DB) LogPrint(v ...interface{}) {
-	db.logger.Print(v...)
-}
-
-// LogErrorf is like printf but with error at the beginning
-func (db *DB) LogErrorf(format string, v ...interface{}) {
-	db.logger.Printf("ERROR: "+format, v...)
 }
 
 // InitializeTables initializes all of the tables necessary for the exchange to run. The schema string can be either balanceSchema or depositSchema.
@@ -134,7 +112,7 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 
 	for _, assetString := range db.assetArray {
 
-		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
+		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", assetString, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)

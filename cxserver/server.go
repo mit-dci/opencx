@@ -95,7 +95,7 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 	logging.Debugf("BTC Chainhook started\n")
 
 	go server.TransactionHandler(txHeightChan)
-	go server.HeightHandler(btcheightChan, blockChan, *btcHook.Param)
+	go server.HeightHandler(btcheightChan, blockChan, btcHook.Param)
 
 	return nil
 }
@@ -121,14 +121,16 @@ func (server *OpencxServer) createSubRoot(subRoot string) string {
 }
 
 // HeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
-func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, blockChan chan *wire.MsgBlock, coinType coinparam.Params) {
+func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
 	for {
 		h := <-incomingBlockHeight
 
 		logging.Debugf("A Block on the %s chain came in at height %d!\n", coinType.Name, h)
 		block := <-blockChan
 		logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), h)
-		server.ingestTransactionListAndHeight(block.Transactions, h, coinType)
+		// Wow we all have little hope that the bitcoin blockheight will grow to be a 64 bit integer... I want to see the day & hope we have
+		// hard drives big enough to hold the entire chain (or just the entire utreexo)
+		server.ingestTransactionListAndHeight(block.Transactions, uint64(h), coinType)
 
 	}
 }
