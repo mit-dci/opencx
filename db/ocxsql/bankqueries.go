@@ -44,33 +44,35 @@ func (db *DB) InitializeAccount(username string) error {
 		}
 	}
 
-	// Use the deposit schema
-	_, err = db.DBHandler.Exec("USE " + db.depositSchema + ";")
+	_, err = tx.Exec("USE " + db.depositSchema + ";")
 	if err != nil {
-		return fmt.Errorf("Could not use balance schema: \n%s", err)
+		return fmt.Errorf("Could not use deposit schema: \n%s", err)
 	}
 
 	for _, assetString := range db.assetArray {
 		var addr string
 		if assetString == "btc" {
-			addr, err = db.keychain.NewAddressBTC(username)
+			addr, err = db.Keychain.NewAddressBTC(username)
 			if err != nil {
 				return fmt.Errorf("Error creating new btc address: \n%s", err)
 			}
 		} else if assetString == "ltc" {
-			addr, err = db.keychain.NewAddressLTC(username)
+			addr, err = db.Keychain.NewAddressLTC(username)
 			if err != nil {
 				return fmt.Errorf("Error creating new ltc address: \n%s", err)
 			}
 		} else if assetString == "vtc" {
-			addr, err = db.keychain.NewAddressVTC(username)
+			addr, err = db.Keychain.NewAddressVTC(username)
 			if err != nil {
 				return fmt.Errorf("Error creating new vtc address: \n%s", err)
 			}
 		}
 
-		insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s')", assetString, username, addr)
-		_, err := tx.Exec(insertDepositAddrQuery)
+		insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s');", assetString, username, addr)
+		fmt.Println(insertDepositAddrQuery)
+		res, err := tx.Exec(insertDepositAddrQuery)
+		rowCount, err := res.RowsAffected()
+		fmt.Printf("rows affected: %d\n", rowCount)
 		if err != nil {
 			return fmt.Errorf("Error creating deposit address: \n%s", err)
 		}
@@ -139,7 +141,7 @@ func (db *DB) GetBalances(username string) error {
 // UpdateDeposits happens when a block is sent in, it updates the deposits table with correct deposits
 func (db *DB) UpdateDeposits(amounts []uint64, coinType coinparam.Params) error {
 
-	db.LogPrintf("Updating deposits for a block!\n")
+	// db.LogPrintf("Updating deposits for a block!\n")
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
 		return fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
@@ -182,7 +184,7 @@ func (db *DB) UpdateDeposits(amounts []uint64, coinType coinparam.Params) error 
 	if err != nil {
 		return fmt.Errorf("Error committing transaction: \n%s", err)
 	}
-	db.LogPrintf("Done updating deposits for this block!\n")
+	// db.LogPrintf("Done updating deposits for this block!\n")
 
 	return nil
 }

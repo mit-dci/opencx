@@ -9,6 +9,7 @@ import (
 
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/mit-dci/opencx/util"
 )
 
 // turn into config options
@@ -27,7 +28,7 @@ var (
 
 // DB contains the sql DB type as well as a logger
 type DB struct {
-	keychain             *Keychain
+	Keychain             *util.Keychain
 	DBHandler            *sql.DB
 	logger               *log.Logger
 	balanceSchema        string

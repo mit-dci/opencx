@@ -1,4 +1,4 @@
-package ocxsql
+package util
 
 import (
 	"crypto/sha256"
@@ -8,7 +8,6 @@ import (
 	"github.com/mit-dci/lit/btcutil"
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/opencx/util"
 )
 
 // I should probably test that the neutered private key derived with the same i is equal to the public key
@@ -27,7 +26,9 @@ type Keychain struct {
 func (k *Keychain) NewAddressBTC(username string) (string, error) {
 	sha := sha256.New()
 	sha.Write([]byte(username))
-	data := binary.BigEndian.Uint32(sha.Sum(nil)[:])
+	// TODO: Make this better lol, one of the most annoying things is key assignment and management
+	// We mod by 0x80000000 to make sure it's not hardened
+	data := binary.BigEndian.Uint32(sha.Sum(nil)[:]) % 0x80000000
 
 	childKey, err := k.BTCPubKey.Child(data)
 	if err != nil {
@@ -41,7 +42,7 @@ func (k *Keychain) NewAddressBTC(username string) (string, error) {
 
 	pubKeyBytes := addr.SerializeUncompressed()[1:]
 	pkHash160 := btcutil.Hash160(pubKeyBytes)
-	pkHashAddr, err := util.NewAddressPubKeyHash(pkHash160, &coinparam.TestNet3Params)
+	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, &coinparam.TestNet3Params)
 	if err != nil {
 		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
 	}
@@ -53,7 +54,9 @@ func (k *Keychain) NewAddressBTC(username string) (string, error) {
 func (k *Keychain) NewAddressVTC(username string) (string, error) {
 	sha := sha256.New()
 	sha.Write([]byte(username))
-	data := binary.BigEndian.Uint32(sha.Sum(nil)[:])
+	// TODO: Make this better lol, one of the most annoying things is key assignment and management
+	// We mod by 0x80000000 to make sure it's not hardened
+	data := binary.BigEndian.Uint32(sha.Sum(nil)[:]) % 0x80000000
 
 	childKey, err := k.BTCPubKey.Child(data)
 	if err != nil {
@@ -67,7 +70,7 @@ func (k *Keychain) NewAddressVTC(username string) (string, error) {
 
 	pubKeyBytes := addr.SerializeUncompressed()[1:]
 	pkHash160 := btcutil.Hash160(pubKeyBytes)
-	pkHashAddr, err := util.NewAddressPubKeyHash(pkHash160, &coinparam.VertcoinTestNetParams)
+	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, &coinparam.VertcoinTestNetParams)
 	if err != nil {
 		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
 	}
@@ -79,7 +82,10 @@ func (k *Keychain) NewAddressVTC(username string) (string, error) {
 func (k *Keychain) NewAddressLTC(username string) (string, error) {
 	sha := sha256.New()
 	sha.Write([]byte(username))
-	data := binary.BigEndian.Uint32(sha.Sum(nil)[:])
+
+	// TODO: Make this better lol, one of the most annoying things is key assignment and management
+	// We mod by 0x80000000 to make sure it's not hardened
+	data := binary.BigEndian.Uint32(sha.Sum(nil)[:]) % 0x80000000
 
 	childKey, err := k.BTCPubKey.Child(data)
 	if err != nil {
@@ -93,7 +99,7 @@ func (k *Keychain) NewAddressLTC(username string) (string, error) {
 
 	pubKeyBytes := addr.SerializeUncompressed()[1:]
 	pkHash160 := btcutil.Hash160(pubKeyBytes)
-	pkHashAddr, err := util.NewAddressPubKeyHash(pkHash160, &coinparam.LiteCoinTestNet4Params)
+	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, &coinparam.LiteCoinTestNet4Params)
 	if err != nil {
 		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
 	}

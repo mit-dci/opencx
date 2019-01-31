@@ -2,7 +2,6 @@ package cxserver
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/wire"
@@ -21,16 +20,16 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 
 			scriptType, data := util.ScriptType(output.PkScript)
 			if scriptType == "P2PKH" {
-				fmt.Printf("Script: %x\n", output.PkScript)
-				fmt.Printf("Data: %x\n", data)
-				addr, err := util.NewAddressPubKeyHash(data, &coinType)
+				// fmt.Printf("Script: %x\n", output.PkScript)
+				// fmt.Printf("Data: %x\n", data)
+				_, err := util.NewAddressPubKeyHash(data, &coinType)
 				if err != nil {
 					return fmt.Errorf("Error converting pubkeyhash into address while ingesting transaction: \n%s", err)
 				}
 
-				fmt.Printf("Address %s got %f BTC in tx %s\n", addr, float64(output.Value)/(math.Pow10(8)), tx.TxHash().String())
+				// fmt.Printf("Address %s got %f BTC in tx %s\n", addr, float64(output.Value)/(math.Pow10(8)), tx.TxHash().String())
 			} else {
-				fmt.Printf("Script type: %s\n", scriptType)
+				// fmt.Printf("Script type: %s\n", scriptType)
 			}
 		}
 		amounts = append(amounts, sumTxOut(tx.TxOut))
