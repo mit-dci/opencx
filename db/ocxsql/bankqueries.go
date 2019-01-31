@@ -188,3 +188,50 @@ func (db *DB) UpdateDeposits(amounts []uint64, coinType coinparam.Params) error 
 
 	return nil
 }
+
+// GetDepositAddress gets the deposit address of an account
+func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
+	var err error
+
+	// Use the deposit schema
+	_, err = db.DBHandler.Exec("USE " + db.depositSchema + ";")
+	if err != nil {
+		return "", fmt.Errorf("Could not use deposit schema: \n%s", err)
+	}
+
+	// Check if the asset exists
+	validTable := false
+	for _, elem := range db.assetArray {
+		if asset == elem {
+			validTable = true
+		}
+	}
+
+	if !validTable {
+		return "", fmt.Errorf("User %s tried to get deposit for %s which isn't a valid asset", username, asset)
+	}
+	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE name='%s';", asset, username)
+	res, err := db.DBHandler.Query(getBalanceQuery)
+	if err != nil {
+		return "", fmt.Errorf("Error when getting deposit: \n%s", err)
+	}
+
+	depositAddr := new(string)
+	success := res.Next()
+	if !success {
+		return "", fmt.Errorf("Database error: nothing to scan")
+	}
+	err = res.Scan(depositAddr)
+	if err != nil {
+		return "", fmt.Errorf("Error scanning for amount: \n%s", err)
+	}
+	db.LogPrintf("%s deposit for %s: %s\n", username, asset, *depositAddr)
+
+	err = res.Close()
+	if err != nil {
+		return "", fmt.Errorf("Error closing deposit result: \n%s", err)
+	}
+
+	return *depositAddr, nil
+
+}
