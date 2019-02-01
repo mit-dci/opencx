@@ -15,7 +15,7 @@ import (
 )
 
 // put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
-const exchangeStartingPoint = 1454600
+const exchangeStartingPoint = 1454700
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
@@ -94,7 +94,7 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 
 	// 1454600 is recent enough to not take too long. Also, the addresses weren't made before then so unless we want to
 	// credit people from the past idk what the point is
-	txHeightChan, btcheightChan, err := btcHook.Start(exchangeStartingPoint, "1", btcRoot, "", btcHook.Param)
+	txHeightChan, btcheightChan, err := btcHook.Start(exchangeStartingPoint, "localhost:18333", btcRoot, "", btcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
 	}

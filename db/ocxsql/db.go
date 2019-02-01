@@ -20,7 +20,6 @@ var (
 	balanceSchema        = "balances"
 	depositSchema        = "deposit"
 	pendingDepositSchema = "pending_deposits"
-	depositAddressSchema = "deposit_addrs"
 	assetArray           = []string{"btc", "ltc", "vtc"}
 )
 

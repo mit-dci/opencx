@@ -2,6 +2,7 @@ package cxserver
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/logging"
@@ -27,6 +28,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	if err != nil {
 		return
 	}
+
 	var deposits []match.Deposit
 
 	for _, tx := range txList {
@@ -47,22 +49,21 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 						Txid:                tx.TxHash().String(),
 						CoinType:            coinType,
 						BlockHeightReceived: height,
-						Confirmations:       (uint64(output.Value) / (10 ^ 8)) + 1,
+						Confirmations:       6 * uint64(math.Pow(6, float64(output.Value)/math.Pow10(8))),
 					}
 
+					logging.Infof("%s\n", newDeposit.String())
 					deposits = append(deposits, newDeposit)
 				}
 			}
 		}
 	}
 
-	if len(deposits) > 0 {
-		if err = server.OpencxDB.UpdateDeposits(deposits, height, coinType); err != nil {
-			return
-		}
+	if err = server.OpencxDB.UpdateDeposits(deposits, height, coinType); err != nil {
+		return
 	}
 
-	if height%10000 == 0 {
+	if height%100 == 0 {
 		logging.Infof("Finished ingesting block at height %d. There were %d deposits.\n", height, len(deposits))
 	}
 	return nil
