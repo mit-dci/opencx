@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/mit-dci/lit/logging"
+	"github.com/mit-dci/opencx/logging"
 )
 
 // This is here for reminder, use the expiration parameter in the Set() method for creating tokens!!

@@ -10,10 +10,10 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/mit-dci/lit/logging"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/db/ocxsql"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -70,10 +70,19 @@ func main() {
 	defaultKeyPath := filepath.Join(defaultRoot, defaultKeyFileName)
 	ocxServer.SetupServerKeys(defaultKeyPath)
 
+	// Set up all chain hooks
 	err = ocxServer.SetupBTCChainhook()
 	if err != nil {
 		log.Fatalf("Error setting up btc chainhook:\n%s", err)
 	}
+	err = ocxServer.SetupLTCChainhook()
+	if err != nil {
+		log.Fatalf("Error setting up ltc chainhook:\n%s", err)
+	}
+	// err = ocxServer.SetupVTCChainhook()
+	// if err != nil {
+	// 	log.Fatalf("Error setting up vtc chainhook:\n%s", err)
+	// }
 
 	// ocxServer.SetupWallets()
 

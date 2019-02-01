@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/mit-dci/lit/logging"
+	"github.com/mit-dci/opencx/logging"
 
 	"github.com/go-redis/redis"
 )

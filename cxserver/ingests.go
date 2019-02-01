@@ -5,8 +5,8 @@ import (
 	"math"
 
 	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/logging"
 	"github.com/mit-dci/lit/wire"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 	"github.com/mit-dci/opencx/util"
 )
@@ -64,7 +64,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	}
 
 	if height%100 == 0 {
-		logging.Infof("Finished ingesting block at height %d. There were %d deposits.\n", height, len(deposits))
+		logging.Infof("Finished ingesting %s block at height %d. There were %d deposits.\n", coinType.Name, height, len(deposits))
 	}
 	return nil
 }

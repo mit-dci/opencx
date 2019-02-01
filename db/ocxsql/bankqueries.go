@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/logging"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 	"github.com/mit-dci/opencx/util"
 )

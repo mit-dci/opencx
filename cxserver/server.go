@@ -7,15 +7,15 @@ import (
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/lnutil"
-	"github.com/mit-dci/lit/logging"
 	"github.com/mit-dci/lit/uspv"
 	"github.com/mit-dci/lit/wire"
 	"github.com/mit-dci/opencx/db/ocxsql"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/util"
 )
 
 // put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
-const exchangeStartingPoint = 1454700
+const exchangeStartingPoint = 1444700
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
@@ -94,14 +94,63 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 
 	// 1454600 is recent enough to not take too long. Also, the addresses weren't made before then so unless we want to
 	// credit people from the past idk what the point is
-	txHeightChan, btcheightChan, err := btcHook.Start(exchangeStartingPoint, "localhost:18333", btcRoot, "", btcHook.Param)
+	txHeightChan, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, "localhost:18333", btcRoot, "", btcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
 	}
+	btcHook.Ironman = true
 	logging.Debugf("BTC Chainhook started\n")
 
 	go server.TransactionHandler(txHeightChan)
 	go server.HeightHandler(btcheightChan, blockChan, btcHook.Param)
+
+	return nil
+}
+
+// SetupLTCChainhook will be used to watch for events on the chain.
+func (server *OpencxServer) SetupLTCChainhook() error {
+	ltcHook := new(uspv.SPVCon)
+
+	ltcHook.Param = &coinparam.LiteCoinTestNet4Params
+
+	ltcRoot := server.createSubRoot(ltcHook.Param.Name)
+
+	logging.Debugf("Starting LTC Chainhook\n")
+	blockChan := ltcHook.RawBlocks()
+
+	txHeightChan, ltcheightChan, err := ltcHook.Start(ltcHook.Param.StartHeight, "localhost:19335", ltcRoot, "", ltcHook.Param)
+	if err != nil {
+		return fmt.Errorf("Error when starting ltc hook: \n%s", err)
+	}
+	ltcHook.Ironman = true
+	logging.Debugf("LTC Chainhook started\n")
+
+	go server.TransactionHandler(txHeightChan)
+	go server.HeightHandler(ltcheightChan, blockChan, ltcHook.Param)
+
+	return nil
+}
+
+// SetupVTCChainhook will be used to watch for events on the chain.
+func (server *OpencxServer) SetupVTCChainhook() error {
+	vtcHook := new(uspv.SPVCon)
+
+	vtcHook.Param = &coinparam.VertcoinTestNetParams
+
+	vtcRoot := server.createSubRoot(vtcHook.Param.Name)
+
+	logging.Debugf("Starting VTC Chainhook\n")
+	blockChan := vtcHook.RawBlocks()
+
+	txHeightChan, vtcheightChan, err := vtcHook.Start(vtcHook.Param.StartHeight, "localhost:15889", vtcRoot, "", vtcHook.Param)
+	if err != nil {
+		return fmt.Errorf("Error when starting vtc hook: \n%s", err)
+	}
+	vtcHook.Ironman = true
+	logging.Debugf("VTC Chainhook started\n")
+
+	go server.TransactionHandler(txHeightChan)
+	go server.HeightHandler(vtcheightChan, blockChan, vtcHook.Param)
 
 	return nil
 }

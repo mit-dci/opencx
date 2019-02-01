@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/mit-dci/lit/logging"
+	"github.com/mit-dci/opencx/logging"
 )
 
 // CreateAccount creates an account on the exchange with specified username and password,
