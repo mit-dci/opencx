@@ -75,10 +75,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error setting up btc chainhook:\n%s", err)
 	}
-	err = ocxServer.SetupLTCChainhook()
-	if err != nil {
-		log.Fatalf("Error setting up ltc chainhook:\n%s", err)
-	}
+	// err = ocxServer.SetupLTCChainhook()
+	// if err != nil {
+	// 	log.Fatalf("Error setting up ltc chainhook:\n%s", err)
+	// }
 	// err = ocxServer.SetupVTCChainhook()
 	// if err != nil {
 	// 	log.Fatalf("Error setting up vtc chainhook:\n%s", err)

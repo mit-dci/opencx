@@ -7,6 +7,7 @@ import (
 
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/mit-dci/opencx/match"
 	"github.com/mit-dci/opencx/util"
 )
 
@@ -20,6 +21,7 @@ var (
 	balanceSchema        = "balances"
 	depositSchema        = "deposit"
 	pendingDepositSchema = "pending_deposits"
+	orderSchema          = "orders"
 	assetArray           = []string{"btc", "ltc", "vtc"}
 )
 
@@ -31,7 +33,9 @@ type DB struct {
 	balanceSchema        string
 	depositSchema        string
 	pendingDepositSchema string
+	orderSchema          string
 	assetArray           []string
+	pairsArray           []match.Pair
 }
 
 // SetupClient sets up the mysql client and driver
@@ -41,6 +45,7 @@ func (db *DB) SetupClient() error {
 	db.balanceSchema = balanceSchema
 	db.depositSchema = depositSchema
 	db.pendingDepositSchema = pendingDepositSchema
+	db.orderSchema = orderSchema
 	// Create users and schemas and assign permissions to opencx
 	err = db.RootInitSchemas(rootPass)
 	if err != nil {
@@ -87,18 +92,35 @@ func (db *DB) SetupClient() error {
 func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 	var err error
 
-	// Use the balance schema
+	// Use the schema
 	_, err = db.DBHandler.Exec("USE " + schemaName + ";")
 	if err != nil {
-		return fmt.Errorf("Could not use balance schema: \n%s", err)
+		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
 	}
-
 	for _, assetString := range db.assetArray {
-
 		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
+		}
+	}
+	return nil
+}
+
+// InitializePairTables initializes tables per pair
+func (db *DB) InitializePairTables(schemaName string, schemaSpec string) error {
+	var err error
+
+	// Use the schema
+	_, err = db.DBHandler.Exec("USE " + schemaName + ";")
+	if err != nil {
+		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+	}
+	for _, pair := range db.pairsArray {
+		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", pair.String(), schemaSpec)
+		_, err = db.DBHandler.Exec(tableQuery)
+		if err != nil {
+			return fmt.Errorf("Could not create table %s: \n%s", pair.String(), err)
 		}
 	}
 	return nil
@@ -139,6 +161,11 @@ func (db *DB) RootInitSchemas(rootPassword string) error {
 	}
 
 	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.pendingDepositSchema)
+	if err != nil {
+		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+	}
+
+	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.orderSchema)
 	if err != nil {
 		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
 	}

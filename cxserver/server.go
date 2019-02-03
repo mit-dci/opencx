@@ -92,9 +92,11 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 	logging.Debugf("Starting BTC Chainhook\n")
 	blockChan := btcHook.RawBlocks()
 
-	// 1454600 is recent enough to not take too long. Also, the addresses weren't made before then so unless we want to
+	// 1454000 is recent enough to not take too long. Also, the addresses weren't made before then so unless we want to
 	// credit people from the past idk what the point is
-	txHeightChan, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, "localhost:18333", btcRoot, "", btcHook.Param)
+
+	// I'm also trying to figure out how well full nodes work with chainhooks, don't wanna be a leech but rn it's not working too well
+	txHeightChan, btcheightChan, err := btcHook.Start(1454000, "1", btcRoot, "", btcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
 	}
