@@ -96,5 +96,15 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error when calling useless function when logged in:\n%s", err)
 		}
 	}
+	if cmd == "placeorder" {
+		if len(args) != 5 {
+			return fmt.Errorf("Must specify 5 arguments: name, side, pair, amountHave, and Price")
+		}
+
+		err := cl.OrderCommand(args)
+		if err != nil {
+			return fmt.Errorf("Error calling order command: \n%s", err)
+		}
+	}
 	return nil
 }

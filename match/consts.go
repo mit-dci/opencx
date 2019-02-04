@@ -25,11 +25,11 @@ func largeAssetList() []byte {
 func ByteToAssetString(assetByte byte) string {
 	switch assetByte {
 	case BTCTest:
-		return "BTCTest"
+		return "btc"
 	case VTCTest:
-		return "VTCTest"
+		return "vtc"
 	case LTCTest:
-		return "LTCTest"
+		return "ltc"
 	default:
 		return "Unsupported asset"
 	}

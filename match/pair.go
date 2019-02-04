@@ -1,6 +1,9 @@
 package match
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/mit-dci/lit/coinparam"
 )
 
@@ -31,8 +34,8 @@ func assetCast(attemptedAsset byte) asset {
 	return NullAsset
 }
 
-func (a *asset) String() string {
-	return ByteToAssetString(byte(*a))
+func (a asset) String() string {
+	return ByteToAssetString(byte(a))
 }
 
 // generateUniquePairs generates unique asset pairs based on the assets available
@@ -58,9 +61,14 @@ func GenerateAssetPairs() []Pair {
 	return generateUniquePairs(AssetList())
 }
 
+// Delim is essentially a constant for this struct, I'm sure there are better ways of doing it.
+func (p Pair) Delim() string {
+	return "_"
+}
+
 // String is the tostring function for a pair
 func (p Pair) String() string {
-	return p.AssetWant.String() + "/" + p.AssetHave.String()
+	return p.AssetWant.String() + p.Delim() + p.AssetHave.String()
 }
 
 // making this asset stuff was sort of a mistake, example below
@@ -76,5 +84,34 @@ func (a asset) GetAssociatedCoinParam() *coinparam.Params {
 	case VTCTest:
 		return &coinparam.VertcoinTestNetParams
 	}
+	return nil
+}
+
+// FromString creates a pair object from a string. This is for user input only
+func (p *Pair) FromString(pairString string) error {
+	strSplit := strings.Split(pairString, p.Delim())
+
+	switch strSplit[0] {
+	case assetCast(BTCTest).String():
+		p.AssetWant = BTCTest
+	case assetCast(LTCTest).String():
+		p.AssetWant = LTCTest
+	case assetCast(VTCTest).String():
+		p.AssetWant = VTCTest
+	default:
+		return fmt.Errorf("Unsupported Asset")
+	}
+
+	switch strSplit[1] {
+	case assetCast(BTCTest).String():
+		p.AssetHave = BTCTest
+	case assetCast(LTCTest).String():
+		p.AssetHave = LTCTest
+	case assetCast(VTCTest).String():
+		p.AssetHave = VTCTest
+	default:
+		return fmt.Errorf("Unsupported Asset")
+	}
+
 	return nil
 }

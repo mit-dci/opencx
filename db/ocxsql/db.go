@@ -60,6 +60,7 @@ func (db *DB) SetupClient() error {
 
 	db.DBHandler = dbHandle
 	db.assetArray = assetArray
+	db.pairsArray = match.GenerateAssetPairs()
 
 	err = db.DBHandler.Ping()
 	if err != nil {
@@ -87,7 +88,7 @@ func (db *DB) SetupClient() error {
 
 	// Initialize order table
 	// You can have a price up to 8 digits on the left, and 4 on the right of the decimal
-	err = db.InitializePairTables(db.orderSchema, "name TEXT, orderID TEXT, side TEXT, price FLOAT64, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
+	err = db.InitializePairTables(db.orderSchema, "name TEXT, orderID TEXT, side TEXT, price DOUBLE(16,16) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
 	if err != nil {
 		return fmt.Errorf("Could not initialize order tables: \n%s", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -13,6 +14,10 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 
 	// Check that they have the balance for the order
 	// if they do, place the order and update their balance
+	err = order.SetID()
+	if err != nil {
+		return err
+	}
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
@@ -32,6 +37,8 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 		return
 	}
 
+	logging.Infof("Used balance schema!\n")
+
 	var balCheckAsset string
 	if order.IsBuySide() {
 		balCheckAsset = order.TradingPair.AssetHave.String()
@@ -44,19 +51,30 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 		return
 	}
 
+	logging.Infof("Ran query for finding %s's balance for %s\n", order.Client, balCheckAsset)
 	if rows.Next() {
 		var balance uint64
 		if err = rows.Scan(&balance); err != nil {
 			return
 		}
 
-		if balance < order.AmountHave {
+		if err = rows.Close(); err != nil {
+			return
+		}
 
+		logging.Infof("Found balance! balance is: %d!\n", balance)
+		if balance > order.AmountHave {
+
+			logging.Infof("Balance is %d and order amounthave is %d\n", balance, order.AmountHave)
 			newBal := balance - order.AmountHave
 			subtractBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE name='%s';", balCheckAsset, newBal, order.Client)
-			if _, err = tx.Exec(subtractBalanceQuery); err != nil {
+			logging.Infof(subtractBalanceQuery)
+			if _, err = tx.Query(subtractBalanceQuery); err != nil {
+				logging.Infof(err.Error())
 				return
 			}
+
+			logging.Infof("Set balance to %d for %s\n", newBal, balCheckAsset)
 
 			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 				return
@@ -71,10 +89,16 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 				return
 			}
 
+		} else {
+			err = fmt.Errorf("Tried to place an order for more than you own, please lower the amount you want or adjust price")
+			return
 		}
+	} else {
+		err = fmt.Errorf("Could not find balance for user %s, so cannot place order", order.Client)
+		return
 	}
 	// when placing an order subtract from the balance
-	return nil
+	return
 }
 
 // runMatching is private since you don't really care about being able to call it from the outside, just to run it when certain things update
@@ -328,6 +352,8 @@ func (db *DB) CancelOrder(order *match.LimitOrder) (err error) {
 	// credit client with amounthave
 	return
 }
+
+// TODO
 
 // GetPrice returns the price based on the orderbook
 func (db *DB) GetPrice() error {
