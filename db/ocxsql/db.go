@@ -68,24 +68,30 @@ func (db *DB) SetupClient() error {
 
 	// Initialize Balance tables (order tables soon)
 	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
-	err = db.InitializeTables(balanceSchema, "name TEXT, balance BIGINT(64)")
+	err = db.InitializeTables(db.balanceSchema, "name TEXT, balance BIGINT(64)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize balance tables: \n%s", err)
 	}
 
 	// Initialize Deposit tables (order tables soon)
-	err = db.InitializeTables(depositSchema, "name TEXT, address TEXT")
+	err = db.InitializeTables(db.depositSchema, "name TEXT, address TEXT")
 	if err != nil {
 		return fmt.Errorf("Could not initialize deposit tables: \n%s", err)
 	}
 
 	// Initialize pending_deposits table
-	err = db.InitializeTables(pendingDepositSchema, "name TEXT, expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
+	err = db.InitializeTables(db.pendingDepositSchema, "name TEXT, expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
 	if err != nil {
 		return fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
 	}
-	return nil
 
+	// Initialize order table
+	// You can have a price up to 8 digits on the left, and 4 on the right of the decimal
+	err = db.InitializePairTables(db.orderSchema, "name TEXT, orderID TEXT, side TEXT, price FLOAT64, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
+	if err != nil {
+		return fmt.Errorf("Could not initialize order tables: \n%s", err)
+	}
+	return nil
 }
 
 // InitializeTables initializes all of the tables necessary for the exchange to run. The schema string can be either balanceSchema or depositSchema.

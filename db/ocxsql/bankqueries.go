@@ -188,6 +188,51 @@ func (db *DB) UpdateBalance(username string, amount uint64) (err error) {
 	return nil
 }
 
+// UpdateBalanceWithinTransaction increases the balance of username by amount
+func (db *DB) UpdateBalanceWithinTransaction(username string, amount uint64, tx *sql.Tx, coinType *coinparam.Params) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("Error updating balances within transaction: \n%s", err)
+			return
+		}
+	}()
+
+	// Another reason why just switching to coinparam stuff is the best option, or at least some sort of coinparam / name struct
+	coinSchema, err := util.GetSchemaNameFromCoinType(coinType)
+	if err != nil {
+		return
+	}
+
+	logging.Infof("Adding %d %s to %s's balance\n", amount, coinSchema, username)
+	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", coinSchema, username)
+	res, queryErr := tx.Query(currentBalanceQuery)
+	if queryErr != nil {
+		err = queryErr
+		return
+	}
+
+	// Get the first result for balance
+	res.Next()
+	var balance uint64
+
+	if err = res.Scan(&balance); err != nil {
+		return
+	}
+
+	if err = res.Close(); err != nil {
+		return
+	}
+
+	// Update the balance
+	// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
+	insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE name='%s';", coinSchema, balance+amount, username)
+	if _, err = tx.Exec(insertBalanceQuery); err != nil {
+		return
+	}
+
+	return nil
+}
+
 // UpdateBalancesWithinTransaction updates many balances, uses a transaction for all db stuff.
 func (db *DB) UpdateBalancesWithinTransaction(usernames []string, amounts []uint64, tx *sql.Tx, coinType *coinparam.Params) (err error) {
 

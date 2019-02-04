@@ -1,6 +1,9 @@
 package match
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 // Order is a struct that represents a stored side of a trade
 type Order interface {
@@ -16,7 +19,9 @@ type LimitOrder struct {
 	// amount of assetHave the user would like to trade
 	AmountHave uint64 `json:"amount"`
 	// amount of assetWant the user wants for their assetHave
-	AmountWant uint64 `json:"price"`
+	AmountWant uint64    `json:"price"`
+	Timestamp  time.Time `json:"timestamp"`
+	OrderID    string    `json:"id"`
 }
 
 // IsBuySide returns true if the limit order is buying
@@ -27,6 +32,16 @@ func (l *LimitOrder) IsBuySide() bool {
 // IsSellSide returns true if the limit order is selling
 func (l *LimitOrder) IsSellSide() bool {
 	return l.Side == "sell"
+}
+
+// OppositeSide is a helper to get the opposite side of the order
+func (l *LimitOrder) OppositeSide() string {
+	if l.IsBuySide() {
+		return "sell"
+	} else if l.IsSellSide() {
+		return "buy"
+	}
+	return ""
 }
 
 // Price gets a float price for the order. This determines how it will get matched. The exchange should figure out if it can take some of the

@@ -1,6 +1,8 @@
 package match
 
 const (
+	// NullAsset is a constant used to represent an unsupported or undefined asset
+	NullAsset = 0x00
 	// BTCTest is a constant used to represent a BTC Test net token
 	BTCTest = 0x01
 	// VTCTest is a constant used to represent a VTC Test net token
