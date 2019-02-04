@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -262,10 +263,70 @@ func (db *DB) DeleteOrderWithinTransaction(order *match.LimitOrder, pair match.P
 }
 
 // CancelOrder runs the queries to cancel an order. Cancelling an individual order is atomic.
-func (db *DB) CancelOrder(order *match.LimitOrder) error {
+func (db *DB) CancelOrder(order *match.LimitOrder) (err error) {
+
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		return fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while running matching, this might be bad: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+		return
+	}
+
+	// figure out if there is even an order
+	getCurrentOrderQuery := fmt.Sprintf("SELECT amountHave, amountWant, side FROM %s WHERE orderID='%s';", order.TradingPair.String(), order.OrderID)
+	rows, currOrderErr := tx.Query(getCurrentOrderQuery)
+	if err = currOrderErr; err != nil {
+		return
+	}
+
+	if rows.Next() {
+		var amtHave uint64
+		var amtWant uint64
+		var side string
+
+		// get current values in case of partially filled order
+		err = rows.Scan(&amtHave, &amtWant, &side)
+		if err != nil {
+			return
+		}
+
+		// delete order from db
+		deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%s';", order.TradingPair.String(), order.OrderID)
+		if _, err = tx.Exec(deleteOrderQuery); err != nil {
+			return
+		}
+
+		// use balance schema for updating balance
+		if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+			return
+		}
+
+		var correctAssetHave *coinparam.Params
+		if side == "buy" {
+			correctAssetHave = order.TradingPair.AssetHave.GetAssociatedCoinParam()
+		} else if side == "sell" {
+			correctAssetHave = order.TradingPair.AssetWant.GetAssociatedCoinParam()
+		}
+
+		// update the balance of the client
+		if err = db.UpdateBalanceWithinTransaction(order.Client, amtHave, tx, correctAssetHave); err != nil {
+			return
+		}
+
+	}
 
 	// credit client with amounthave
-	return nil
+	return
 }
 
 // GetPrice returns the price based on the orderbook
