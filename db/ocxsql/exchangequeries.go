@@ -8,11 +8,70 @@ import (
 )
 
 // PlaceOrder runs the queries which places an input order. Placing an individual order is atomic.
-func (db *DB) PlaceOrder(order *match.LimitOrder) error {
+func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 
 	// Check that they have the balance for the order
 	// if they do, place the order and update their balance
 
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		return fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while running matching, this might be bad: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// use balance schema
+	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+		return
+	}
+
+	var balCheckAsset string
+	if order.IsBuySide() {
+		balCheckAsset = order.TradingPair.AssetHave.String()
+	} else {
+		balCheckAsset = order.TradingPair.AssetWant.String()
+	}
+	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", balCheckAsset, order.Client)
+	rows, getBalErr := tx.Query(getBalanceQuery)
+	if err = getBalErr; err != nil {
+		return
+	}
+
+	if rows.Next() {
+		var balance uint64
+		if err = rows.Scan(&balance); err != nil {
+			return
+		}
+
+		if balance < order.AmountHave {
+
+			newBal := balance - order.AmountHave
+			subtractBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE name='%s';", balCheckAsset, newBal, order.Client)
+			if _, err = tx.Exec(subtractBalanceQuery); err != nil {
+				return
+			}
+
+			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+				return
+			}
+
+			realPrice, priceErr := order.Price()
+			if err = priceErr; err != nil {
+				return
+			}
+			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Client, order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
+			if _, err = tx.Exec(placeOrderQuery); err != nil {
+				return
+			}
+
+		}
+	}
 	// when placing an order subtract from the balance
 	return nil
 }
