@@ -74,8 +74,8 @@ func main() {
 	ocxServer.SetupServerKeys(defaultKeyPath)
 
 	// Set up all chain hooks
-	// go ocxServer.SetupBTCChainhook()
-	// go ocxServer.SetupLTCChainhook()
+	go ocxServer.SetupBTCChainhook()
+	go ocxServer.SetupLTCChainhook()
 	go ocxServer.SetupVTCChainhook()
 
 	// err = ocxServer.SetupBTCChainhook()
