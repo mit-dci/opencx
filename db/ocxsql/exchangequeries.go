@@ -37,7 +37,14 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 		return
 	}
 
-	logging.Infof("Used balance schema!\n")
+	inPairs := false
+	for _, pair := range db.pairsArray {
+		inPairs = inPairs || pair.String() == order.TradingPair.String()
+	}
+	if !inPairs {
+		err = fmt.Errorf("trading pair does not exist, try the other way around (e.g. ltc_btc => btc_ltc)")
+		return
+	}
 
 	var balCheckAsset string
 	if order.IsBuySide() {
@@ -51,7 +58,6 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 		return
 	}
 
-	logging.Infof("Ran query for finding %s's balance for %s\n", order.Client, balCheckAsset)
 	if rows.Next() {
 		var balance uint64
 		if err = rows.Scan(&balance); err != nil {
@@ -62,19 +68,13 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 			return
 		}
 
-		logging.Infof("Found balance! balance is: %d!\n", balance)
 		if balance > order.AmountHave {
 
-			logging.Infof("Balance is %d and order amounthave is %d\n", balance, order.AmountHave)
 			newBal := balance - order.AmountHave
 			subtractBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE name='%s';", balCheckAsset, newBal, order.Client)
-			logging.Infof(subtractBalanceQuery)
 			if _, err = tx.Query(subtractBalanceQuery); err != nil {
-				logging.Infof(err.Error())
 				return
 			}
-
-			logging.Infof("Set balance to %d for %s\n", newBal, balCheckAsset)
 
 			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 				return
@@ -84,7 +84,9 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 			if err = priceErr; err != nil {
 				return
 			}
+
 			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Client, order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
+			logging.Infof("%s\n", placeOrderQuery)
 			if _, err = tx.Exec(placeOrderQuery); err != nil {
 				return
 			}

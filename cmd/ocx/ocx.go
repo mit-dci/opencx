@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/logging"
 )
 
 // Let these be turned into config things at some point
@@ -15,14 +16,16 @@ var (
 
 // TODO figure out this, call in functions specific to method
 type openCxClient struct {
-	Username string
-	Token []byte
+	Username  string
+	Token     []byte
 	RPCClient *cxrpc.OpencxRPCClient
 }
 
 // opencx-cli is the client, opencx is the server
 func main() {
 	var err error
+
+	logging.SetLogLevel(2)
 
 	commandArg := os.Args[1:]
 
@@ -56,7 +59,6 @@ func (cl *openCxClient) setupCxClient(server string, port int) error {
 	if err != nil {
 		return err
 	}
-
 
 	return nil
 }

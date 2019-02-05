@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/mit-dci/opencx/cxrpc"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -39,8 +38,6 @@ func (cl *openCxClient) OrderCommand(args []string) error {
 	if err != nil {
 		return fmt.Errorf("Error calling 'SubmitOrder' service method:\n%s", err)
 	}
-
-	logging.Infof("Submitting order succeeded.\n")
 
 	return nil
 }

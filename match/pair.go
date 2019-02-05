@@ -87,9 +87,9 @@ func (a asset) GetAssociatedCoinParam() *coinparam.Params {
 	return nil
 }
 
-// FromString creates a pair object from a string. This is for user input only
+// FromString creates a pair object from a string. This is for user input only, hence the slash
 func (p *Pair) FromString(pairString string) error {
-	strSplit := strings.Split(pairString, p.Delim())
+	strSplit := strings.Split(pairString, "/")
 
 	switch strSplit[0] {
 	case assetCast(BTCTest).String():

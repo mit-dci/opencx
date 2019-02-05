@@ -71,10 +71,14 @@ func main() {
 	ocxServer.SetupServerKeys(defaultKeyPath)
 
 	// Set up all chain hooks
-	err = ocxServer.SetupBTCChainhook()
-	if err != nil {
-		log.Fatalf("Error setting up btc chainhook:\n%s", err)
-	}
+	go ocxServer.SetupBTCChainhook()
+	go ocxServer.SetupLTCChainhook()
+	go ocxServer.SetupVTCChainhook()
+
+	// err = ocxServer.SetupBTCChainhook()
+	// if err != nil {
+	// 	log.Fatalf("Error setting up btc chainhook:\n%s", err)
+	// }
 	// err = ocxServer.SetupLTCChainhook()
 	// if err != nil {
 	// 	log.Fatalf("Error setting up ltc chainhook:\n%s", err)
