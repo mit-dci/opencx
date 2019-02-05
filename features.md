@@ -47,14 +47,16 @@ Or maybe we want dark pools? Could be a feature, probably out of scope, would be
 
  - TODO: think of more that you might need
 
+## NOTE: nothing is permissioned, there used to be authentication but now there's not
 Permissioned commands:
 
  - Place order
-`ocx placeorder price {buy|sell} assetwant assethave amounttobuy`
+`ocx placeorder name {buy|sell} pair amountHave price`
 This will print a description of the order after making it, and prompt the user before actually sending it.
+The price is price, amountHave is the amount of the asset you have. If you're on the selling side, that will be the first asset1 in the asset1_asset2 pair. If you're on the buying side, that will be the second, asset2. 
 
- - Get account's address
-`ocx getaddress`
+ - Get account's deposit address
+`ocx getdepositaddress`
 This will return the address that is assigned to the user's account
 
  - Withdraw
