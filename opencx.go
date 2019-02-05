@@ -10,10 +10,10 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/mit-dci/lit/logging"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/db/ocxsql"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -74,8 +74,8 @@ func main() {
 	ocxServer.SetupServerKeys(defaultKeyPath)
 
 	// Set up all chain hooks
-	go ocxServer.SetupBTCChainhook()
-	go ocxServer.SetupLTCChainhook()
+	// go ocxServer.SetupBTCChainhook()
+	// go ocxServer.SetupLTCChainhook()
 	go ocxServer.SetupVTCChainhook()
 
 	// err = ocxServer.SetupBTCChainhook()

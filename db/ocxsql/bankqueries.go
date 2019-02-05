@@ -422,7 +422,6 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (map[string]strin
 	}
 	getBalanceQuery := fmt.Sprintf("SELECT address, name FROM %s;", asset)
 	res, err := db.DBHandler.Query(getBalanceQuery)
-	logging.Infof("%s\n", getBalanceQuery)
 	if err != nil {
 		return nil, fmt.Errorf("Error when getting deposit address: \n%s", err)
 	}

@@ -3,6 +3,7 @@ package cxserver
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
@@ -27,7 +28,7 @@ type OpencxServer struct {
 	OpencxVTCTestPrivKey *hdkeychain.ExtendedKey
 	OpencxLTCTestPrivKey *hdkeychain.ExtendedKey
 	HeightEventChan      chan lnutil.HeightEvent
-
+	ingestMutex          sync.Mutex
 	// TODO: Or implement client required signatures and pubkeys instead of usernames
 }
 
@@ -81,9 +82,13 @@ func (server *OpencxServer) SetupServerKeys(keypath string) error {
 // SetupBTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupBTCChainhook() error {
 	btcHook := new(uspv.SPVCon)
-	// logging.SetLogLevel(3)
+	logging.SetLogLevel(3)
 
-	btcHook.Param = &coinparam.TestNet3Params
+	btcHook.Param = &coinparam.RegressionNetParams
+	if btcHook.Param == &coinparam.RegressionNetParams {
+		btcHook.Param.DiffCalcFunction = dummyDifficulty
+		btcHook.Param.StartHeight = 0
+	}
 
 	btcRoot := server.createSubRoot(btcHook.Param.Name)
 
@@ -96,7 +101,7 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 	// credit people from the past idk what the point is
 
 	// I'm also trying to figure out how well full nodes work with chainhooks, don't wanna be a leech but rn it's not working too well
-	txHeightChan, btcheightChan, err := btcHook.Start(1454000, "1", btcRoot, "", btcHook.Param)
+	txHeightChan, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, "localhost:18444", btcRoot, "", btcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
 	}
@@ -115,13 +120,17 @@ func (server *OpencxServer) SetupLTCChainhook() error {
 	ltcHook := new(uspv.SPVCon)
 
 	ltcHook.Param = &coinparam.LiteRegNetParams
-	ltcHook.Param.DiffCalcFunction = dummyDifficulty
+	// difficulty in non bitcoin testnets has an air of mystery
+	if ltcHook.Param.TestCoin {
+		ltcHook.Param.DiffCalcFunction = dummyDifficulty
+		ltcHook.Param.StartHeight = 0
+	}
 	ltcRoot := server.createSubRoot(ltcHook.Param.Name)
 
 	logging.Debugf("Starting LTC Chainhook\n")
 	blockChan := ltcHook.RawBlocks()
 
-	txHeightChan, ltcheightChan, err := ltcHook.Start(0, "localhost:19444", ltcRoot, "", ltcHook.Param)
+	txHeightChan, ltcheightChan, err := ltcHook.Start(ltcHook.Param.StartHeight, "localhost:19444", ltcRoot, "", ltcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting ltc hook: \n%s", err)
 	}
@@ -137,15 +146,29 @@ func (server *OpencxServer) SetupLTCChainhook() error {
 // SetupVTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupVTCChainhook() error {
 	vtcHook := new(uspv.SPVCon)
+	logging.SetLogLevel(2)
 
 	vtcHook.Param = &coinparam.VertcoinRegTestParams
-	vtcHook.Param.DiffCalcFunction = dummyDifficulty
+	if vtcHook.Param.TestCoin {
+		if vtcHook.Param == &coinparam.VertcoinRegTestParams {
+			// the pchMessageStart for regtest is actually fabeb5db INSTEAD OF fabfb5da, very similar but also NOT THE SAME!!
+			vtcHook.Param.NetMagicBytes = 0xdbb5befa
+		}
+		vtcHook.Param.DiffCalcFunction = dummyDifficulty
+		vtcHook.Param.StartHeight = 0
+		logging.Infof("%x", vtcHook.Param.NetMagicBytes)
+	} else {
+		vtcHook.Param.DNSSeeds = []string{"jlovejoy.mit.edu", "gertjaap.ddns.net", "fr1.vtconline.org", "tvtc.vertcoin.org"}
+	}
+	vtcHook.Param.DefaultPort = "20444"
+	vtcHook.Param.GenerateSupported = true
 	vtcRoot := server.createSubRoot(vtcHook.Param.Name)
 
 	logging.Debugf("Starting VTC Chainhook\n")
 	blockChan := vtcHook.RawBlocks()
 
-	txHeightChan, vtcheightChan, err := vtcHook.Start(0, "localhost:18444", vtcRoot, "", vtcHook.Param)
+	// vertcoin regtest uses the same port as bitcoin regtest... >:(
+	txHeightChan, vtcheightChan, err := vtcHook.Start(vtcHook.Param.StartHeight, "localhost:20444", vtcRoot, "", vtcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting vtc hook: \n%s", err)
 	}
@@ -188,12 +211,12 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, blockC
 		// Wow we all have little hope that the bitcoin blockheight will grow to be a 64 bit integer... I want to see the day & hope we have
 		// hard drives big enough to hold the entire chain (or just the entire utreexo)
 		if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(h), coinType); err != nil {
-			logging.Infof("something went horribly wrong")
+			logging.Infof("something went horribly wrong with %s", coinType.Name)
 		}
 
 	}
 }
 
 func dummyDifficulty(headers []*wire.BlockHeader, height int32, p *coinparam.Params) (uint32, error) {
-	return p.PowLimitBits, nil
+	return headers[0].Bits, nil
 }
