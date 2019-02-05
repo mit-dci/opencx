@@ -24,10 +24,10 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 			return
 		}
 	}()
-	addressesWeOwn, err := server.OpencxDB.GetDepositAddressMap(coinType)
-	if err != nil {
-		return
-	}
+	// addressesWeOwn, err := server.OpencxDB.GetDepositAddressMap(coinType)
+	// if err != nil {
+	// 	return
+	// }
 
 	var deposits []match.Deposit
 
@@ -41,7 +41,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 					return
 				}
 
-				if name, found := addressesWeOwn[addr]; found {
+				if name, depErr := server.OpencxDB.GetDepositName(addr, coinType); depErr == nil && name != "" {
 					newDeposit := match.Deposit{
 						Name:                name,
 						Address:             addr,
@@ -54,6 +54,9 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 
 					logging.Infof("%s\n", newDeposit.String())
 					deposits = append(deposits, newDeposit)
+				} else if depErr != nil {
+					err = depErr
+					return
 				}
 			}
 		}

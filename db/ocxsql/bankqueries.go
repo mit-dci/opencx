@@ -33,6 +33,7 @@ func (db *DB) GetBalance(username string, asset string) (uint64, error) {
 	}
 	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", asset, username)
 	res, err := db.DBHandler.Query(getBalanceQuery)
+	// db.IncrementReads()
 	if err != nil {
 		return 0, fmt.Errorf("Error when getting balance: \n%s", err)
 	}
@@ -309,6 +310,7 @@ func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
 	}
 	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE name='%s';", asset, username)
 	res, err := db.DBHandler.Query(getBalanceQuery)
+	db.IncrementReads()
 	if err != nil {
 		return "", fmt.Errorf("Error when getting deposit: \n%s", err)
 	}
@@ -333,6 +335,78 @@ func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
 
 }
 
+// GetDepositName gets the deposit address of an account
+func (db *DB) GetDepositName(address string, coinType *coinparam.Params) (string, error) {
+	var err error
+
+	asset, err := util.GetSchemaNameFromCoinType(coinType)
+	if err != nil {
+		return "", fmt.Errorf("Tried to get deposit addresses for %s which isn't a valid asset", asset)
+	}
+	// Use the deposit schema
+	_, err = db.DBHandler.Exec("USE " + db.depositSchema + ";")
+	db.IncrementWrites()
+	if err != nil {
+		return "", fmt.Errorf("Could not use deposit schema: \n%s", err)
+	}
+
+	// Check if the asset exists
+	validTable := false
+	for _, elem := range db.assetArray {
+		if asset == elem {
+			validTable = true
+		}
+	}
+
+	if !validTable {
+		return "", fmt.Errorf("User %s tried to get deposit for %s which isn't a valid asset", address, asset)
+	}
+	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE address='%s';", asset, address)
+	res, err := db.DBHandler.Query(getBalanceQuery)
+	db.IncrementReads()
+	if err != nil {
+		fmt.Printf("1")
+		// return "", fmt.Errorf("Error when getting deposit: \n%s", err)
+	}
+	getBalanceQuery = fmt.Sprintf("SELECT address FROM %s WHERE address='%s';", asset, address)
+	res, err = db.DBHandler.Query(getBalanceQuery)
+	db.IncrementReads()
+	if err != nil {
+		fmt.Printf("2")
+		// return "", fmt.Errorf("Error when getting deposit: \n%s", err)
+	}
+	getBalanceQuery = fmt.Sprintf("SELECT address FROM %s WHERE address='%s';", asset, address)
+	res, err = db.DBHandler.Query(getBalanceQuery)
+	db.IncrementReads()
+	if err != nil {
+		fmt.Printf("3\n")
+		// return "", fmt.Errorf("Error when getting deposit: \n%s", err)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("Error when getting deposit: \n%s", err)
+	}
+
+	depositUsername := new(string)
+	if res.Next() {
+		err = res.Scan(depositUsername)
+		if err != nil {
+			return "", fmt.Errorf("Error scanning for amount: \n%s", err)
+		}
+		logging.Debugf("Addr %s's username for %s: %s\n", address, asset, *depositUsername)
+
+	} else {
+		return "", nil
+	}
+
+	err = res.Close()
+	if err != nil {
+		return "", fmt.Errorf("Error closing deposit result: \n%s", err)
+	}
+	return *depositUsername, nil
+
+}
+
 // GetDepositAddressMap returns a map from deposit addresses to names, essentially a set and only to get O(1) access time.
 func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (map[string]string, error) {
 
@@ -348,6 +422,7 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (map[string]strin
 	}
 	getBalanceQuery := fmt.Sprintf("SELECT address, name FROM %s;", asset)
 	res, err := db.DBHandler.Query(getBalanceQuery)
+	logging.Infof("%s\n", getBalanceQuery)
 	if err != nil {
 		return nil, fmt.Errorf("Error when getting deposit address: \n%s", err)
 	}

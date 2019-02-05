@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 	"github.com/mit-dci/opencx/util"
 )
@@ -36,6 +38,30 @@ type DB struct {
 	orderSchema          string
 	assetArray           []string
 	pairsArray           []match.Pair
+	globalReads          int64
+	globalWrites         int64
+	gReadsMutex          sync.Mutex
+	gWritesMutex         sync.Mutex
+}
+
+// IncrementReads increments the read variable and might print it out, this is just for debugging / making sure we're not overloading the DB
+func (db *DB) IncrementReads() {
+	db.gReadsMutex.Lock()
+	db.globalReads++
+	if db.globalReads%100 == 0 {
+		logging.Infof("Global reads: %d\n", db.globalReads)
+	}
+	db.gReadsMutex.Unlock()
+}
+
+// IncrementWrites increments the write variable and might print it out, this is just for debugging / making sure we're not overloading the DB
+func (db *DB) IncrementWrites() {
+	db.gWritesMutex.Lock()
+	db.globalWrites++
+	if db.globalWrites%100 == 0 {
+		logging.Infof("Global writes: %d\n", db.globalWrites)
+	}
+	db.gWritesMutex.Unlock()
 }
 
 // SetupClient sets up the mysql client and driver

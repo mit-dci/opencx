@@ -111,16 +111,17 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 
 // SetupLTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupLTCChainhook() error {
+	// logging.SetLogLevel(3)
 	ltcHook := new(uspv.SPVCon)
 
-	ltcHook.Param = &coinparam.LiteCoinTestNet4Params
-
+	ltcHook.Param = &coinparam.LiteRegNetParams
+	ltcHook.Param.DiffCalcFunction = dummyDifficulty
 	ltcRoot := server.createSubRoot(ltcHook.Param.Name)
 
 	logging.Debugf("Starting LTC Chainhook\n")
 	blockChan := ltcHook.RawBlocks()
 
-	txHeightChan, ltcheightChan, err := ltcHook.Start(ltcHook.Param.StartHeight, "localhost:19335", ltcRoot, "", ltcHook.Param)
+	txHeightChan, ltcheightChan, err := ltcHook.Start(0, "localhost:19444", ltcRoot, "", ltcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting ltc hook: \n%s", err)
 	}
@@ -137,14 +138,14 @@ func (server *OpencxServer) SetupLTCChainhook() error {
 func (server *OpencxServer) SetupVTCChainhook() error {
 	vtcHook := new(uspv.SPVCon)
 
-	vtcHook.Param = &coinparam.VertcoinTestNetParams
-
+	vtcHook.Param = &coinparam.VertcoinRegTestParams
+	vtcHook.Param.DiffCalcFunction = dummyDifficulty
 	vtcRoot := server.createSubRoot(vtcHook.Param.Name)
 
 	logging.Debugf("Starting VTC Chainhook\n")
 	blockChan := vtcHook.RawBlocks()
 
-	txHeightChan, vtcheightChan, err := vtcHook.Start(vtcHook.Param.StartHeight, "localhost:15889", vtcRoot, "", vtcHook.Param)
+	txHeightChan, vtcheightChan, err := vtcHook.Start(0, "localhost:18444", vtcRoot, "", vtcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting vtc hook: \n%s", err)
 	}
@@ -160,10 +161,10 @@ func (server *OpencxServer) SetupVTCChainhook() error {
 // TransactionHandler handles incoming transactions
 func (server *OpencxServer) TransactionHandler(incomingTxChan chan lnutil.TxAndHeight) {
 	for {
-		fmt.Printf("Waiting for incoming transaction...\n")
+		logging.Infof("Waiting for incoming transaction...\n")
 		txHeight := <-incomingTxChan
 
-		fmt.Printf("Got transaction at height: %d, txid: %s, outputs: %d\n", txHeight.Height, txHeight.Tx.TxHash().String(), len(txHeight.Tx.TxOut))
+		logging.Infof("Got transaction at height: %d, txid: %s, outputs: %d\n", txHeight.Height, txHeight.Tx.TxHash().String(), len(txHeight.Tx.TxOut))
 	}
 }
 
@@ -171,7 +172,7 @@ func (server *OpencxServer) TransactionHandler(incomingTxChan chan lnutil.TxAndH
 func (server *OpencxServer) createSubRoot(subRoot string) string {
 	subRootDir := server.OpencxRoot + subRoot
 	if _, err := os.Stat(subRootDir); os.IsNotExist(err) {
-		fmt.Printf("Creating root directory at %s\n", subRootDir)
+		logging.Infof("Creating root directory at %s\n", subRootDir)
 		os.Mkdir(subRootDir, os.ModePerm)
 	}
 	return subRootDir
@@ -182,12 +183,17 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, blockC
 	for {
 		h := <-incomingBlockHeight
 
-		logging.Debugf("A Block on the %s chain came in at height %d!\n", coinType.Name, h)
 		block := <-blockChan
 		logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), h)
 		// Wow we all have little hope that the bitcoin blockheight will grow to be a 64 bit integer... I want to see the day & hope we have
 		// hard drives big enough to hold the entire chain (or just the entire utreexo)
-		server.ingestTransactionListAndHeight(block.Transactions, uint64(h), coinType)
+		if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(h), coinType); err != nil {
+			logging.Infof("something went horribly wrong")
+		}
 
 	}
+}
+
+func dummyDifficulty(headers []*wire.BlockHeader, height int32, p *coinparam.Params) (uint32, error) {
+	return p.PowLimitBits, nil
 }
