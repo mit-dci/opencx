@@ -106,7 +106,7 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
 	}
 	btcHook.Ironman = true
-	logging.Debugf("BTC Chainhook started\n")
+	logging.Infof("BTC Chainhook started\n")
 
 	go server.TransactionHandler(txHeightChan)
 	go server.HeightHandler(btcheightChan, blockChan, btcHook.Param)
@@ -135,7 +135,7 @@ func (server *OpencxServer) SetupLTCChainhook() error {
 		return fmt.Errorf("Error when starting ltc hook: \n%s", err)
 	}
 	ltcHook.Ironman = true
-	logging.Debugf("LTC Chainhook started\n")
+	logging.Infof("LTC Chainhook started\n")
 
 	go server.TransactionHandler(txHeightChan)
 	go server.HeightHandler(ltcheightChan, blockChan, ltcHook.Param)
@@ -150,22 +150,13 @@ func (server *OpencxServer) SetupVTCChainhook() error {
 
 	vtcHook.Param = &coinparam.VertcoinRegTestParams
 	if vtcHook.Param.TestCoin {
-		if vtcHook.Param == &coinparam.VertcoinRegTestParams {
-			// the pchMessageStart for regtest is actually fabeb5db INSTEAD OF fabfb5da, very similar but also NOT THE SAME!!
-			vtcHook.Param.NetMagicBytes = 0xdbb5befa
-		}
-		// Now we have to change the p2pkh bytes because they're not right either
-		vtcHook.Param.DiffCalcFunction = dummyDifficulty
-		vtcHook.Param.StartHeight = 0
-		logging.Infof("%x", vtcHook.Param.NetMagicBytes)
-	} else {
 		vtcHook.Param.DNSSeeds = []string{"jlovejoy.mit.edu", "gertjaap.ddns.net", "fr1.vtconline.org", "tvtc.vertcoin.org"}
 	}
 	vtcHook.Param.DefaultPort = "20444"
 	vtcHook.Param.GenerateSupported = true
 	vtcRoot := server.createSubRoot(vtcHook.Param.Name)
 
-	logging.Debugf("Starting VTC Chainhook\n")
+	logging.Infof("Starting VTC Chainhook\n")
 	blockChan := vtcHook.RawBlocks()
 
 	// vertcoin regtest uses the same port as bitcoin regtest... >:(
@@ -205,6 +196,7 @@ func (server *OpencxServer) createSubRoot(subRoot string) string {
 // HeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
 func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
 	for {
+
 		h := <-incomingBlockHeight
 
 		block := <-blockChan

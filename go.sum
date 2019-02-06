@@ -73,6 +73,8 @@ github.com/mit-dci/lit v0.0.0-20181121210834-087d77ede336 h1:bRNrOwQur3+kfQ/xSx0
 github.com/mit-dci/lit v0.0.0-20181121210834-087d77ede336/go.mod h1:rc4TdU788+TZDGLPK7wvWZ3jGtoLHdtaMPNUmumnUMY=
 github.com/mit-dci/lit v0.0.0-20190206002646-a7269a70ed71 h1:EkgX67hAsMkXWmA80zdJISrDTnvgf8OJqthdXfSCyWA=
 github.com/mit-dci/lit v0.0.0-20190206002646-a7269a70ed71/go.mod h1:rc4TdU788+TZDGLPK7wvWZ3jGtoLHdtaMPNUmumnUMY=
+github.com/mit-dci/lit v0.0.0-20190206212915-7a22842c6316 h1:L87r0cDfpXMUfxzHplFtRW9X3uduKO9N9q6NeRGe/vc=
+github.com/mit-dci/lit v0.0.0-20190206212915-7a22842c6316/go.mod h1:rc4TdU788+TZDGLPK7wvWZ3jGtoLHdtaMPNUmumnUMY=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
