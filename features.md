@@ -200,4 +200,4 @@ Maybe it's just me, but an exchange that doesn't take custody of your tokens and
 
 
 
-Also if I'm wrong then I wrote a lot for no reason? Sucks but it's my fault if I'm wrong so ¯\\_(ツ)_/¯.
+Also if I'm wrong then I wrote a lot for no reason? Sucks but it's my fault if I'm wrong so `¯\_(ツ)_/¯`.
