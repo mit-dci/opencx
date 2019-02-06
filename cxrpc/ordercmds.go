@@ -21,5 +21,9 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 		return err
 	}
 
+	if err := cl.Server.OpencxDB.RunMatching(args.Order.TradingPair); err != nil {
+		return err
+	}
+
 	return nil
 }

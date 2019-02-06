@@ -84,6 +84,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 			if err = priceErr; err != nil {
 				return
 			}
+			fmt.Printf("Price for %s side: %f\n", order.Side, realPrice)
 
 			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Client, order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
 			logging.Infof("%s\n", placeOrderQuery)
@@ -103,8 +104,8 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 	return
 }
 
-// runMatching is private since you don't really care about being able to call it from the outside, just to run it when certain things update
-func (db *DB) runMatching(pair match.Pair) (err error) {
+// RunMatching is public because it's cool to run it at any time
+func (db *DB) RunMatching(pair match.Pair) (err error) {
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
@@ -129,18 +130,50 @@ func (db *DB) runMatching(pair match.Pair) (err error) {
 	if err != nil {
 		return
 	}
+
+	var prices []float64
+
 	for rows.Next() {
 		var price float64
 		if err = rows.Scan(&price); err != nil {
 			return
 		}
 
+		prices = append(prices, price)
+	}
+	if err = rows.Close(); err != nil {
+		return
+	}
+
+	for _, price := range prices {
+
+		logging.Infof("Matching all orders with price %f\n", price)
+
+		if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+			return
+		}
+
 		// this will select all sell side, ordered by time ascending so the earliest one will be at the front
-		getSellSideQuery := fmt.Sprintf("SELECT name, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
+		getSellSideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
 		sellRows, sellQueryErr := tx.Query(getSellSideQuery)
 		if err = sellQueryErr; err != nil {
 			return
 		}
+
+		var sellOrders []*match.LimitOrder
+		for sellRows.Next() {
+			sellOrder := new(match.LimitOrder)
+			if err = sellRows.Scan(&sellOrder.Client, &sellOrder.OrderID, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
+				return
+			}
+
+			sellOrders = append(sellOrders, sellOrder)
+		}
+		if err = sellRows.Close(); err != nil {
+			return
+		}
+
+		logging.Infof("selected name and stuff from sell side")
 
 		getBuySideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
 		buyRows, buyQueryErr := tx.Query(getBuySideQuery)
@@ -148,17 +181,25 @@ func (db *DB) runMatching(pair match.Pair) (err error) {
 			return
 		}
 
-		// loop through them both and make sure there are elements in both otherwise we're good
-		for buyRows.Next() && sellRows.Next() {
-			currBuyOrder := new(match.LimitOrder)
-			currSellOrder := new(match.LimitOrder)
-			if err = buyRows.Scan(&currBuyOrder.Client, &currBuyOrder.OrderID, &currBuyOrder.AmountHave, &currBuyOrder.AmountWant); err != nil {
+		var buyOrders []*match.LimitOrder
+		for buyRows.Next() {
+			buyOrder := new(match.LimitOrder)
+			if err = buyRows.Scan(&buyOrder.Client, &buyOrder.OrderID, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
 				return
 			}
 
-			if err = sellRows.Scan(&currSellOrder.Client, &currSellOrder.OrderID, &currSellOrder.AmountHave, &currSellOrder.AmountWant); err != nil {
-				return
-			}
+			buyOrders = append(buyOrders, buyOrder)
+		}
+		if err = buyRows.Close(); err != nil {
+			return
+		}
+
+		logging.Infof("selected name and stuff from buy side")
+
+		// loop through them both and make sure there are elements in both otherwise we're good
+		for len(buyOrders) > 0 && len(sellOrders) > 0 {
+			currBuyOrder := buyOrders[0]
+			currSellOrder := sellOrders[0]
 
 			// buying:
 			// when we calculate price, could this conditional lead to some weird matching favoritism?
@@ -180,6 +221,8 @@ func (db *DB) runMatching(pair match.Pair) (err error) {
 					return
 				}
 
+				sellOrders = sellOrders[1:]
+
 				// use the balance schema because we're ending with balance transactions
 				if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
 					return
@@ -191,6 +234,11 @@ func (db *DB) runMatching(pair match.Pair) (err error) {
 				}
 				// credit sellOrder client with buyorder amountWant
 				if err = db.UpdateBalanceWithinTransaction(currSellOrder.Client, prevAmountWant, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
+					return
+				}
+
+				// making sure we're going back in the order db, we're going to be making lots of order queries
+				if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 					return
 				}
 			} else if currBuyOrder.AmountHave < currSellOrder.AmountWant {
@@ -211,6 +259,7 @@ func (db *DB) runMatching(pair match.Pair) (err error) {
 					return
 				}
 
+				buyOrders = buyOrders[1:]
 				// use the balance schema because we're ending with balance transactions
 				if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
 					return
@@ -222,6 +271,11 @@ func (db *DB) runMatching(pair match.Pair) (err error) {
 				}
 				// credit sellOrder client with buyorder amountWant
 				if err = db.UpdateBalanceWithinTransaction(currSellOrder.Client, prevAmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
+					return
+				}
+
+				// making sure we're going back in the order db, we're going to be making lots of order queries
+				if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 					return
 				}
 			} else if currBuyOrder.AmountHave == currSellOrder.AmountWant {
@@ -237,6 +291,9 @@ func (db *DB) runMatching(pair match.Pair) (err error) {
 					return
 				}
 
+				sellOrders = sellOrders[1:]
+				buyOrders = buyOrders[1:]
+
 				// use the balance schema because we're ending with balance transactions
 				if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
 					return
@@ -250,9 +307,16 @@ func (db *DB) runMatching(pair match.Pair) (err error) {
 				if err = db.UpdateBalanceWithinTransaction(currSellOrder.Client, currBuyOrder.AmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
 					return
 				}
+
+				// making sure we're going back in the order db, we're going to be making lots of order queries
+				if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+					return
+				}
 			}
 		}
+
 	}
+
 	return
 }
 

@@ -58,7 +58,12 @@ func (l *LimitOrder) Price() (float64, error) {
 	if l.AmountWant == 0 {
 		return 0, fmt.Errorf("The amount requested in the order is 0, so no price can be calculated. Consider it a donation")
 	}
-	return float64(l.AmountHave / l.AmountWant), nil
+	if l.IsBuySide() {
+		return float64(l.AmountWant) / float64(l.AmountHave), nil
+	} else if l.IsSellSide() {
+		return float64(l.AmountHave) / float64(l.AmountWant), nil
+	}
+	return 0, fmt.Errorf("Order is not buy or sell, cannot calculate price")
 }
 
 // SetID sets an ID for the order, it's going to be different if you call it twice but we're only ever going to call it once
