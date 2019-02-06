@@ -131,7 +131,7 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
 	}
 	for _, assetString := range db.assetArray {
-		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
+		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", assetString, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)

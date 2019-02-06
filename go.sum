@@ -71,6 +71,8 @@ github.com/mattn/go-isatty v0.0.4 h1:bnP0vzxcAdeI1zdubAl5PjU6zsERjGZb7raWodagDYs
 github.com/mattn/go-isatty v0.0.4/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
 github.com/mit-dci/lit v0.0.0-20181121210834-087d77ede336 h1:bRNrOwQur3+kfQ/xSx0huH+WodKmcRcltEUm0NGD4lw=
 github.com/mit-dci/lit v0.0.0-20181121210834-087d77ede336/go.mod h1:rc4TdU788+TZDGLPK7wvWZ3jGtoLHdtaMPNUmumnUMY=
+github.com/mit-dci/lit v0.0.0-20190206002646-a7269a70ed71 h1:EkgX67hAsMkXWmA80zdJISrDTnvgf8OJqthdXfSCyWA=
+github.com/mit-dci/lit v0.0.0-20190206002646-a7269a70ed71/go.mod h1:rc4TdU788+TZDGLPK7wvWZ3jGtoLHdtaMPNUmumnUMY=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.7.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=

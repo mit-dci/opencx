@@ -70,7 +70,9 @@ func (k *Keychain) NewAddressVTC(username string) (string, error) {
 
 	pubKeyBytes := addr.SerializeUncompressed()[1:]
 	pkHash160 := btcutil.Hash160(pubKeyBytes)
-	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, &coinparam.VertcoinTestNetParams)
+
+	// TODO when using regtestnet generate this way, when not, generate other way
+	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, &coinparam.VertcoinRegTestParams)
 	if err != nil {
 		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
 	}

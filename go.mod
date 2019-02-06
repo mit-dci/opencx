@@ -24,7 +24,7 @@ require (
 	github.com/lib/pq v1.0.0
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect
-	github.com/mit-dci/lit v0.0.0-20181121210834-087d77ede336
+	github.com/mit-dci/lit v0.0.0-20190206002646-a7269a70ed71
 	github.com/vertcoin/lyra2re v0.0.0-20170910033546-8bfa142041c2 // indirect
 	gitlab.com/NebulousLabs/fastrand v0.0.0-20181126182046-603482d69e40 // indirect
 	gitlab.com/NebulousLabs/go-upnp v0.0.0-20181011194642-3a71999ed0d3 // indirect

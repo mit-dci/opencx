@@ -154,6 +154,7 @@ func (server *OpencxServer) SetupVTCChainhook() error {
 			// the pchMessageStart for regtest is actually fabeb5db INSTEAD OF fabfb5da, very similar but also NOT THE SAME!!
 			vtcHook.Param.NetMagicBytes = 0xdbb5befa
 		}
+		// Now we have to change the p2pkh bytes because they're not right either
 		vtcHook.Param.DiffCalcFunction = dummyDifficulty
 		vtcHook.Param.StartHeight = 0
 		logging.Infof("%x", vtcHook.Param.NetMagicBytes)

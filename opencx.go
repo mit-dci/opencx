@@ -10,10 +10,10 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/mit-dci/lit/logging"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/db/ocxsql"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
