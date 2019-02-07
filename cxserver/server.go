@@ -19,7 +19,7 @@ import (
 
 // put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
 const exchangeStartingPoint = 1444700
-const runningLocally = false
+const runningLocally = true
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
@@ -92,6 +92,7 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 	if runningLocally {
 		btcHost = "localhost:18444"
 		btcHook.Param = &coinparam.RegressionNetParams
+		// This is ugly, an exchange ought to be more like a collection of utility packages. I'm not programming modularity ver well.
 		btcHook.Param.StartHeight = 0
 	} else {
 		btcHost = "1"
@@ -101,15 +102,13 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 	btcHook.Param.DiffCalcFunction = dummyDifficulty
 	btcRoot := server.createSubRoot(btcHook.Param.Name)
 
-	// Okay now why can I put in "yes" as that parameter or "yup" like that makes no sense as being a remoteNode. "yes" is a remoteNode??
-	// maybe isThereAHost should be what its called or something
 	logging.Infof("Starting BTC Chainhook\n")
 	blockChan := btcHook.RawBlocks()
 
-	// 1454000 is recent enough to not take too long. Also, the addresses weren't made before then so unless we want to
-	// credit people from the past idk what the point is
+	// this should be done before we do any actual stuff with addresses since they rely on the keychain, that or just put a nil check in the addresS
+	// methods
+	server.OpencxDB.Keychain.BTCParams = btcHook.Param
 
-	// I'm also trying to figure out how well full nodes work with chainhooks, don't wanna be a leech but rn it's not working too well
 	txHeightChan, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, btcHost, btcRoot, "", btcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
@@ -131,6 +130,8 @@ func (server *OpencxServer) SetupLTCChainhook() error {
 
 	var ltcHost string
 	if runningLocally {
+		// TODO: move all this stuff up to be server parameters. Find a way to elegantly manage and add multiple chains while keeping track of parameters
+		// and nicely connecting to nodes, while handling unable to connect stuff
 		ltcHook.Param = &coinparam.LiteRegNetParams
 		ltcHost = "localhost:19444"
 		ltcHook.Param.StartHeight = 0
@@ -147,6 +148,8 @@ func (server *OpencxServer) SetupLTCChainhook() error {
 
 	logging.Debugf("Starting LTC Chainhook\n")
 	blockChan := ltcHook.RawBlocks()
+
+	server.OpencxDB.Keychain.LTCParams = ltcHook.Param
 
 	txHeightChan, ltcheightChan, err := ltcHook.Start(ltcHook.Param.StartHeight, ltcHost, ltcRoot, "", ltcHook.Param)
 	if err != nil {
@@ -183,6 +186,8 @@ func (server *OpencxServer) SetupVTCChainhook() error {
 
 	logging.Infof("Starting VTC Chainhook\n")
 	blockChan := vtcHook.RawBlocks()
+
+	server.OpencxDB.Keychain.VTCParams = vtcHook.Param
 
 	// vertcoin regtest uses the same port as bitcoin regtest... >:(
 	txHeightChan, vtcheightChan, err := vtcHook.Start(vtcHook.Param.StartHeight, vtcHost, vtcRoot, "", vtcHook.Param)
@@ -229,7 +234,8 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, blockC
 		// Wow we all have little hope that the bitcoin blockheight will grow to be a 64 bit integer... I want to see the day & hope we have
 		// hard drives big enough to hold the entire chain (or just the entire utreexo)
 		if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(h), coinType); err != nil {
-			logging.Infof("something went horribly wrong with %s", coinType.Name)
+			logging.Infof("something went horribly wrong with %s\n", coinType.Name)
+			logging.Errorf("Here's what went horribly wrong: %s\n", err)
 		}
 	}
 }

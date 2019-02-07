@@ -21,7 +21,7 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 		return err
 	}
 
-	if err := cl.Server.OpencxDB.RunMatching(args.Order.TradingPair); err != nil {
+	if err := cl.Server.OpencxDB.RunMatchingBestPrices(args.Order.TradingPair); err != nil {
 		return err
 	}
 
@@ -46,5 +46,21 @@ func (cl *OpencxRPC) ViewOrderBook(args ViewOrderBookArgs, reply *ViewOrderBookR
 		return err
 	}
 
+	return nil
+}
+
+// GetPriceArgs holds the args for the GetPrice command
+type GetPriceArgs struct {
+	TradingPair *match.Pair
+}
+
+// GetPriceReply holds the reply for the GetPrice command
+type GetPriceReply struct {
+	Price float64
+}
+
+// GetPrice returns the price for the specified asset
+func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) error {
+	reply.Price = cl.Server.OpencxDB.GetPrice(args.TradingPair.String())
 	return nil
 }

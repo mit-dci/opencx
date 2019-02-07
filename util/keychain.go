@@ -17,6 +17,9 @@ type Keychain struct {
 	BTCPubKey *hdkeychain.ExtendedKey
 	LTCPubKey *hdkeychain.ExtendedKey
 	VTCPubKey *hdkeychain.ExtendedKey
+	BTCParams *coinparam.Params
+	LTCParams *coinparam.Params
+	VTCParams *coinparam.Params
 }
 
 // the trick is to store i in the db along with the pub key so you know how to derive the priv key only if you have the master
@@ -42,7 +45,7 @@ func (k *Keychain) NewAddressBTC(username string) (string, error) {
 
 	pubKeyBytes := addr.SerializeUncompressed()[1:]
 	pkHash160 := btcutil.Hash160(pubKeyBytes)
-	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, &coinparam.TestNet3Params)
+	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, k.BTCParams)
 	if err != nil {
 		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
 	}
@@ -71,7 +74,7 @@ func (k *Keychain) NewAddressVTC(username string) (string, error) {
 	pubKeyBytes := addr.SerializeUncompressed()[1:]
 	pkHash160 := btcutil.Hash160(pubKeyBytes)
 
-	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, &coinparam.VertcoinRegTestParams)
+	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, k.VTCParams)
 	if err != nil {
 		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
 	}
@@ -100,7 +103,7 @@ func (k *Keychain) NewAddressLTC(username string) (string, error) {
 
 	pubKeyBytes := addr.SerializeUncompressed()[1:]
 	pkHash160 := btcutil.Hash160(pubKeyBytes)
-	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, &coinparam.LiteCoinTestNet4Params)
+	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, k.LTCParams)
 	if err != nil {
 		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
 	}

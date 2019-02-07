@@ -5,12 +5,14 @@ A centralized exchange to help understand what a DEX should be
  - Go 1.11+
  - [MariaDB](https://mariadb.org) (not needed for client)
 
-## Requirements *for now*
+## Optional - If you'd like to play with and mine your own money to trade
  - A running bitcoin regtest node on the local machine
  - A running litecoin regtest node on the local machine
  - A running vertcoin regtest node on the local machine
 
 It's all the same protocol, so it should work with btcd and whatnot (not vtcd though, the address prefix on that is wrong), but I've been testing with [bitcoind](https://github.com/bitcoin/bitcoin), [litecoind](https://github.com/litecoin-project/litecoin), and [vertcoind](https://github.com/vertcoin-project/vertcoin-core). 
+
+I'm still working on adding an option to indicate that you're running a regtest node, so the default right now is just connect to testnets.
 
 Here is how I have my configs set up, you should copy and paste these for easy set up:
 

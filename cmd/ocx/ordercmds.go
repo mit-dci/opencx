@@ -52,6 +52,28 @@ func (cl *openCxClient) OrderCommand(args []string) error {
 	return nil
 }
 
+func (cl *openCxClient) GetPrice(args []string) error {
+	var err error
+
+	getPriceArgs := new(cxrpc.GetPriceArgs)
+	getPriceReply := new(cxrpc.GetPriceReply)
+
+	// can't be a nil pointer to call methods on it
+	getPriceArgs.TradingPair = new(match.Pair)
+
+	// get the trading pair string from the shell input - first parameter
+	if err = getPriceArgs.TradingPair.FromString(args[0]); err != nil {
+		return err
+	}
+
+	if err = cl.Call("OpencxRPC.GetPrice", getPriceArgs, getPriceReply); err != nil {
+		return err
+	}
+
+	logging.Infof("Price: %f\n", getPriceReply.Price)
+	return nil
+}
+
 // ViewOrderbook return s the orderbook TODO
 func (cl *openCxClient) ViewOrderbook(args []string) error {
 	var err error

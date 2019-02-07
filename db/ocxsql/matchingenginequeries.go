@@ -28,8 +28,6 @@ func (db *DB) RunMatchingBestPrices(pair match.Pair) (err error) {
 		return
 	}
 
-	// ======= get sell prices =======
-
 	// First get all the sell prices so we have something to iterate through and match
 	getSellPricesQuery := fmt.Sprintf("SELECT DISTINCT price FROM %s WHERE side='%s' ORDER BY price ASC;", pair.String(), "sell")
 	sellPriceRows, err := tx.Query(getSellPricesQuery)
@@ -50,9 +48,6 @@ func (db *DB) RunMatchingBestPrices(pair match.Pair) (err error) {
 	if err = sellPriceRows.Close(); err != nil {
 		return
 	}
-
-	// ======= done with sell prices ======
-	// ======= get buy prices =======
 
 	// First get all the buy prices so we have something to iterate through and match
 	getBuyPricesQuery := fmt.Sprintf("SELECT DISTINCT price FROM %s WHERE side='%s' ORDER BY price DESC;", pair.String(), "buy")
@@ -75,10 +70,33 @@ func (db *DB) RunMatchingBestPrices(pair match.Pair) (err error) {
 		return
 	}
 
-	// ======= done with buy prices ======
+	var lastBuyPrice float64
+	var lastSellPrice float64
 
+	// this is a really really basic / naive algorithm that should run matching for the "best price"
 	for shouldMatch(buyPrices, sellPrices) {
+		if buyPrices[0] == sellPrices[0] {
+			if err = db.RunMatchingForPriceWithinTransaction(pair, buyPrices[0], tx); err != nil {
+				return
+			}
+		} else {
+			if err = db.RunMatchingForPriceWithinTransaction(pair, buyPrices[0], tx); err != nil {
+				return
+			}
+			if err = db.RunMatchingForPriceWithinTransaction(pair, sellPrices[0], tx); err != nil {
+				return
+			}
+		}
+		lastBuyPrice = buyPrices[0]
+		lastSellPrice = sellPrices[0]
+		buyPrices = buyPrices[1:]
+		sellPrices = sellPrices[1:]
+	}
 
+	if lastBuyPrice > 0 && lastSellPrice > 0 {
+		midpoint := (lastBuyPrice + lastSellPrice) / 2
+		db.SetPrice(midpoint, pair.String())
+		logging.Infof("Set price to %f for %s\n", midpoint, pair.String())
 	}
 	return
 }
@@ -147,12 +165,8 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 		currBuyOrder := buyOrders[0]
 		currSellOrder := sellOrders[0]
 
-		// buying:
-		// when we calculate price, could this conditional lead to some weird matching favoritism?
 		if currBuyOrder.AmountHave > currSellOrder.AmountWant {
 
-			// keep these to see if we can get any pennies off the order or something?? Isn't that illegal?
-			// to see if there's a difference in price technically as well
 			prevAmountHave := currSellOrder.AmountHave
 			prevAmountWant := currSellOrder.AmountWant
 			currBuyOrder.AmountHave -= currSellOrder.AmountWant
@@ -189,8 +203,6 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 			}
 		} else if currBuyOrder.AmountHave < currSellOrder.AmountWant {
 
-			// keep these to see if we can get any pennies off the order or something?? Isn't that illegal?
-			// to see if there's a difference in price technically as well
 			prevAmountHave := currBuyOrder.AmountHave
 			prevAmountWant := currBuyOrder.AmountWant
 			currSellOrder.AmountHave -= currBuyOrder.AmountWant
@@ -264,7 +276,8 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 	return
 }
 
-// RunMatching is public because it's cool to run it at any time
+// RunMatching runs matching on every price in the order book. If you had enough processing power, this would be the matching to
+// run, since it scans all prices, and can be run at any time.
 func (db *DB) RunMatching(pair match.Pair) (err error) {
 
 	tx, err := db.DBHandler.Begin()
@@ -306,11 +319,9 @@ func (db *DB) RunMatching(pair match.Pair) (err error) {
 	}
 
 	for _, price := range prices {
-
 		if err = db.RunMatchingForPriceWithinTransaction(pair, price, tx); err != nil {
 			return
 		}
-
 	}
 
 	return

@@ -87,7 +87,6 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 			fmt.Printf("Price for %s side: %f\n", order.Side, realPrice)
 
 			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Client, order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
-			logging.Infof("%s\n", placeOrderQuery)
 			if _, err = tx.Exec(placeOrderQuery); err != nil {
 				return
 			}
@@ -201,13 +200,6 @@ func (db *DB) CancelOrder(order *match.LimitOrder) (err error) {
 
 	// credit client with amounthave
 	return
-}
-
-// TODO
-
-// GetPrice returns the price based on the orderbook
-func (db *DB) GetPrice() error {
-	return nil
 }
 
 // ViewOrderBook returns a list of orders that is the orderbook

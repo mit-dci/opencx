@@ -27,7 +27,13 @@ var (
 	assetArray           = []string{"btc", "ltc", "vtc"}
 )
 
-// DB contains the sql DB type as well as a logger
+// the globalread and globalwrite variables are for debugging
+
+// DB contains the sql DB type as well as a logger.
+// The database is a BEHEMOTH, should be refactored. Some examples on how to refactor are cleaning up mutexes, creating config file for all the globals,
+// figuring out a better way to handle schemas, finding a better spot for a keychain, and putting the price somewhere else.
+// What would be great is to move everything having to do with price and matching into match and making match more like a matching engine framework
+// or library for exchanges.
 type DB struct {
 	Keychain             *util.Keychain
 	DBHandler            *sql.DB
@@ -42,6 +48,26 @@ type DB struct {
 	globalWrites         int64
 	gReadsMutex          sync.Mutex
 	gWritesMutex         sync.Mutex
+	gPriceMutex          sync.Mutex
+	gPriceMap            map[string]float64
+}
+
+// SetPrice sets the price, uses a lock since it will be written to and read from possibly at the same time (written to by server, read by client)
+func (db *DB) SetPrice(newPrice float64, pairString string) {
+	db.gPriceMutex.Lock()
+	db.gPriceMap[pairString] = newPrice
+	db.gPriceMutex.Unlock()
+}
+
+// GetPrice returns the price and side of the last transacted price
+func (db *DB) GetPrice(pairString string) (price float64) {
+	db.gPriceMutex.Lock()
+	price, found := db.gPriceMap[pairString]
+	if !found {
+		return float64(0)
+	}
+	defer db.gPriceMutex.Unlock()
+	return price
 }
 
 // IncrementReads increments the read variable and might print it out, this is just for debugging / making sure we're not overloading the DB
@@ -68,6 +94,7 @@ func (db *DB) IncrementWrites() {
 func (db *DB) SetupClient() error {
 	var err error
 
+	db.gPriceMap = make(map[string]float64)
 	db.balanceSchema = balanceSchema
 	db.depositSchema = depositSchema
 	db.pendingDepositSchema = pendingDepositSchema

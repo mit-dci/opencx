@@ -188,8 +188,10 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [x] Matching engine
  - [x] Get all balances
    - [x] Extra command
+ - [x] Get Price
  - [ ] Remove token stuff in shell
- - [ ] Correct dynamic confirmations
+ - [x] ~~Correct dynamic confirmations~~ fixed but I just changed it to 6, but it *could* be made a lot better because I made it easy to do so.
+ - [ ] Fix issue with price calculation on sell side
 
 #### Decentralization notes
 
@@ -218,6 +220,8 @@ This also doesn't really stop the attacker, since maybe their goal is to stop wh
 
 Maybe it's just me, but an exchange that doesn't take custody of your tokens and doesn't match peer to peer seems like a bad business plan because of this. The fee model would have to be really good. It's not that any normal person can screw with this, but the point of bitcoin is that you trust no one, and you especially don't trust your wealthy competitors, even when not in the adversarial bitcoin world.
 
+
+I mean I'm not sure what you would gain from attacking arwen though, considering it connects to normal exchanges.
 
 
 Also if I'm wrong then I wrote a lot for no reason? Sucks but it's my fault if I'm wrong so `¯\_(ツ)_/¯`.
