@@ -174,6 +174,8 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [x] Matching engine
  - [ ] Get all balances
    - [ ] Extra command
+ - [ ] Remove token stuff in shell
+ - [ ] Correct dynamic confirmations
 
 #### Decentralization notes
 

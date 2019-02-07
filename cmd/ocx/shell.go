@@ -50,6 +50,16 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error getting balance: \n%s", err)
 		}
 	}
+	if cmd == "getallbalances" {
+		if len(args) != 1 {
+			return fmt.Errorf("Must specify username to get balances for user")
+		}
+
+		err := cl.GetAllBalances(args)
+		if err != nil {
+			return fmt.Errorf("Error getting balance: \n%s", err)
+		}
+	}
 	if cmd == "getdepositaddress" {
 		if len(args) != 2 {
 			return fmt.Errorf("Must specify username and token to get deposit address for toke")
