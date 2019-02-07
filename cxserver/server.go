@@ -5,6 +5,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/mit-dci/lit/btcutil/chaincfg/chainhash"
+
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/lnutil"
@@ -17,6 +19,7 @@ import (
 
 // put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
 const exchangeStartingPoint = 1444700
+const runningLocally = false
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
@@ -82,26 +85,32 @@ func (server *OpencxServer) SetupServerKeys(keypath string) error {
 // SetupBTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupBTCChainhook() error {
 	btcHook := new(uspv.SPVCon)
-	logging.SetLogLevel(3)
 
-	btcHook.Param = &coinparam.RegressionNetParams
-	if btcHook.Param == &coinparam.RegressionNetParams {
-		btcHook.Param.DiffCalcFunction = dummyDifficulty
+	// set log level for this thread
+	logging.SetLogLevel(2)
+	var btcHost string
+	if runningLocally {
+		btcHost = "localhost:18444"
+		btcHook.Param = &coinparam.RegressionNetParams
 		btcHook.Param.StartHeight = 0
+	} else {
+		btcHost = "1"
+		btcHook.Param = &coinparam.TestNet3Params
 	}
 
+	btcHook.Param.DiffCalcFunction = dummyDifficulty
 	btcRoot := server.createSubRoot(btcHook.Param.Name)
 
 	// Okay now why can I put in "yes" as that parameter or "yup" like that makes no sense as being a remoteNode. "yes" is a remoteNode??
 	// maybe isThereAHost should be what its called or something
-	logging.Debugf("Starting BTC Chainhook\n")
+	logging.Infof("Starting BTC Chainhook\n")
 	blockChan := btcHook.RawBlocks()
 
 	// 1454000 is recent enough to not take too long. Also, the addresses weren't made before then so unless we want to
 	// credit people from the past idk what the point is
 
 	// I'm also trying to figure out how well full nodes work with chainhooks, don't wanna be a leech but rn it's not working too well
-	txHeightChan, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, "localhost:18444", btcRoot, "", btcHook.Param)
+	txHeightChan, btcheightChan, err := btcHook.Start(btcHook.Param.StartHeight, btcHost, btcRoot, "", btcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting btc hook: \n%s", err)
 	}
@@ -116,21 +125,30 @@ func (server *OpencxServer) SetupBTCChainhook() error {
 
 // SetupLTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupLTCChainhook() error {
-	// logging.SetLogLevel(3)
 	ltcHook := new(uspv.SPVCon)
+	// set log level for this thread
+	logging.SetLogLevel(2)
 
-	ltcHook.Param = &coinparam.LiteRegNetParams
-	// difficulty in non bitcoin testnets has an air of mystery
-	if ltcHook.Param.TestCoin {
-		ltcHook.Param.DiffCalcFunction = dummyDifficulty
+	var ltcHost string
+	if runningLocally {
+		ltcHook.Param = &coinparam.LiteRegNetParams
+		ltcHost = "localhost:19444"
 		ltcHook.Param.StartHeight = 0
+	} else {
+		ltcHook.Param = &coinparam.LiteCoinTestNet4Params
+		ltcHook.Param.PoWFunction = dummyProofOfWork
+		ltcHost = "1"
 	}
+
+	// difficulty in non bitcoin testnets has an air of mystery
+	ltcHook.Param.DiffCalcFunction = dummyDifficulty
+
 	ltcRoot := server.createSubRoot(ltcHook.Param.Name)
 
 	logging.Debugf("Starting LTC Chainhook\n")
 	blockChan := ltcHook.RawBlocks()
 
-	txHeightChan, ltcheightChan, err := ltcHook.Start(ltcHook.Param.StartHeight, "localhost:19444", ltcRoot, "", ltcHook.Param)
+	txHeightChan, ltcheightChan, err := ltcHook.Start(ltcHook.Param.StartHeight, ltcHost, ltcRoot, "", ltcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting ltc hook: \n%s", err)
 	}
@@ -146,20 +164,28 @@ func (server *OpencxServer) SetupLTCChainhook() error {
 // SetupVTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupVTCChainhook() error {
 	vtcHook := new(uspv.SPVCon)
+	// set log level for this thread
 	logging.SetLogLevel(2)
 
-	vtcHook.Param = &coinparam.VertcoinRegTestParams
-	if vtcHook.Param.TestCoin {
+	var vtcHost string
+	if runningLocally {
+		vtcHook.Param = &coinparam.VertcoinRegTestParams
+		vtcHost = "localhost:20444"
+		vtcHook.Param.DefaultPort = "20444"
+	} else {
+		vtcHook.Param = &coinparam.VertcoinTestNetParams
+		vtcHook.Param.PoWFunction = dummyProofOfWork
 		vtcHook.Param.DNSSeeds = []string{"jlovejoy.mit.edu", "gertjaap.ddns.net", "fr1.vtconline.org", "tvtc.vertcoin.org"}
+		vtcHost = "1"
 	}
-	vtcHook.Param.DefaultPort = "20444"
+
 	vtcRoot := server.createSubRoot(vtcHook.Param.Name)
 
 	logging.Infof("Starting VTC Chainhook\n")
 	blockChan := vtcHook.RawBlocks()
 
 	// vertcoin regtest uses the same port as bitcoin regtest... >:(
-	txHeightChan, vtcheightChan, err := vtcHook.Start(vtcHook.Param.StartHeight, "localhost:20444", vtcRoot, "", vtcHook.Param)
+	txHeightChan, vtcheightChan, err := vtcHook.Start(vtcHook.Param.StartHeight, vtcHost, vtcRoot, "", vtcHook.Param)
 	if err != nil {
 		return fmt.Errorf("Error when starting vtc hook: \n%s", err)
 	}
@@ -205,10 +231,19 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan int32, blockC
 		if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(h), coinType); err != nil {
 			logging.Infof("something went horribly wrong with %s", coinType.Name)
 		}
-
 	}
 }
 
 func dummyDifficulty(headers []*wire.BlockHeader, height int32, p *coinparam.Params) (uint32, error) {
-	return headers[0].Bits, nil
+	return headers[len(headers)-1].Bits, nil
+	// return headers[0].Bits, nil
+}
+
+func dummyProofOfWork(b []byte, height int32) chainhash.Hash {
+	lowestPow := make([]byte, 32)
+	smolhash, err := chainhash.NewHash(lowestPow)
+	if err != nil {
+		logging.Errorf("Error setting hash to a bunch of bytes of zeros")
+	}
+	return *smolhash
 }

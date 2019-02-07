@@ -22,9 +22,6 @@ var (
 	defaultRoot        = ".opencx/"
 	defaultPort        = 12345
 	defaultKeyFileName = "privkey.hex"
-	defaultBTCAPILink  = "localhost:8888"
-	defaultVTCAPILink  = "localhost:8889"
-	defaultLTCAPILink  = "localhost:8890"
 )
 
 func main() {
