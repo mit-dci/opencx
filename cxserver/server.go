@@ -153,7 +153,6 @@ func (server *OpencxServer) SetupVTCChainhook() error {
 		vtcHook.Param.DNSSeeds = []string{"jlovejoy.mit.edu", "gertjaap.ddns.net", "fr1.vtconline.org", "tvtc.vertcoin.org"}
 	}
 	vtcHook.Param.DefaultPort = "20444"
-	vtcHook.Param.GenerateSupported = true
 	vtcRoot := server.createSubRoot(vtcHook.Param.Name)
 
 	logging.Infof("Starting VTC Chainhook\n")
