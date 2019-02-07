@@ -23,7 +23,7 @@ deprecatedrpc=generate
 debug=net
 ```
 
-##### '~/.vertcoin/vertcoin.conf`
+##### `~/.vertcoin/vertcoin.conf`
 ```
 server=1
 daemon=1
