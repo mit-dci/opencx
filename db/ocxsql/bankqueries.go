@@ -41,7 +41,7 @@ func (db *DB) GetBalance(username string, asset string) (uint64, error) {
 	amount := new(uint64)
 	success := res.Next()
 	if !success {
-		return 0, fmt.Errorf("Database error: nothing to scan")
+		return 0, fmt.Errorf("Database error: username doesn't exist")
 	}
 	err = res.Scan(amount)
 	if err != nil {
@@ -116,7 +116,9 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 		amounts = append(amounts, amount)
 		txids = append(txids, txid)
 	}
-	rows.Close()
+	if err = rows.Close(); err != nil {
+		return
+	}
 
 	if len(amounts) > 0 {
 		if err = db.UpdateBalancesWithinTransaction(usernames, amounts, tx, coinType); err != nil {
@@ -212,22 +214,29 @@ func (db *DB) UpdateBalanceWithinTransaction(username string, amount uint64, tx 
 	}
 
 	// Get the first result for balance
-	res.Next()
-	var balance uint64
+	if res.Next() {
+		var balance uint64
 
-	if err = res.Scan(&balance); err != nil {
-		return
-	}
+		if err = res.Scan(&balance); err != nil {
+			return
+		}
+		if err = res.Close(); err != nil {
+			return
+		}
 
-	if err = res.Close(); err != nil {
-		return
-	}
-
-	// Update the balance
-	// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-	insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE name='%s';", coinSchema, balance+amount, username)
-	if _, err = tx.Exec(insertBalanceQuery); err != nil {
-		return
+		// Update the balance
+		// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
+		insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE name='%s';", coinSchema, balance+amount, username)
+		if _, err = tx.Exec(insertBalanceQuery); err != nil {
+			return
+		}
+	} else {
+		// Create the balance
+		// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
+		insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinSchema, username, amount)
+		if _, err = tx.Exec(insertBalanceQuery); err != nil {
+			return
+		}
 	}
 
 	return nil
@@ -264,22 +273,30 @@ func (db *DB) UpdateBalancesWithinTransaction(usernames []string, amounts []uint
 		}
 
 		// Get the first result for balance
-		res.Next()
-		var balance uint64
+		if res.Next() {
+			var balance uint64
 
-		if err = res.Scan(&balance); err != nil {
-			return
-		}
+			if err = res.Scan(&balance); err != nil {
+				return
+			}
 
-		if err = res.Close(); err != nil {
-			return
-		}
+			if err = res.Close(); err != nil {
+				return
+			}
 
-		// Update the balance
-		// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-		insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE name='%s';", coinSchema, balance+amount, username)
-		if _, err = tx.Exec(insertBalanceQuery); err != nil {
-			return
+			// Update the balance
+			// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
+			insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE name='%s';", coinSchema, balance+amount, username)
+			if _, err = tx.Exec(insertBalanceQuery); err != nil {
+				return
+			}
+		} else {
+			// Create the balance
+			// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
+			insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinSchema, username, amount)
+			if _, err = tx.Exec(insertBalanceQuery); err != nil {
+				return
+			}
 		}
 	}
 

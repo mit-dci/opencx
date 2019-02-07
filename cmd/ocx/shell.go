@@ -116,5 +116,15 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error calling vieworderbook command: \n%s", err)
 		}
 	}
+	if cmd == "getprice" {
+		if len(args) > 1 {
+			return fmt.Errorf("Must specify 1 argument: pair")
+		}
+
+		err := cl.GetPrice(args)
+		if err != nil {
+			return fmt.Errorf("Error calling getprice command: \n%s", err)
+		}
+	}
 	return nil
 }

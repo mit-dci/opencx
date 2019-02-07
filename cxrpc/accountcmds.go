@@ -35,10 +35,12 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) error {
 	// TODO: make a generic CreateAndStoreToken(username) function
 	// TODO: make a generic CheckToken(username) function
 
+	cl.Server.LockIngests()
 	success, err := cl.Server.OpencxDB.CreateAccount(args.Username, args.Password)
 	if err != nil {
 		return fmt.Errorf("Error creating account: \n%s", err)
 	}
+	cl.Server.UnlockIngests()
 
 	// delete this after you get a database working
 	if !success {

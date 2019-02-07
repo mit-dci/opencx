@@ -48,25 +48,20 @@ type DB struct {
 	globalWrites         int64
 	gReadsMutex          sync.Mutex
 	gWritesMutex         sync.Mutex
-	gPriceMutex          sync.Mutex
 	gPriceMap            map[string]float64
 }
 
 // SetPrice sets the price, uses a lock since it will be written to and read from possibly at the same time (written to by server, read by client)
 func (db *DB) SetPrice(newPrice float64, pairString string) {
-	db.gPriceMutex.Lock()
 	db.gPriceMap[pairString] = newPrice
-	db.gPriceMutex.Unlock()
 }
 
 // GetPrice returns the price and side of the last transacted price
 func (db *DB) GetPrice(pairString string) (price float64) {
-	db.gPriceMutex.Lock()
 	price, found := db.gPriceMap[pairString]
 	if !found {
 		return float64(0)
 	}
-	defer db.gPriceMutex.Unlock()
 	return price
 }
 
@@ -122,9 +117,12 @@ func (db *DB) SetupClient() error {
 
 	// Initialize Balance tables (order tables soon)
 	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
-	err = db.InitializeTables(db.balanceSchema, "name TEXT, balance BIGINT(64)")
+	err = db.InitializeNewTables(db.balanceSchema, "name TEXT, balance BIGINT(64)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize balance tables: \n%s", err)
+	}
+	if err = db.InitializeBalancesFromNames(); err != nil {
+		return err
 	}
 
 	// Initialize Deposit tables (order tables soon)
@@ -134,7 +132,7 @@ func (db *DB) SetupClient() error {
 	}
 
 	// Initialize pending_deposits table
-	err = db.InitializeTables(db.pendingDepositSchema, "name TEXT, expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
+	err = db.InitializeNewTables(db.pendingDepositSchema, "name TEXT, expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
 	if err != nil {
 		return fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
 	}
@@ -148,7 +146,7 @@ func (db *DB) SetupClient() error {
 	return nil
 }
 
-// InitializeTables initializes all of the tables necessary for the exchange to run. The schema string can be either balanceSchema or depositSchema.
+// InitializeTables initializes all of the tables necessary for the exchange to run.
 func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 	var err error
 
@@ -162,6 +160,30 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
+		}
+	}
+	return nil
+}
+
+// InitializeNewTables initalizes tables based on schema and clears them.
+func (db *DB) InitializeNewTables(schemaName string, schemaSpec string) error {
+	var err error
+
+	// Use the schema
+	_, err = db.DBHandler.Exec("USE " + schemaName + ";")
+	if err != nil {
+		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+	}
+	for _, assetString := range db.assetArray {
+		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
+		_, err = db.DBHandler.Exec(tableQuery)
+		if err != nil {
+			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
+		}
+		deleteQuery := fmt.Sprintf("DELETE FROM %s;", assetString)
+		_, err = db.DBHandler.Exec(deleteQuery)
+		if err != nil {
+			return fmt.Errorf("Could not delete stuff from table after creating: \n%s", err)
 		}
 	}
 	return nil
@@ -181,6 +203,54 @@ func (db *DB) InitializePairTables(schemaName string, schemaSpec string) error {
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", pair.String(), err)
+		}
+	}
+	return nil
+}
+
+// InitializeBalancesFromNames makes balance stuff from names in deposits
+func (db *DB) InitializeBalancesFromNames() error {
+
+	// use the deposit schema for names
+
+	if _, err := db.DBHandler.Exec("USE " + db.depositSchema + ";"); err != nil {
+		return fmt.Errorf("Could not use %s schema: \n%s", db.depositSchema, err)
+	}
+
+	var nameArray []string
+	if len(db.assetArray) > 0 {
+		takeNamesQuery := fmt.Sprintf("SELECT name FROM %s;", db.assetArray[0])
+		nameRows, err := db.DBHandler.Query(takeNamesQuery)
+		if err != nil {
+			return fmt.Errorf("An error occurred while trying to take names: \n%s", err)
+		}
+
+		for nameRows.Next() {
+			var name string
+			if err = nameRows.Scan(&name); err != nil {
+				return err
+			}
+
+			logging.Infof("name: %s\n", name)
+
+			nameArray = append(nameArray, name)
+		}
+		if err = nameRows.Close(); err != nil {
+			return err
+		}
+	}
+
+	if _, err := db.DBHandler.Exec("USE " + db.balanceSchema + ";"); err != nil {
+		return fmt.Errorf("Could not use %s schema: \n%s", db.balanceSchema, err)
+	}
+
+	for _, name := range nameArray {
+		for _, coinSchema := range db.assetArray {
+			// Create the balance
+			insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinSchema, name, 0)
+			if _, err := db.DBHandler.Exec(insertBalanceQuery); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

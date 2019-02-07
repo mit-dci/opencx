@@ -24,7 +24,6 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 		}
 	}()
 	server.ingestMutex.Lock()
-	defer server.ingestMutex.Unlock()
 	addressesWeOwn, err := server.OpencxDB.GetDepositAddressMap(coinType)
 	if err != nil {
 		return
@@ -72,5 +71,16 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	if height%100 == 0 {
 		logging.Infof("Finished ingesting %s block at height %d\n", coinType.Name, height)
 	}
+	server.ingestMutex.Unlock()
 	return nil
+}
+
+// LockIngests makes the ingest wait for whatever is happening on the outside, probably creating accounts and such
+func (server *OpencxServer) LockIngests() {
+	server.ingestMutex.Lock()
+}
+
+// UnlockIngests releases the ingest wait for whatever is happening on the outside
+func (server *OpencxServer) UnlockIngests() {
+	server.ingestMutex.Unlock()
 }
