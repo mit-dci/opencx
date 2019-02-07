@@ -172,8 +172,8 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [ ] Signing
    - [ ] Sign all messages to/from for identification
  - [x] Matching engine
- - [ ] Get all balances
-   - [ ] Extra command
+ - [x] Get all balances
+   - [x] Extra command
  - [ ] Remove token stuff in shell
  - [ ] Correct dynamic confirmations
 
