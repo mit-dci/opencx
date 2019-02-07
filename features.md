@@ -142,6 +142,7 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [x] DB Interface
  - [x] Tesnet interface
  - [ ] Wallets
+   - [ ] Withdrawal
  - [x] Register
    - [x] RPC Command in interface
    - [x] Database k/v for username and password
@@ -157,7 +158,7 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [x] Get balance
    - [x] Different coins in DB
    - [x] Account balances for said coins in DB
- - [ ] View orderbook
+ - [x] View orderbook
    - [x] Orders in DB
  - [x] Get Address
    - [x] Testnet interface
@@ -171,6 +172,8 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [ ] Signing
    - [ ] Sign all messages to/from for identification
  - [x] Matching engine
+ - [ ] Get all balances
+   - [ ] Extra command
 
 #### Decentralization notes
 
