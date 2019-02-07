@@ -75,3 +75,6 @@ go build
 ```
 
 You can now issue any of the commands in the cxrpc README.md file.
+
+Image of normal use:
+![Picture of normal program use in terminal](../assets/normaluse.png?raw=true)
