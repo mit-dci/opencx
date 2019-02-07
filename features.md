@@ -1,4 +1,4 @@
-# Basic building blocks of a centralized exchange
+# Basic building blocks of a "centralized" (custodial) cryptocurrency exchange
 
  - Wallets (user side)
   - keep track of funds / keys
@@ -13,6 +13,8 @@
 
 ## Important note
 There are multiple ways to create an "exchange," one of which is what I'm currently trying to make, but hopefully the APIs I make are robust enough such that the other type can be made as well. There are **Dealer markets** and **Auction markets**. I'm currently making a dealer market, which uses competitive buy and sell orders and a market maker, in this case the exchange, to actually facilitate trades. Auction markets are _very_ similar, in fact the exact same but without a market maker.
+
+Another way of doing exchange, like Arwen is doing, is using RFQ, or **request for quote**. Instead of posting orders (though on the backend it works pretty much the same), you request a quote for what you have, and the exchange gives you a price and offer to accept. We're not using RFQ, we're using limit orders.
 
 ## Wallets
 
@@ -29,20 +31,25 @@ The exchange needs to have a few functions that the user interacts with:
 Un-permissioned commands (and simple mockups of how it might work):
 
  - Register account
+
 `ocx register username password`
 
  - Log in (need a way to keep sessions or something)
+
 `ocx login username password`
 
  - View orderbook
+
 `ocx vieworderbook assetwant assethave`
 
-Or maybe we want dark pools? Could be a feature, probably out of scope, would be difficult to do if you want to match in a decentralized way. Decentralized matching for confidential _orders_ is probably very difficult, aside from the whole decentralized matching problem.
+Or maybe we want dark pools? Could be a feature, probably out of scope, would be difficult to do if you want to match in a decentralized way, because of the whole "zero knowledge" thing added on. Decentralized matching for confidential _orders_ is probably very difficult, aside from the whole decentralized matching problem.
 
  - Get price (really just getorderbook but with a few more operations)
+
 `ocx getprice`
 
 - Get volume (need to track that server side)
+
 `ocx getvolume`
 
  - TODO: think of more that you might need
@@ -51,19 +58,26 @@ Or maybe we want dark pools? Could be a feature, probably out of scope, would be
 Permissioned commands:
 
  - Place order
+
 `ocx placeorder name {buy|sell} pair amountHave price`
+
 This will print a description of the order after making it, and prompt the user before actually sending it.
 The price is price, amountHave is the amount of the asset you have. If you're on the selling side, that will be the first asset1 in the asset1_asset2 pair. If you're on the buying side, that will be the second, asset2. 
 
  - Get account's deposit address
+
 `ocx getdepositaddress`
+
 This will return the address that is assigned to the user's account
 
  - Withdraw
+
 `ocx withdrawtoaddress asset amount recvaddress`
+
 Withdraw will send a transaction to the blockchain.
 
  - Delete account
+
 `ocx deleteaccount`
 
 For authentication, let's just do some user data storage and send a random token that expires in 30 minutes or something. Server checks token, client stores token and sends it with json.
