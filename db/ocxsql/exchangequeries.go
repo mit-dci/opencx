@@ -173,8 +173,6 @@ func (db *DB) RunMatching(pair match.Pair) (err error) {
 			return
 		}
 
-		logging.Infof("selected name and stuff from sell side")
-
 		getBuySideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
 		buyRows, buyQueryErr := tx.Query(getBuySideQuery)
 		if err = buyQueryErr; err != nil {
@@ -193,8 +191,6 @@ func (db *DB) RunMatching(pair match.Pair) (err error) {
 		if err = buyRows.Close(); err != nil {
 			return
 		}
-
-		logging.Infof("selected name and stuff from buy side")
 
 		// loop through them both and make sure there are elements in both otherwise we're good
 		for len(buyOrders) > 0 && len(sellOrders) > 0 {
@@ -424,4 +420,100 @@ func (db *DB) CancelOrder(order *match.LimitOrder) (err error) {
 // GetPrice returns the price based on the orderbook
 func (db *DB) GetPrice() error {
 	return nil
+}
+
+// ViewOrderBook returns a list of orders that is the orderbook
+func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder, buyOrderBook []*match.LimitOrder, err error) {
+
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while viewing order book: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+		return
+	}
+
+	// First get all the prices so we have something to iterate through and match
+	getPricesQuery := fmt.Sprintf("SELECT DISTINCT price FROM %s ORDER BY price ASC;", pair.String())
+	rows, err := tx.Query(getPricesQuery)
+	if err != nil {
+		return
+	}
+
+	var prices []float64
+
+	for rows.Next() {
+		var price float64
+		if err = rows.Scan(&price); err != nil {
+			return
+		}
+
+		prices = append(prices, price)
+	}
+	if err = rows.Close(); err != nil {
+		return
+	}
+
+	for _, price := range prices {
+
+		logging.Infof("Matching all orders with price %f\n", price)
+
+		if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+			return
+		}
+
+		// this will select all sell side, ordered by time ascending so the earliest one will be at the front
+		getSellSideQuery := fmt.Sprintf("SELECT name, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
+		sellRows, sellQueryErr := tx.Query(getSellSideQuery)
+		if err = sellQueryErr; err != nil {
+			return
+		}
+
+		var sellOrders []*match.LimitOrder
+		for sellRows.Next() {
+			sellOrder := new(match.LimitOrder)
+			if err = sellRows.Scan(&sellOrder.Client, &sellOrder.OrderID, &sellOrder.Side, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
+				return
+			}
+
+			sellOrders = append(sellOrders, sellOrder)
+		}
+		if err = sellRows.Close(); err != nil {
+			return
+		}
+
+		sellOrderBook = append(sellOrderBook, sellOrders[:]...)
+		getBuySideQuery := fmt.Sprintf("SELECT name, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
+		buyRows, buyQueryErr := tx.Query(getBuySideQuery)
+		if err = buyQueryErr; err != nil {
+			return
+		}
+
+		var buyOrders []*match.LimitOrder
+		for buyRows.Next() {
+			buyOrder := new(match.LimitOrder)
+			if err = buyRows.Scan(&buyOrder.Client, &buyOrder.OrderID, &buyOrder.Side, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
+				return
+			}
+
+			buyOrders = append(buyOrders, buyOrder)
+		}
+		if err = buyRows.Close(); err != nil {
+			return
+		}
+
+		buyOrderBook = append(buyOrderBook, buyOrders[:]...)
+
+	}
+
+	return
 }

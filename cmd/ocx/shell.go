@@ -40,16 +40,6 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error calling login when parsing:\n%s", err)
 		}
 	}
-	if cmd == "vieworderbook" {
-		if len(args) != 2 {
-			return fmt.Errorf("Must specify 2 currencies to view the pair's orderbook")
-		}
-
-		err := cl.ViewOrderbook(args[0:1])
-		if err != nil {
-			return fmt.Errorf("Error viewing orderbook: \n%s", err)
-		}
-	}
 	if cmd == "getbalance" {
 		if len(args) != 2 {
 			return fmt.Errorf("Must specify username and token to get balance for token")
@@ -104,6 +94,16 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		err := cl.OrderCommand(args)
 		if err != nil {
 			return fmt.Errorf("Error calling order command: \n%s", err)
+		}
+	}
+	if cmd == "vieworderbook" {
+		if len(args) > 2 {
+			return fmt.Errorf("Must specify 2 or 1 arguments: pair [buy|sell]")
+		}
+
+		err := cl.ViewOrderbook(args)
+		if err != nil {
+			return fmt.Errorf("Error calling vieworderbook command: \n%s", err)
 		}
 	}
 	return nil

@@ -11,7 +11,7 @@ import (
 type Pair struct {
 	// AssetWant is the asset that buyers want, and that sellers are selling. credit buyers with this.
 	AssetWant asset `json:"assetWant"`
-	// AssetHave is the asset that sellers want, and that buyersr are buying. credit sellers with this.
+	// AssetHave is the asset that sellers want, and that buyers are buying. credit sellers with this.
 	AssetHave asset `json:"assetHave"`
 }
 

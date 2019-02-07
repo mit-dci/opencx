@@ -170,6 +170,7 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
    - [x] Create derived keys for deposit addresses
  - [ ] Signing
    - [ ] Sign all messages to/from for identification
+ - [x] Matching engine
 
 #### Decentralization notes
 

@@ -9,7 +9,7 @@ type SubmitOrderArgs struct {
 	Order *match.LimitOrder
 }
 
-// SubmitOrderReply holds the args for the submitorder command
+// SubmitOrderReply holds the reply for the submitorder command
 type SubmitOrderReply struct {
 	// TODO empty for now
 }
@@ -22,6 +22,27 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	}
 
 	if err := cl.Server.OpencxDB.RunMatching(args.Order.TradingPair); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ViewOrderBookArgs holds the args for the vieworderbook command
+type ViewOrderBookArgs struct {
+	TradingPair *match.Pair
+}
+
+// ViewOrderBookReply holds the reply for the vieworderbook command
+type ViewOrderBookReply struct {
+	SellOrderBook []*match.LimitOrder
+	BuyOrderBook  []*match.LimitOrder
+}
+
+// ViewOrderBook handles the vieworderbook command
+func (cl *OpencxRPC) ViewOrderBook(args ViewOrderBookArgs, reply *ViewOrderBookReply) error {
+	var err error
+	if reply.SellOrderBook, reply.BuyOrderBook, err = cl.Server.OpencxDB.ViewOrderBook(args.TradingPair); err != nil {
 		return err
 	}
 
