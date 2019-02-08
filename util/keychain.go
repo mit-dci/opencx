@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/mit-dci/lit/btcutil"
+	"github.com/mit-dci/lit/btcutil/chaincfg"
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
 )
@@ -38,19 +38,14 @@ func (k *Keychain) NewAddressBTC(username string) (string, error) {
 		return "", fmt.Errorf("Error when deriving child public key for new btc address: \n%s", err)
 	}
 
-	addr, err := childKey.ECPubKey()
+	paramIDHolder := new(chaincfg.Params)
+	paramIDHolder.PubKeyHashAddrID = k.BTCParams.PubKeyHashAddrID
+	pkHashAddr, err := childKey.Address(paramIDHolder)
 	if err != nil {
-		return "", fmt.Errorf("Error occurred when trying to get ec pubkey: \n%s", err)
+		return "", err
 	}
 
-	pubKeyBytes := addr.SerializeUncompressed()[1:]
-	pkHash160 := btcutil.Hash160(pubKeyBytes)
-	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, k.BTCParams)
-	if err != nil {
-		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
-	}
-
-	return pkHashAddr, nil
+	return pkHashAddr.String(), nil
 }
 
 // NewAddressVTC makes a new address for the btc testnet based on the username
@@ -61,25 +56,18 @@ func (k *Keychain) NewAddressVTC(username string) (string, error) {
 	// We mod by 0x80000000 to make sure it's not hardened
 	data := binary.BigEndian.Uint32(sha.Sum(nil)[:]) % 0x80000000
 
-	childKey, err := k.BTCPubKey.Child(data)
+	childKey, err := k.VTCPubKey.Child(data)
 	if err != nil {
-		return "", fmt.Errorf("Error when deriving child public key for new btc address: \n%s", err)
+		return "", fmt.Errorf("Error when deriving child public key for new vtc address: \n%s", err)
 	}
 
-	addr, err := childKey.ECPubKey()
+	paramIDHolder := new(chaincfg.Params)
+	paramIDHolder.PubKeyHashAddrID = k.VTCParams.PubKeyHashAddrID
+	pkHashAddr, err := childKey.Address(paramIDHolder)
 	if err != nil {
-		return "", fmt.Errorf("Error occurred when trying to get ec pubkey: \n%s", err)
+		return "", err
 	}
-
-	pubKeyBytes := addr.SerializeUncompressed()[1:]
-	pkHash160 := btcutil.Hash160(pubKeyBytes)
-
-	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, k.VTCParams)
-	if err != nil {
-		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
-	}
-
-	return pkHashAddr, nil
+	return pkHashAddr.String(), nil
 }
 
 // NewAddressLTC makes a new address for the btc testnet based on the username
@@ -91,22 +79,17 @@ func (k *Keychain) NewAddressLTC(username string) (string, error) {
 	// We mod by 0x80000000 to make sure it's not hardened
 	data := binary.BigEndian.Uint32(sha.Sum(nil)[:]) % 0x80000000
 
-	childKey, err := k.BTCPubKey.Child(data)
+	childKey, err := k.LTCPubKey.Child(data)
 	if err != nil {
-		return "", fmt.Errorf("Error when deriving child public key for new btc address: \n%s", err)
+		return "", fmt.Errorf("Error when deriving child public key for new ltc address: \n%s", err)
 	}
 
-	addr, err := childKey.ECPubKey()
+	paramIDHolder := new(chaincfg.Params)
+	paramIDHolder.PubKeyHashAddrID = k.LTCParams.PubKeyHashAddrID
+	pkHashAddr, err := childKey.Address(paramIDHolder)
 	if err != nil {
-		return "", fmt.Errorf("Error occurred when trying to get ec pubkey: \n%s", err)
+		return "", err
 	}
 
-	pubKeyBytes := addr.SerializeUncompressed()[1:]
-	pkHash160 := btcutil.Hash160(pubKeyBytes)
-	pkHashAddr, err := NewAddressPubKeyHash(pkHash160, k.LTCParams)
-	if err != nil {
-		return "", fmt.Errorf("Error occurred while making new btc address: \n%s", err)
-	}
-
-	return pkHashAddr, nil
+	return pkHashAddr.String(), nil
 }

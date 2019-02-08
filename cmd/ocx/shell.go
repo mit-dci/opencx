@@ -117,13 +117,23 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "getprice" {
-		if len(args) > 1 {
+		if len(args) != 1 {
 			return fmt.Errorf("Must specify 1 argument: pair")
 		}
 
 		err := cl.GetPrice(args)
 		if err != nil {
 			return fmt.Errorf("Error calling getprice command: \n%s", err)
+		}
+	}
+	if cmd == "withdraw" {
+		if len(args) != 4 {
+			return fmt.Errorf("Must specify 4 arguments: name amount coin address")
+		}
+
+		err := cl.Withdraw(args)
+		if err != nil {
+			return fmt.Errorf("Error calling withdraw command: \n%s", err)
 		}
 	}
 	return nil

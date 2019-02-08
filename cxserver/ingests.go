@@ -3,6 +3,10 @@ package cxserver
 import (
 	"fmt"
 
+	"github.com/mit-dci/lit/btcutil/chaincfg"
+
+	"github.com/mit-dci/lit/btcutil"
+
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/wire"
 	"github.com/mit-dci/opencx/logging"
@@ -36,9 +40,12 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 
 			scriptType, data := util.ScriptType(output.PkScript)
 			if scriptType == "P2PKH" {
-				var addr string
-				if addr, err = util.NewAddressPubKeyHash(data, coinType); err != nil {
-					return
+				var addr *btcutil.AddressPubKeyHash
+
+				coinTypeChaincfgWrap := new(chaincfg.Params)
+				coinTypeChaincfgWrap.PubKeyHashAddrID = coinType.PubKeyHashAddrID
+				if addr, err = btcutil.NewAddressPubKeyHash(data, coinTypeChaincfgWrap); err != nil {
+					return err
 				}
 
 				// if coinType.Name == "vtcreg" {
@@ -46,10 +53,10 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 				// 	logging.Infof("Address thing we own; %s\n", addressesWeOwn)
 				// }
 
-				if name, found := addressesWeOwn[addr]; found {
+				if name, found := addressesWeOwn[addr.String()]; found {
 					newDeposit := match.Deposit{
 						Name:                name,
-						Address:             addr,
+						Address:             addr.String(),
 						Amount:              uint64(output.Value),
 						Txid:                tx.TxHash().String(),
 						CoinType:            coinType,

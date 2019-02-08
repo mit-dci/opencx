@@ -2,7 +2,7 @@ module github.com/mit-dci/opencx
 
 require (
 	github.com/NebulousLabs/go-UpnP v0.0.0-20181203152547-b32978b8ccbf // indirect
-	github.com/adiabat/btcd v0.0.0-20171117230543-09ac5b3e5420 // indirect
+	github.com/adiabat/btcd v0.0.0-20171117230543-09ac5b3e5420
 	github.com/adiabat/btcutil v0.0.0-20170622193340-85f68caa63c5
 	github.com/aead/skein v0.0.0-20160722084837-9365ae6e95d2 // indirect
 	github.com/awalterschulze/gographviz v0.0.0-20181013152038-b2885df04310 // indirect

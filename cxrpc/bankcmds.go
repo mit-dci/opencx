@@ -2,6 +2,8 @@ package cxrpc
 
 import (
 	"fmt"
+
+	"github.com/mit-dci/opencx/logging"
 )
 
 // GetBalanceArgs hold the arguments for GetBalance
@@ -45,5 +47,35 @@ func (cl *OpencxRPC) GetDepositAddress(args GetDepositAddressArgs, reply *GetDep
 	}
 
 	reply.Address = addr
+	return nil
+}
+
+// WithdrawArgs holds the args for Withdraw
+type WithdrawArgs struct {
+	Username string
+	Asset    string
+	Amount   uint64
+	Address  string
+}
+
+// WithdrawReply holds the reply for Withdraw
+type WithdrawReply struct {
+	Txid string
+}
+
+// Withdraw is the RPC Interface for Withdraw
+func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) error {
+	if args.Asset == "vtc" {
+		txid, err := cl.Server.VTCWalletSend(args.Address, args.Username, args.Amount)
+		if err != nil {
+			return fmt.Errorf("Error with withdraw command: \n%s", err)
+		}
+
+		reply.Txid = txid
+		logging.Infof("Withdraw transaction ID: %s", txid)
+	}
+
+	reply.Txid = ""
+
 	return nil
 }

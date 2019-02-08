@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/logging"
 )
 
 func (cl *openCxClient) GetBalance(args []string) error {
@@ -63,6 +65,33 @@ func (cl *openCxClient) GetAllBalances(args []string) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (cl *openCxClient) Withdraw(args []string) error {
+	var err error
+
+	withdrawArgs := new(cxrpc.WithdrawArgs)
+	withdrawReply := new(cxrpc.WithdrawReply)
+
+	withdrawArgs.Username = args[0]
+	withdrawArgs.Amount, err = strconv.ParseUint(args[1], 10, 64)
+	if err != nil {
+		return err
+	}
+	withdrawArgs.Asset = args[2]
+	withdrawArgs.Address = args[3]
+
+	if err := cl.Call("OpencxRPC.Withdraw", withdrawArgs, withdrawReply); err != nil {
+		return fmt.Errorf("Error calling 'Withdraw' service method:\n%s", err)
+	}
+
+	if withdrawReply.Txid == "" {
+		return fmt.Errorf("Error: Unsupported Asset")
+	}
+
+	logging.Infof("Withdraw transaction ID: %s\n", withdrawReply.Txid)
 
 	return nil
 }
