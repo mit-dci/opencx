@@ -10,7 +10,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
-	"github.com/mit-dci/opencx/util"
 )
 
 // turn into config options
@@ -35,7 +34,6 @@ var (
 // What would be great is to move everything having to do with price and matching into match and making match more like a matching engine framework
 // or library for exchanges.
 type DB struct {
-	Keychain             *util.Keychain
 	DBHandler            *sql.DB
 	logger               *log.Logger
 	balanceSchema        string

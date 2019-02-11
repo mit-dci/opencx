@@ -2,25 +2,12 @@ package ocxsql
 
 import (
 	"fmt"
+
+	"github.com/mit-dci/opencx/logging"
 )
 
-// CreateAccount creates an account
-func (db *DB) CreateAccount(username string, password string) (bool, error) {
-	err := db.InitializeAccount(username)
-	if err != nil {
-		return false, fmt.Errorf("Error when trying to create an account: \n%s", err)
-	}
-	return true, nil
-}
-
-// CheckCredentials checks users username and passwords
-func (db *DB) CheckCredentials(username string, password string) (bool, error) {
-	// TODO later
-	return true, nil
-}
-
-// InitializeAccount initializes all database values for an account with username 'username'
-func (db *DB) InitializeAccount(username string) (err error) {
+// InitializeAccountBalances initializes all database values for an account with username 'username'
+func (db *DB) InitializeAccountBalances(username string) (err error) {
 
 	// begin the transaction
 	tx, err := db.DBHandler.Begin()
@@ -51,31 +38,116 @@ func (db *DB) InitializeAccount(username string) (err error) {
 		}
 	}
 
+	return nil
+}
+
+// InsertDepositAddresses inserts deposit addresses based on the addressmap you give it
+func (db *DB) InsertDepositAddresses(username string, addressMap map[string]string) (err error) {
+	// begin the transaction
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		return fmt.Errorf("Error beginning transaction while inserting addresses: \n%s", err)
+	}
+
+	// Setup small custom error msg for trace
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while inserting addresses: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
 	if _, err = tx.Exec("USE " + db.depositSchema + ";"); err != nil {
 		return
 	}
 
 	for _, assetString := range db.assetArray {
-		var addr string
-		if assetString == "btc" {
-			if addr, err = db.Keychain.NewAddressBTC(username); err != nil {
+		if addr, found := addressMap[assetString]; found {
+			insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s')", assetString, username, addr)
+			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
 			}
-		} else if assetString == "ltc" {
-			if addr, err = db.Keychain.NewAddressLTC(username); err != nil {
-				return
-			}
-		} else if assetString == "vtc" {
-			if addr, err = db.Keychain.NewAddressVTC(username); err != nil {
-				return
-			}
-		}
-
-		insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s');", assetString, username, addr)
-		if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
+		} else {
+			err = fmt.Errorf("Could not find asset while creating addresses")
 			return
 		}
 	}
 
-	return nil
+	return
+}
+
+// UpdateDepositAddresses updates deposit addresses based on the usernames in the table. Doing function stuff so it looks weird
+func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), btcAddrFunc func(string) (string, error), vtcAddrFunc func(string) (string, error)) (err error) {
+	// begin the transaction
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		return fmt.Errorf("Error beginning transaction while updating addresses: \n%s", err)
+	}
+
+	// Setup small custom error msg for trace
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while updating addresses: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + db.depositSchema + ";"); err != nil {
+		return
+	}
+
+	// Go through assets (btc, ltc, vtc...)
+	for _, assetString := range db.assetArray {
+		// Find all distinct usernames
+		getUsernamesQuery := fmt.Sprintf("SELECT DISTINCT name FROM %s;", assetString)
+		rows, usernameErr := tx.Query(getUsernamesQuery)
+		if err = usernameErr; err != nil {
+			return
+		}
+
+		// Go through usernames already in db
+		for rows.Next() {
+			var addr string
+			var username string
+			if err = rows.Scan(&username); err != nil {
+				return
+			}
+
+			// generate addresses according to chain
+			if assetString == "btc" {
+				if addr, err = btcAddrFunc(username); err != nil {
+					return
+				}
+			} else if assetString == "ltc" {
+				if addr, err = ltcAddrFunc(username); err != nil {
+					return
+				}
+			} else if assetString == "vtc" {
+				if addr, err = vtcAddrFunc(username); err != nil {
+					return
+				}
+			} else {
+				err = fmt.Errorf("Tried to update deposit address for unsupported asset")
+				return
+			}
+
+			logging.Infof("Got address for %s on %s chain: %s\n", username, assetString, addr)
+
+			// Actually update the table
+			insertDepositAddrQuery := fmt.Sprintf("UPDATE %s SET address='%s' WHERE name='%s';", assetString, addr, username)
+			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
+				return
+			}
+		}
+
+		if err = rows.Close(); err != nil {
+			return
+		}
+	}
+
+	return
 }

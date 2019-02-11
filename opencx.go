@@ -68,12 +68,27 @@ func main() {
 
 	// Check that the private key exists and if it does, load it
 	defaultKeyPath := filepath.Join(defaultRoot, defaultKeyFileName)
-	ocxServer.SetupServerKeys(defaultKeyPath)
+	if err = ocxServer.SetupServerKeys(defaultKeyPath); err != nil {
+		logging.Fatalf("Error setting up server keys: \n%s", err)
+	}
 
+	hookErrorChannel := make(chan error, 3)
 	// Set up all chain hooks
-	go ocxServer.SetupBTCChainhook()
-	go ocxServer.SetupLTCChainhook()
-	go ocxServer.SetupVTCChainhook()
+	go ocxServer.SetupBTCChainhook(hookErrorChannel)
+	go ocxServer.SetupLTCChainhook(hookErrorChannel)
+	go ocxServer.SetupVTCChainhook(hookErrorChannel)
+
+	for i := 0; i < 3; i++ {
+		firstError := <-hookErrorChannel
+		if firstError != nil {
+			logging.Fatalf("Error when starting hook: \n%s", firstError)
+		}
+		logging.Infof("Started hook #%d\n", i+1)
+	}
+
+	if err = ocxServer.UpdateAddresses(); err != nil {
+		logging.Fatalf("Error updating addresses: \n%s", err)
+	}
 
 	// err = ocxServer.SetupBTCChainhook()
 	// if err != nil {
