@@ -28,7 +28,7 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) (err erro
 	cl.Server.LockIngests()
 
 	// Create addresses based on username and put them into maps
-	var addrMap map[string]string
+	addrMap := make(map[string]string)
 	if addrMap["btc"], err = cl.Server.NewAddressBTC(args.Username); err != nil {
 		return
 	}
