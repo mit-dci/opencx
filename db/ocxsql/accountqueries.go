@@ -103,7 +103,6 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 
 	// Go through assets (btc, ltc, vtc...)
 	for _, assetString := range db.assetArray {
-		logging.Infof("Going through usernames for %s\n", assetString)
 		// Find all distinct usernames
 		getUsernamesQuery := fmt.Sprintf("SELECT DISTINCT name FROM %s;", assetString)
 		rows, usernameErr := tx.Query(getUsernamesQuery)
@@ -111,20 +110,15 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 			return
 		}
 
-		logging.Infof("Got usernames from %s\n", assetString)
-
 		addrPairs := make(map[string]string)
 		// Go through usernames already in db
 		for rows.Next() {
 			var addr string
 			var username string
-			logging.Infof("Getting username")
 			if err = rows.Scan(&username); err != nil {
 				return
 			}
-			logging.Infof("Got username")
 
-			logging.Infof("Generating addresses")
 			// generate addresses according to chain
 			if assetString == "btc" {
 				if addr, err = btcAddrFunc(username); err != nil {
@@ -145,9 +139,11 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 
 			logging.Infof("Got address for %s on %s chain: %s\n", username, assetString, addr)
 
+			// Add usernames and addresses to map
 			addrPairs[username] = addr
 		}
 
+		// Close the rows so we don't get issues
 		if err = rows.Close(); err != nil {
 			return
 		}
@@ -155,7 +151,7 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 		// go through all the usernames and addresses obtained and update them
 		for addr, username := range addrPairs {
 
-			// Actually update the table
+			// Actually update the table -- doing this outside the scan so we don't get busy buffer issues
 			insertDepositAddrQuery := fmt.Sprintf("UPDATE %s SET address='%s' WHERE name='%s';", assetString, addr, username)
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
