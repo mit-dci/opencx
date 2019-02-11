@@ -158,7 +158,6 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 	}
 	for _, assetString := range db.assetArray {
 		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
-		logging.Infof("query: %s\n", tableQuery)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
