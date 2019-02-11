@@ -92,7 +92,10 @@ func (server *OpencxServer) UpdateAddresses() error {
 		return err
 	}
 
+	// Unlock ingests so they can keep going
 	server.UnlockIngests()
+
+	// TODO: replace this mutex with a channel?
 
 	return nil
 }

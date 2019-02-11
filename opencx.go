@@ -60,6 +60,9 @@ func main() {
 		log.Fatalf("Error setting up sql client: \n%s", err)
 	}
 
+	// defer the db closing to when we stop
+	defer db.DBHandler.Close()
+
 	// Anyways, here's where we set the server
 	ocxServer := new(cxserver.OpencxServer)
 	ocxServer.OpencxDB = db
@@ -78,6 +81,7 @@ func main() {
 	go ocxServer.SetupLTCChainhook(hookErrorChannel)
 	go ocxServer.SetupVTCChainhook(hookErrorChannel)
 
+	// Wait until all hooks are started to do the rest
 	for i := 0; i < 3; i++ {
 		firstError := <-hookErrorChannel
 		if firstError != nil {
@@ -86,27 +90,10 @@ func main() {
 		logging.Infof("Started hook #%d\n", i+1)
 	}
 
+	// Update the addresses
 	if err = ocxServer.UpdateAddresses(); err != nil {
 		logging.Fatalf("Error updating addresses: \n%s", err)
 	}
-
-	// err = ocxServer.SetupBTCChainhook()
-	// if err != nil {
-	// 	log.Fatalf("Error setting up btc chainhook:\n%s", err)
-	// }
-	// err = ocxServer.SetupLTCChainhook()
-	// if err != nil {
-	// 	log.Fatalf("Error setting up ltc chainhook:\n%s", err)
-	// }
-	// err = ocxServer.SetupVTCChainhook()
-	// if err != nil {
-	// 	log.Fatalf("Error setting up vtc chainhook:\n%s", err)
-	// }
-
-	// ocxServer.SetupWallets()
-
-	// defer the db to when it closes
-	defer ocxServer.OpencxDB.DBHandler.Close()
 
 	// Register RPC Commands and set server
 	rpc1 := new(cxrpc.OpencxRPC)
@@ -123,8 +110,6 @@ func main() {
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
-
-	// TODO: do TLS stuff here so its secure
 
 	defer listener.Close()
 	rpc.Accept(listener)
