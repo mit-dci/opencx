@@ -59,13 +59,17 @@ func (db *DB) InsertDepositAddresses(username string, addressMap map[string]stri
 		err = tx.Commit()
 	}()
 
+	// use deposit schema
 	if _, err = tx.Exec("USE " + db.depositSchema + ";"); err != nil {
 		return
 	}
 
+	// go through assets
 	for _, assetString := range db.assetArray {
+		// if you found an address in the map
 		if addr, found := addressMap[assetString]; found {
-			insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s')", assetString, username, addr)
+			// insert into db
+			insertDepositAddrQuery := fmt.Sprintf("REPLACE INTO %s VALUES ('%s', '%s');", assetString, username, addr)
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
 			}
