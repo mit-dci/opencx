@@ -19,7 +19,7 @@ import (
 
 // put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
 const exchangeStartingPoint = 1444700
-const runningLocally = false
+const runningLocally = true
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {

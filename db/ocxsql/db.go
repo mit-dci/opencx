@@ -113,20 +113,23 @@ func (db *DB) SetupClient() error {
 		return fmt.Errorf("Could not ping the database, is it running: \n%s", err)
 	}
 
-	// Initialize Balance tables (order tables soon)
+	// Initialize Balance tables
 	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
 	err = db.InitializeNewTables(db.balanceSchema, "name TEXT, balance BIGINT(64)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize balance tables: \n%s", err)
 	}
-	if err = db.InitializeBalancesFromNames(); err != nil {
-		return err
-	}
 
-	// Initialize Deposit tables (order tables soon)
-	err = db.InitializeTables(db.depositSchema, "name TEXT, address TEXT")
+	// Initialize Deposit tables
+	// names can be up to 128 characters long
+	err = db.InitializeTables(db.depositSchema, "name VARCHAR(128), address VARCHAR(34), CONSTRAINT unique_usernames UNIQUE (name, address)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize deposit tables: \n%s", err)
+	}
+
+	// Take names
+	if err = db.InitializeBalancesFromNames(); err != nil {
+		return err
 	}
 
 	// Initialize pending_deposits table
@@ -155,6 +158,7 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 	}
 	for _, assetString := range db.assetArray {
 		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
+		logging.Infof("query: %s\n", tableQuery)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)

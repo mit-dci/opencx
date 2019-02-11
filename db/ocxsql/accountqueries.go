@@ -69,7 +69,7 @@ func (db *DB) InsertDepositAddresses(username string, addressMap map[string]stri
 		// if you found an address in the map
 		if addr, found := addressMap[assetString]; found {
 			// insert into db
-			insertDepositAddrQuery := fmt.Sprintf("REPLACE INTO %s VALUES ('%s', '%s');", assetString, username, addr)
+			insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s') ON DUPLICATE KEY UPDATE address='%s';", assetString, username, addr, addr)
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
 			}
