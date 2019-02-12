@@ -1,5 +1,5 @@
 #!/bin/bash
-maxblocks=10
+maxblocks=3
 for i in `seq $maxblocks`; do
   maxtxinblock=200
   (
