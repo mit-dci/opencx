@@ -141,8 +141,6 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 				return
 			}
 
-			logging.Infof("Got address for %s on %s chain: %s\n", username, assetString, addr)
-
 			// Add usernames and addresses to map
 			addrPairs[username] = addr
 		}
@@ -154,6 +152,7 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 
 		// go through all the usernames and addresses obtained and update them
 		for addr, username := range addrPairs {
+			logging.Infof("Updating %s address set to %s", username, addr)
 
 			// Actually update the table -- doing this outside the scan so we don't get busy buffer issues
 			insertDepositAddrQuery := fmt.Sprintf("UPDATE %s SET address='%s' WHERE name='%s';", assetString, addr, username)
