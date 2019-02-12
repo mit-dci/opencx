@@ -39,10 +39,12 @@ type GetDepositAddressReply struct {
 
 // GetDepositAddress is the RPC Interface for GetDepositAddress
 func (cl *OpencxRPC) GetDepositAddress(args GetDepositAddressArgs, reply *GetDepositAddressReply) error {
+	cl.Server.LockIngests()
 	addr, err := cl.Server.OpencxDB.GetDepositAddress(args.Username, args.Asset)
 	if err != nil {
 		return fmt.Errorf("Error with getdepositaddress command: \n%s", err)
 	}
+	cl.Server.UnlockIngests()
 
 	reply.Address = addr
 	return nil
@@ -64,28 +66,34 @@ type WithdrawReply struct {
 // Withdraw is the RPC Interface for Withdraw
 func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) error {
 	if args.Asset == "vtc" {
+		cl.Server.LockIngests()
 		txid, err := cl.Server.VTCWithdraw(args.Address, args.Username, args.Amount)
 		if err != nil {
 			return fmt.Errorf("Error with withdraw command: \n%s", err)
 		}
+		cl.Server.UnlockIngests()
 
 		reply.Txid = txid
 		return nil
 	}
 	if args.Asset == "btc" {
+		cl.Server.LockIngests()
 		txid, err := cl.Server.BTCWithdraw(args.Address, args.Username, args.Amount)
 		if err != nil {
 			return fmt.Errorf("Error with withdraw command: \n%s", err)
 		}
+		cl.Server.UnlockIngests()
 
 		reply.Txid = txid
 		return nil
 	}
 	if args.Asset == "ltc" {
+		cl.Server.LockIngests()
 		txid, err := cl.Server.LTCWithdraw(args.Address, args.Username, args.Amount)
 		if err != nil {
 			return fmt.Errorf("Error with withdraw command: \n%s", err)
 		}
+		cl.Server.UnlockIngests()
 
 		reply.Txid = txid
 		return nil

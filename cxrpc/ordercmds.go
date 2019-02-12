@@ -1,6 +1,7 @@
 package cxrpc
 
 import (
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -17,13 +18,23 @@ type SubmitOrderReply struct {
 // SubmitOrder submits an order to the order book or throws an error
 func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) error {
 
+	logging.Infof("Locking ingests")
+	cl.Server.LockIngests()
+	logging.Infof("Placing order")
 	if err := cl.Server.OpencxDB.PlaceOrder(args.Order); err != nil {
 		return err
 	}
-
+	logging.Infof("Done placing order")
+	cl.Server.UnlockIngests()
+	logging.Infof("Break from locks")
+	cl.Server.LockIngests()
+	logging.Infof("Running matching")
 	if err := cl.Server.OpencxDB.RunMatchingBestPrices(args.Order.TradingPair); err != nil {
 		return err
 	}
+	logging.Infof("Done running matching")
+	cl.Server.UnlockIngests()
+	logging.Infof("Finishing submitorder")
 
 	return nil
 }
