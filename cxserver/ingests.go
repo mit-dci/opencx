@@ -27,11 +27,12 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 			return
 		}
 	}()
-	server.ingestMutex.Lock()
+	server.LockIngests()
 	addressesWeOwn, err := server.OpencxDB.GetDepositAddressMap(coinType)
 	if err != nil {
 		return
 	}
+	server.UnlockIngests()
 
 	var deposits []match.Deposit
 
@@ -71,14 +72,15 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 		}
 	}
 
+	server.LockIngests()
 	if err = server.OpencxDB.UpdateDeposits(deposits, height, coinType); err != nil {
 		return
 	}
+	server.UnlockIngests()
 
 	if height%100 == 0 {
 		logging.Infof("Finished ingesting %s block at height %d\n", coinType.Name, height)
 	}
-	server.ingestMutex.Unlock()
 	return nil
 }
 

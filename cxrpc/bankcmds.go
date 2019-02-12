@@ -64,7 +64,25 @@ type WithdrawReply struct {
 // Withdraw is the RPC Interface for Withdraw
 func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) error {
 	if args.Asset == "vtc" {
-		txid, err := cl.Server.VTCWalletSend(args.Address, args.Username, args.Amount)
+		txid, err := cl.Server.VTCWithdraw(args.Address, args.Username, args.Amount)
+		if err != nil {
+			return fmt.Errorf("Error with withdraw command: \n%s", err)
+		}
+
+		reply.Txid = txid
+		return nil
+	}
+	if args.Asset == "btc" {
+		txid, err := cl.Server.BTCWithdraw(args.Address, args.Username, args.Amount)
+		if err != nil {
+			return fmt.Errorf("Error with withdraw command: \n%s", err)
+		}
+
+		reply.Txid = txid
+		return nil
+	}
+	if args.Asset == "ltc" {
+		txid, err := cl.Server.LTCWithdraw(args.Address, args.Username, args.Amount)
 		if err != nil {
 			return fmt.Errorf("Error with withdraw command: \n%s", err)
 		}

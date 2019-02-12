@@ -90,10 +90,10 @@ func main() {
 		logging.Infof("Started hook #%d\n", i+1)
 	}
 
-	// Update the addresses
-	if err = ocxServer.UpdateAddresses(); err != nil {
-		logging.Fatalf("Error updating addresses: \n%s", err)
-	}
+	// Update the addresses -> ONLY uncomment if you switch chains or something. This exchange isn't really meant to be switching between different testnets all the time
+	// if err = ocxServer.UpdateAddresses(); err != nil {
+	// 	logging.Fatalf("Error updating addresses: \n%s", err)
+	// }
 
 	// Register RPC Commands and set server
 	rpc1 := new(cxrpc.OpencxRPC)

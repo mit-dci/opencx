@@ -25,8 +25,6 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) (err erro
 		}
 	}()
 
-	cl.Server.LockIngests()
-
 	// Create addresses based on username and put them into maps
 	addrMap := make(map[string]string)
 	if addrMap["btc"], err = cl.Server.NewAddressBTC(args.Username); err != nil {
@@ -41,11 +39,15 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) (err erro
 		return
 	}
 
+	// Do all this locking just cause
+	cl.Server.LockIngests()
 	// Insert them into the DB
 	if err = cl.Server.OpencxDB.InsertDepositAddresses(args.Username, addrMap); err != nil {
 		return
 	}
+	cl.Server.UnlockIngests()
 
+	cl.Server.LockIngests()
 	if err = cl.Server.OpencxDB.InitializeAccountBalances(args.Username); err != nil {
 		return
 	}

@@ -155,9 +155,9 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [x] RPC Interface
  - [x] DB Interface
  - [x] Tesnet interface
- - [ ] Wallets
+ - [x] Wallets
    - [x] Withdrawal
-   - [ ] Test on testnet - debug transaction sending / pushing
+   - [x] Test on testnet - debug transaction sending / pushing
  - [x] Register
    - [x] RPC Command in interface
    - [x] Database k/v for username and password
@@ -192,7 +192,9 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [x] Get Price
  - [x] Remove token stuff in shell
  - [x] ~~Correct dynamic confirmations~~ fixed but I just changed it to 6, but it *could* be made a lot better because I made it easy to do so.
+ - [ ] Get robust way of adding multiple tokens
  - [ ] Fix issue with price calculation on sell side
+ - [ ] Fix SQL Injection vulnerability lol
 
 #### Decentralization notes
 
