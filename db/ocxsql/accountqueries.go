@@ -2,8 +2,6 @@ package ocxsql
 
 import (
 	"fmt"
-
-	"github.com/mit-dci/opencx/logging"
 )
 
 // InitializeAccountBalances initializes all database values for an account with username 'username'
@@ -151,9 +149,7 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 		}
 
 		// go through all the usernames and addresses obtained and update them
-		for addr, username := range addrPairs {
-			logging.Infof("Updating %s address set to %s", username, addr)
-
+		for username, addr := range addrPairs {
 			// Actually update the table -- doing this outside the scan so we don't get busy buffer issues
 			insertDepositAddrQuery := fmt.Sprintf("UPDATE %s SET address='%s' WHERE name='%s';", assetString, addr, username)
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {

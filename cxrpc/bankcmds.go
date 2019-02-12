@@ -2,8 +2,6 @@ package cxrpc
 
 import (
 	"fmt"
-
-	"github.com/mit-dci/opencx/logging"
 )
 
 // GetBalanceArgs hold the arguments for GetBalance
@@ -72,7 +70,7 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) error {
 		}
 
 		reply.Txid = txid
-		logging.Infof("Withdraw transaction ID: %s", txid)
+		return nil
 	}
 
 	reply.Txid = ""

@@ -5,7 +5,6 @@ import (
 
 	"github.com/mit-dci/lit/btcutil/base58"
 	"github.com/mit-dci/lit/wallit"
-	"github.com/mit-dci/opencx/logging"
 )
 
 // NewAddressLTC returns a new address based on the keygen retrieved from the wallet
@@ -59,15 +58,6 @@ func GetAddrFunction(wallet *wallit.Wallit) func(string) (string, error) {
 
 		// encode it to store in own db
 		addr = base58.CheckEncode(addrBytes[:], pubKeyHashAddrID)
-
-		// Return current state of wallet
-		dumpaddrs, err := wallet.AdrDump()
-		if err != nil {
-			return "", err
-		}
-		for _, addrBytes := range dumpaddrs {
-			logging.Infof("Address from wallet w cointype %d: %s", wallet.Param.HDCoinType, base58.CheckEncode(addrBytes[:], pubKeyHashAddrID))
-		}
 
 		return
 	}
