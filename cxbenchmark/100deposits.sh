@@ -1,11 +1,11 @@
 #!/bin/bash
-maxblocks=10
+maxblocks=5
 for i in `seq $maxblocks`; do
-  maxtxinblock=10
+  maxtxinblock=1000
   (
   for j in `seq $maxtxinblock`; do
     vertcoin-cli sendtoaddress WqynWw2n93rfihLNsUVRKDxEBQc19rKGof 0.00001 >/dev/null
-  done &
+  done
   ) &
   ch1=$!
   # Because bitcoin is really slow at this for some reason
@@ -13,13 +13,13 @@ for i in `seq $maxblocks`; do
   (
   for j in `seq $bitcoinblocks`; do
     bitcoin-cli sendtoaddress n3k3QXbArVijHeU2HpJQSRpW8jAaD1v4Tf 0.00001 >/dev/null
-  done &
-  )
+  done
+  ) &
   ch2=$!
   (
   for j in `seq $maxtxinblock`; do
     litecoin-cli sendtoaddress mxWrYVpUSsGEyjJaSfTjVRQYDTT3ksQ7oB 0.00001 >/dev/null
-  done &
+  done
   ) & 
   ch3=$!
   # You can run a whole bunch of these to test deposits -- it's a really good way to flood transactions.
