@@ -16,14 +16,16 @@ type GetBalanceReply struct {
 }
 
 // GetBalance is the RPC Interface for GetBalance
-func (cl *OpencxRPC) GetBalance(args GetBalanceArgs, reply *GetBalanceReply) error {
-	amount, err := cl.Server.OpencxDB.GetBalance(args.Username, args.Asset)
-	if err != nil {
-		return fmt.Errorf("Error with getbalance command: \n%s", err)
+func (cl *OpencxRPC) GetBalance(args GetBalanceArgs, reply *GetBalanceReply) (err error) {
+	cl.Server.LockIngests()
+	if reply.Amount, err = cl.Server.OpencxDB.GetBalance(args.Username, args.Asset); err != nil {
+		cl.Server.UnlockIngests()
+		err = fmt.Errorf("Error with getbalance command: \n%s", err)
+		return
 	}
+	cl.Server.UnlockIngests()
 
-	reply.Amount = amount
-	return nil
+	return
 }
 
 // GetDepositAddressArgs hold the arguments for GetDepositAddress
