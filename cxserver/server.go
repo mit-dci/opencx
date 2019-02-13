@@ -5,6 +5,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/mit-dci/opencx/match"
+
 	"github.com/mit-dci/lit/wallit"
 
 	"github.com/mit-dci/lit/btcutil/chaincfg/chainhash"
@@ -35,7 +37,53 @@ type OpencxServer struct {
 	OpencxBTCWallet      *wallit.Wallit
 	OpencxLTCWallet      *wallit.Wallit
 	OpencxVTCWallet      *wallit.Wallit
+
+	orderMutex *sync.Mutex
+	OrderMap   map[match.Pair][]*match.LimitOrder
 	// TODO: Or implement client required signatures and pubkeys instead of usernames
+}
+
+// LockOrders locks the order mutex
+func (server *OpencxServer) LockOrders() {
+	server.orderMutex.Lock()
+}
+
+// UnlockOrders unlocks the order mutex
+func (server *OpencxServer) UnlockOrders() {
+	server.orderMutex.Unlock()
+}
+
+// InitMatchingMaps creates the maps so we don't get nil map errors
+func (server *OpencxServer) InitMatchingMaps() {
+	server.orderMutex = new(sync.Mutex)
+	server.OrderMap = make(map[match.Pair][]*match.LimitOrder)
+}
+
+// MatchingLoop is supposed to be run as a goroutine. This will always match stuff, and creates the server mutex map and order map
+func (server *OpencxServer) MatchingLoop(pair match.Pair, bufferSize int) {
+
+	for {
+
+		server.LockOrders()
+
+		_, foundOrders := server.OrderMap[pair]
+		if foundOrders && len(server.OrderMap[pair]) >= bufferSize {
+
+			logging.Infof("Old order queue size: %d", len(server.OrderMap[pair]))
+			server.OrderMap[pair] = []*match.LimitOrder{}
+			logging.Infof("server order queue size: %d", len(server.OrderMap[pair]))
+
+			server.LockIngests()
+			if err := server.OpencxDB.RunMatching(pair); err != nil {
+				// gotta put these here cause if it errors out then oops just locked everything
+				// logging.Errorf("Error with matching: \n%s", err)
+			}
+			server.UnlockIngests()
+		}
+
+		server.UnlockOrders()
+	}
+
 }
 
 // TODO now that I know how to use this hdkeychain stuff, let's figure out how to create addresses to store

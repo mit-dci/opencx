@@ -72,6 +72,7 @@ func (server *OpencxServer) UpdateAddresses() error {
 	// Call DB method with functions
 	if err := server.OpencxDB.UpdateDepositAddresses(server.getLTCAddrFunc(), server.getBTCAddrFunc(), server.getVTCAddrFunc()); err != nil {
 		// yes you still need to unlock in case of error
+		// in the future just defer func if err != nil unlock ingests
 		server.UnlockIngests()
 		return err
 	}

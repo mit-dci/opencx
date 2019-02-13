@@ -115,7 +115,8 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 		}
 	}()
 
-	logging.Infof("Matching all orders with price %f\n", price)
+	// debug
+	// logging.Infof("Matching all orders with price %f\n", price)
 
 	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 		return

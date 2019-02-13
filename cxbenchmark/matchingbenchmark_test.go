@@ -6,9 +6,9 @@ import (
 
 func BenchmarkPlaceOrders1000(b *testing.B) {
 	client := SetupBenchmark()
-	for n := 0; n < b.N; n++ {
-		PlaceAndFill(client, "tester", "othertester", "btc/ltc", 10)
-		PlaceAndFill(client, "tester", "othertester", "btc/vtc", 10)
-		PlaceAndFill(client, "tester", "othertester", "vtc/ltc", 10)
+	for i := 0; i < b.N; i++ {
+		PlaceAndFill(client, "tester", "othertester", "btc/ltc", 2)
+		PlaceAndFill(client, "tester", "othertester", "btc/vtc", 2)
+		PlaceAndFill(client, "tester", "othertester", "vtc/ltc", 2)
 	}
 }

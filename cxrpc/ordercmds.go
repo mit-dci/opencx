@@ -17,22 +17,18 @@ type SubmitOrderReply struct {
 // SubmitOrder submits an order to the order book or throws an error
 func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) error {
 
+	cl.Server.LockOrders()
+	cl.Server.OrderMap[args.Order.TradingPair] = append(cl.Server.OrderMap[args.Order.TradingPair], args.Order)
+	cl.Server.UnlockOrders()
+
 	cl.Server.LockIngests()
 	if err := cl.Server.OpencxDB.PlaceOrder(args.Order); err != nil {
 		// gotta put these here cause if it errors out then oops just locked everything
+		// logging.Errorf("Error with matching: \n%s", err)
 		cl.Server.UnlockIngests()
 		return err
 	}
 	cl.Server.UnlockIngests()
-
-	cl.Server.LockIngests()
-	if err := cl.Server.OpencxDB.RunMatchingBestPrices(args.Order.TradingPair); err != nil {
-		// gotta put these here cause if it errors out then oops just locked everything
-		cl.Server.UnlockIngests()
-		return err
-	}
-	cl.Server.UnlockIngests()
-
 	return nil
 }
 

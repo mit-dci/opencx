@@ -47,11 +47,6 @@ func main() {
 		log.Fatalf("Error setting logger path: \n%s", err)
 	}
 
-	assetPairs := match.GenerateAssetPairs()
-	for i, elem := range assetPairs {
-		logging.Infof("Pair %d: %s\n", i, elem)
-	}
-
 	// Check and load config params
 	// Start database? That can happen in SetupClient maybe, for DBs that can be started natively in go
 	// Check if DB has saved files, if not then start new DB, if so then load old DB
@@ -90,6 +85,15 @@ func main() {
 		logging.Infof("Started hook #%d\n", i+1)
 	}
 
+	// init the maps for the server
+	ocxServer.InitMatchingMaps()
+
+	// Get all the asset pairs then start the matching loop
+	assetPairs := match.GenerateAssetPairs()
+	for i, pair := range assetPairs {
+		go ocxServer.MatchingLoop(pair, 1000)
+		logging.Infof("Pair %d: %s\n", i, pair)
+	}
 	// Update the addresses -> ONLY uncomment if you switch chains or something. This exchange isn't really meant to be switching between different testnets all the time
 	// if err = ocxServer.UpdateAddresses(); err != nil {
 	// 	logging.Fatalf("Error updating addresses: \n%s", err)

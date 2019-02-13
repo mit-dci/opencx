@@ -12,36 +12,48 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-// OrderCommand submits an order (for now) TODO
-func (cl *BenchClient) OrderCommand(client string, side string, pair string, amountHave uint64, price float64) error {
-	orderArgs := new(cxrpc.SubmitOrderArgs)
-	orderReply := new(cxrpc.SubmitOrderReply)
+// OrderCommand submits an order synchronously. Uses asynchronous order function
+func (cl *BenchClient) OrderCommand(client string, side string, pair string, amountHave uint64, price float64) (err error) {
+	errorChannel := make(chan error)
+	cl.OrderAsync(client, side, pair, amountHave, price, errorChannel)
+	err = <-errorChannel
+	return
+}
 
-	var newOrder match.LimitOrder
-	newOrder.Client = client
-	newOrder.Side = side
-	if newOrder.Side != "buy" && newOrder.Side != "sell" {
-		return fmt.Errorf("Order's side isn't buy or sell, try again")
-	}
+// OrderAsync is supposed to be run in a separate goroutine, OrderCommand makes this synchronous however
+func (cl *BenchClient) OrderAsync(client string, side string, pair string, amountHave uint64, price float64, errChan chan error) {
 
-	// get the trading pair string from the shell input - third parameter
-	err := newOrder.TradingPair.FromString(pair)
-	if err != nil {
-		return fmt.Errorf("Error getting asset pair from string: \n%s", err)
-	}
+	errChan <- func() error {
+		orderArgs := new(cxrpc.SubmitOrderArgs)
+		orderReply := new(cxrpc.SubmitOrderReply)
 
-	newOrder.AmountHave = amountHave
+		var newOrder match.LimitOrder
+		newOrder.Client = client
+		newOrder.Side = side
+		if newOrder.Side != "buy" && newOrder.Side != "sell" {
+			return fmt.Errorf("Order's side isn't buy or sell, try again")
+		}
 
-	newOrder.SetAmountWant(price)
+		// get the trading pair string from the shell input - third parameter
+		err := newOrder.TradingPair.FromString(pair)
+		if err != nil {
+			return fmt.Errorf("Error getting asset pair from string: \n%s", err)
+		}
 
-	orderArgs.Order = &newOrder
-	err = cl.Call("OpencxRPC.SubmitOrder", orderArgs, orderReply)
-	if err != nil {
-		return fmt.Errorf("Error calling 'SubmitOrder' service method:\n%s", err)
-	}
+		newOrder.AmountHave = amountHave
 
-	logging.Infof("Order submitted successfully\n")
-	return nil
+		newOrder.SetAmountWant(price)
+
+		orderArgs.Order = &newOrder
+		err = cl.Call("OpencxRPC.SubmitOrder", orderArgs, orderReply)
+		if err != nil {
+			return fmt.Errorf("Error calling 'SubmitOrder' service method:\n%s", err)
+		}
+
+		// logging.Infof("Order submitted successfully\n")
+		return nil
+	}()
+
 }
 
 // GetPrice calls the getprice rpc command

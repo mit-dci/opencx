@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -21,12 +20,12 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
-		return fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
+		return fmt.Errorf("Error beginning transaction while placing order: \n%s", err)
 	}
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while running matching, this might be bad: \n%s", err)
+			err = fmt.Errorf("Error while placing order: \n%s", err)
 			return
 		}
 		err = tx.Commit()
@@ -42,7 +41,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 		inPairs = inPairs || pair.String() == order.TradingPair.String()
 	}
 	if !inPairs {
-		err = fmt.Errorf("trading pair does not exist, try the other way around (e.g. ltc_btc => btc_ltc)")
+		err = fmt.Errorf("Trading pair does not exist, try the other way around (e.g. ltc/btc => btc/ltc)")
 		return
 	}
 
@@ -87,7 +86,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 			}
 
 			//debug
-			logging.Infof("Price for %s side: %f\n", order.Side, realPrice)
+			// logging.Infof("Price for %s side: %f\n", order.Side, realPrice)
 
 			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Client, order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
 			if _, err = tx.Exec(placeOrderQuery); err != nil {
@@ -104,7 +103,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 	}
 
 	//debug
-	logging.Infof("done")
+	// logging.Infof("done")
 
 	// when placing an order subtract from the balance
 	return
@@ -252,7 +251,7 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 
 	for _, price := range prices {
 
-		logging.Infof("Matching all orders with price %f\n", price)
+		// logging.Infof("Matching all orders with price %f\n", price)
 
 		if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 			return
