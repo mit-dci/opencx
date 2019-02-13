@@ -43,12 +43,16 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) (err erro
 	cl.Server.LockIngests()
 	// Insert them into the DB
 	if err = cl.Server.OpencxDB.InsertDepositAddresses(args.Username, addrMap); err != nil {
+		// gotta put these here cause if it errors out then oops just locked everything
+		cl.Server.UnlockIngests()
 		return
 	}
 	cl.Server.UnlockIngests()
 
 	cl.Server.LockIngests()
 	if err = cl.Server.OpencxDB.InitializeAccountBalances(args.Username); err != nil {
+		// gotta put these here cause if it errors out then oops just locked everything
+		cl.Server.UnlockIngests()
 		return
 	}
 	cl.Server.UnlockIngests()

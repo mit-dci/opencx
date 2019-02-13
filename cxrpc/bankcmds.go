@@ -38,16 +38,17 @@ type GetDepositAddressReply struct {
 }
 
 // GetDepositAddress is the RPC Interface for GetDepositAddress
-func (cl *OpencxRPC) GetDepositAddress(args GetDepositAddressArgs, reply *GetDepositAddressReply) error {
+func (cl *OpencxRPC) GetDepositAddress(args GetDepositAddressArgs, reply *GetDepositAddressReply) (err error) {
 	cl.Server.LockIngests()
-	addr, err := cl.Server.OpencxDB.GetDepositAddress(args.Username, args.Asset)
-	if err != nil {
-		return fmt.Errorf("Error with getdepositaddress command: \n%s", err)
+	if reply.Address, err = cl.Server.OpencxDB.GetDepositAddress(args.Username, args.Asset); err != nil {
+		// gotta put these here cause if it errors out then oops just locked everything
+		cl.Server.UnlockIngests()
+		err = fmt.Errorf("Error with getdepositaddress command: \n%s", err)
+		return
 	}
 	cl.Server.UnlockIngests()
 
-	reply.Address = addr
-	return nil
+	return
 }
 
 // WithdrawArgs holds the args for Withdraw
@@ -64,42 +65,43 @@ type WithdrawReply struct {
 }
 
 // Withdraw is the RPC Interface for Withdraw
-func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) error {
+func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err error) {
 	if args.Asset == "vtc" {
 		cl.Server.LockIngests()
-		txid, err := cl.Server.VTCWithdraw(args.Address, args.Username, args.Amount)
-		if err != nil {
-			return fmt.Errorf("Error with withdraw command: \n%s", err)
+		if reply.Txid, err = cl.Server.VTCWithdraw(args.Address, args.Username, args.Amount); err != nil {
+			// gotta put these here cause if it errors out then oops just locked everything
+			cl.Server.UnlockIngests()
+			err = fmt.Errorf("Error with withdraw command: \n%s", err)
+			return
 		}
 		cl.Server.UnlockIngests()
 
-		reply.Txid = txid
-		return nil
+		return
 	}
 	if args.Asset == "btc" {
 		cl.Server.LockIngests()
-		txid, err := cl.Server.BTCWithdraw(args.Address, args.Username, args.Amount)
-		if err != nil {
-			return fmt.Errorf("Error with withdraw command: \n%s", err)
+		if reply.Txid, err = cl.Server.BTCWithdraw(args.Address, args.Username, args.Amount); err != nil {
+			// gotta put these here cause if it errors out then oops just locked everything
+			cl.Server.UnlockIngests()
+			err = fmt.Errorf("Error with withdraw command: \n%s", err)
+			return
 		}
 		cl.Server.UnlockIngests()
 
-		reply.Txid = txid
-		return nil
+		return
 	}
 	if args.Asset == "ltc" {
 		cl.Server.LockIngests()
-		txid, err := cl.Server.LTCWithdraw(args.Address, args.Username, args.Amount)
-		if err != nil {
-			return fmt.Errorf("Error with withdraw command: \n%s", err)
+		if reply.Txid, err = cl.Server.LTCWithdraw(args.Address, args.Username, args.Amount); err != nil {
+			// gotta put these here cause if it errors out then oops just locked everything
+			cl.Server.UnlockIngests()
+			err = fmt.Errorf("Error with withdraw command: \n%s", err)
+			return
 		}
 		cl.Server.UnlockIngests()
 
-		reply.Txid = txid
-		return nil
+		return
 	}
 
-	reply.Txid = ""
-
-	return nil
+	return
 }

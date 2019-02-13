@@ -30,6 +30,8 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	server.LockIngests()
 	addressesWeOwn, err := server.OpencxDB.GetDepositAddressMap(coinType)
 	if err != nil {
+		// if errors out, unlock
+		server.UnlockIngests()
 		return
 	}
 	server.UnlockIngests()
@@ -74,6 +76,8 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 
 	server.LockIngests()
 	if err = server.OpencxDB.UpdateDeposits(deposits, height, coinType); err != nil {
+		// if errors out, unlock
+		server.UnlockIngests()
 		return
 	}
 	server.UnlockIngests()

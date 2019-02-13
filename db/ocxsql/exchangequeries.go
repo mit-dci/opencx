@@ -52,6 +52,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 	} else {
 		balCheckAsset = order.TradingPair.AssetWant.String()
 	}
+
 	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", balCheckAsset, order.Client)
 	rows, getBalErr := tx.Query(getBalanceQuery)
 	if err = getBalErr; err != nil {
@@ -84,7 +85,9 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 			if err = priceErr; err != nil {
 				return
 			}
-			fmt.Printf("Price for %s side: %f\n", order.Side, realPrice)
+
+			//debug
+			logging.Infof("Price for %s side: %f\n", order.Side, realPrice)
 
 			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Client, order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
 			if _, err = tx.Exec(placeOrderQuery); err != nil {
@@ -99,6 +102,10 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 		err = fmt.Errorf("Could not find balance for user %s, so cannot place order", order.Client)
 		return
 	}
+
+	//debug
+	logging.Infof("done")
+
 	// when placing an order subtract from the balance
 	return
 }

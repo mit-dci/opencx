@@ -48,6 +48,8 @@ func (server *OpencxServer) withdrawFromChain(wallet *wallit.Wallit, params *cha
 
 		server.LockIngests()
 		if bal, err = server.OpencxDB.GetBalance(username, assetString); err != nil {
+			// if errors out, unlock
+			server.UnlockIngests()
 			return "", err
 		}
 		server.UnlockIngests()
