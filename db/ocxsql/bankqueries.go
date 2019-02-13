@@ -205,7 +205,7 @@ func (db *DB) UpdateBalanceWithinTransaction(username string, amount uint64, tx 
 		return
 	}
 
-	logging.Infof("Adding %d %s to %s's balance\n", amount, coinSchema, username)
+	// logging.Infof("Adding %d %s to %s's balance\n", amount, coinSchema, username)
 	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", coinSchema, username)
 	res, queryErr := tx.Query(currentBalanceQuery)
 	if queryErr != nil {
@@ -264,7 +264,7 @@ func (db *DB) UpdateBalancesWithinTransaction(usernames []string, amounts []uint
 	for i := range amounts {
 		amount := amounts[i]
 		username := usernames[i]
-		logging.Infof("Deposit confirmed; Adding %d %s to %s's balance\n", amount, coinSchema, username)
+		// logging.Infof("Deposit confirmed; Adding %d %s to %s's balance\n", amount, coinSchema, username)
 		currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", coinSchema, username)
 		res, queryErr := tx.Query(currentBalanceQuery)
 		if queryErr != nil {

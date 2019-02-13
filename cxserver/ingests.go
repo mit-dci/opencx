@@ -65,7 +65,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 						Confirmations:       6,
 					}
 
-					logging.Infof("%s\n", newDeposit.String())
+					// logging.Infof("%s\n", newDeposit.String())
 					deposits = append(deposits, newDeposit)
 				}
 			}

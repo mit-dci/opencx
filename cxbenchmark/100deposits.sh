@@ -1,7 +1,7 @@
 #!/bin/bash
-maxblocks=5
+maxblocks=20
 for i in `seq $maxblocks`; do
-  maxtxinblock=1000
+  maxtxinblock=100
   (
   for j in `seq $maxtxinblock`; do
     vertcoin-cli sendtoaddress WqynWw2n93rfihLNsUVRKDxEBQc19rKGof 0.00001 >/dev/null
@@ -9,7 +9,7 @@ for i in `seq $maxblocks`; do
   ) &
   ch1=$!
   # Because bitcoin is really slow at this for some reason
-  bitcoinblocks=$(expr $maxtxinblock / 3)
+  bitcoinblocks=$(expr $maxtxinblock / 1)
   (
   for j in `seq $bitcoinblocks`; do
     bitcoin-cli sendtoaddress n3k3QXbArVijHeU2HpJQSRpW8jAaD1v4Tf 0.00001 >/dev/null
@@ -29,11 +29,11 @@ for i in `seq $maxblocks`; do
   wait $ch1
   wait $ch2
   wait $ch3
-  bitcoin-cli generate 7 &
+  bitcoin-cli generate 1 &
   ch1=$!
-  litecoin-cli generate 7 &
+  litecoin-cli generate 1 &
   ch2=$!
-  vertcoin-cli generate 7 &
+  vertcoin-cli generate 1 &
   ch3=$!
 
   wait $ch1
