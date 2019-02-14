@@ -39,16 +39,18 @@ func (a asset) String() string {
 }
 
 // generateUniquePairs generates unique asset pairs based on the assets available
-func generateUniquePairs(assetList []byte) []Pair {
+func generateUniquePairs(assetList []byte) []*Pair {
 
 	assetListLen := len(assetList)
 	numPairIndeces := assetListLen * (assetListLen - 1) / 2
-	var pairList = make([]Pair, numPairIndeces)
+	var pairList = make([]*Pair, numPairIndeces)
 	pairListIndex := 0
 	for i, elem := range assetList {
 		for lower := i + 1; lower < assetListLen; lower++ {
-			pairList[pairListIndex].AssetWant = assetCast(elem)
-			pairList[pairListIndex].AssetHave = assetCast(assetList[lower])
+			pairList[pairListIndex] = &Pair{
+				AssetWant: assetCast(elem),
+				AssetHave: assetCast(assetList[lower]),
+			}
 			pairListIndex++
 		}
 	}
@@ -57,7 +59,7 @@ func generateUniquePairs(assetList []byte) []Pair {
 }
 
 // GenerateAssetPairs generates unique asset pairs based on the default assets available
-func GenerateAssetPairs() []Pair {
+func GenerateAssetPairs() []*Pair {
 	return generateUniquePairs(AssetList())
 }
 

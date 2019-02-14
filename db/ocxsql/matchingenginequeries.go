@@ -9,7 +9,7 @@ import (
 )
 
 // RunMatchingForPrice runs matching for only a specific price. Creates a transaction.
-func (db *DB) RunMatchingForPrice(pair match.Pair, price float64) (err error) {
+func (db *DB) RunMatchingForPrice(pair *match.Pair, price float64) (err error) {
 
 	// create the transaction
 	tx, err := db.DBHandler.Begin()
@@ -34,7 +34,7 @@ func (db *DB) RunMatchingForPrice(pair match.Pair, price float64) (err error) {
 }
 
 // CalculatePrice calculates the price based on the volume and side of the orders.
-func (db *DB) CalculatePrice(pair match.Pair) (price float64, err error) {
+func (db *DB) CalculatePrice(pair *match.Pair) (price float64, err error) {
 
 	// create the transaction
 	tx, err := db.DBHandler.Begin()
@@ -93,7 +93,7 @@ func (db *DB) CalculatePrice(pair match.Pair) (price float64, err error) {
 }
 
 // RunMatchingBestPrices runs matching only on the best prices
-func (db *DB) RunMatchingBestPrices(pair match.Pair) (err error) {
+func (db *DB) RunMatchingBestPrices(pair *match.Pair) (err error) {
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
@@ -190,7 +190,7 @@ func shouldMatch(buyPrices []float64, sellPrices []float64) bool {
 }
 
 // RunMatchingForPriceWithinTransaction runs matching only for a particular price, and takes a transaction
-func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float64, tx *sql.Tx) (err error) {
+func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float64, tx *sql.Tx) (err error) {
 
 	defer func() {
 		if err != nil {
@@ -396,7 +396,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 
 // RunMatching runs matching on every price in the order book. If you had enough processing power, this would be the matching to
 // run, since it scans all prices, and can be run at any time.
-func (db *DB) RunMatching(pair match.Pair) (err error) {
+func (db *DB) RunMatching(pair *match.Pair) (err error) {
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {

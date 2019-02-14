@@ -111,7 +111,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 }
 
 // UpdateOrderAmountsWithinTransaction updates a single order within a sql transaction
-func (db *DB) UpdateOrderAmountsWithinTransaction(order *match.LimitOrder, pair match.Pair, tx *sql.Tx) (err error) {
+func (db *DB) UpdateOrderAmountsWithinTransaction(order *match.LimitOrder, pair *match.Pair, tx *sql.Tx) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("Error updating order within transaction: \n%s", err)
@@ -128,7 +128,7 @@ func (db *DB) UpdateOrderAmountsWithinTransaction(order *match.LimitOrder, pair 
 }
 
 // DeleteOrderWithinTransaction deletes an order within a transaction.
-func (db *DB) DeleteOrderWithinTransaction(order *match.LimitOrder, pair match.Pair, tx *sql.Tx) (err error) {
+func (db *DB) DeleteOrderWithinTransaction(order *match.LimitOrder, pair *match.Pair, tx *sql.Tx) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("Error deleting order within transaction: \n%s", err)

@@ -1,6 +1,7 @@
 package cxdb
 
 import (
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -20,15 +21,21 @@ type OpencxStore interface {
 	// RegisterUser takes in a user, and a map of asset to addresses for the user. It inserts the necessary information in databases to register the user.
 	RegisterUser(string, map[string]string) error
 	// GetBalance gets the balance for a user and an asset.
-	GetBalance(string, string) (float64, error)
+	GetBalance(string, string) (uint64, error)
 	// GetDepositAddress gets the deposit address for a user and an asset.
 	GetDepositAddress(string, string) (string, error)
 	// PlaceOrder places an order in the datastore.
-	PlaceOrder(match.LimitOrder) error
+	PlaceOrder(*match.LimitOrder) error
 	// ViewOrderBook takes in a trading pair and returns buy order and sell orders separately. This should eventually only return the orderbook, not sure.
-	ViewOrderBook(match.Pair) ([]*match.LimitOrder, []*match.LimitOrder, error)
+	ViewOrderBook(*match.Pair) ([]*match.LimitOrder, []*match.LimitOrder, error)
 	// CalculatePrice returns the calculated price based on the order book.
-	CalculatePrice(match.Pair) (float64, error)
+	CalculatePrice(*match.Pair) (float64, error)
 	// Withdraw checks the user's balance against the amount and if valid, reduces the balance by that amount.
 	Withdraw(string, string, uint64) error
+	// RunMatching runs the matching logic for all prices in the exchange. Matching is less abstracted because it is done very often, so the overhead makes a difference.
+	RunMatching(*match.Pair) error
+	// UpdateDeposits updates the deposits when a block comes in
+	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
+	// GetDepositAddressMap gets a map of the deposit addresses we own to usernames
+	GetDepositAddressMap(*coinparam.Params) (map[string]string, error)
 }

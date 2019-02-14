@@ -5,6 +5,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/mit-dci/opencx/cxdb"
+
 	"github.com/mit-dci/opencx/match"
 
 	"github.com/mit-dci/lit/wallit"
@@ -15,7 +17,6 @@ import (
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/lit/wire"
-	"github.com/mit-dci/opencx/db/ocxsql"
 	"github.com/mit-dci/opencx/logging"
 )
 
@@ -25,7 +26,7 @@ const runningLocally = true
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
-	OpencxDB   *ocxsql.DB
+	OpencxDB   cxdb.OpencxStore
 	OpencxRoot string
 	OpencxPort int
 	// Hehe it's the vault, pls don't steal
@@ -60,17 +61,17 @@ func (server *OpencxServer) InitMatchingMaps() {
 }
 
 // MatchingLoop is supposed to be run as a goroutine. This will always match stuff, and creates the server mutex map and order map
-func (server *OpencxServer) MatchingLoop(pair match.Pair, bufferSize int) {
+func (server *OpencxServer) MatchingLoop(pair *match.Pair, bufferSize int) {
 
 	for {
 
 		server.LockOrders()
 
-		_, foundOrders := server.OrderMap[pair]
-		if foundOrders && len(server.OrderMap[pair]) >= bufferSize {
+		_, foundOrders := server.OrderMap[*pair]
+		if foundOrders && len(server.OrderMap[*pair]) >= bufferSize {
 
 			logging.Infof("Server order queue reached 1000; Matching all prices.")
-			server.OrderMap[pair] = []*match.LimitOrder{}
+			server.OrderMap[*pair] = []*match.LimitOrder{}
 
 			server.LockIngests()
 			if err := server.OpencxDB.RunMatching(pair); err != nil {

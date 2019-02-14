@@ -62,25 +62,3 @@ func GetAddrFunction(wallet *wallit.Wallit) func(string) (string, error) {
 		return
 	}
 }
-
-// UpdateAddresses updates all the addresses in the DB with the address functions defined.
-func (server *OpencxServer) UpdateAddresses() error {
-
-	// Lock ingest so they wait for the db
-	server.LockIngests()
-
-	// Call DB method with functions
-	if err := server.OpencxDB.UpdateDepositAddresses(server.getLTCAddrFunc(), server.getBTCAddrFunc(), server.getVTCAddrFunc()); err != nil {
-		// yes you still need to unlock in case of error
-		// in the future just defer func if err != nil unlock ingests
-		server.UnlockIngests()
-		return err
-	}
-
-	// Unlock ingests so they can keep going
-	server.UnlockIngests()
-
-	// TODO: replace this mutex with a channel?
-
-	return nil
-}

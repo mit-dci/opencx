@@ -85,7 +85,7 @@ func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) (err erro
 	cl.Server.LockIngests()
 	// reply.Price = cl.Server.OpencxDB.GetPrice(args.TradingPair.String())
 
-	if reply.Price, err = cl.Server.OpencxDB.CalculatePrice(*args.TradingPair); err != nil {
+	if reply.Price, err = cl.Server.OpencxDB.CalculatePrice(args.TradingPair); err != nil {
 		cl.Server.UnlockIngests()
 		err = fmt.Errorf("Error calculating price: \n%s", err)
 		return

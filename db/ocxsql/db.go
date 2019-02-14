@@ -41,7 +41,7 @@ type DB struct {
 	pendingDepositSchema string
 	orderSchema          string
 	assetArray           []string
-	pairsArray           []match.Pair
+	pairsArray           []*match.Pair
 	globalReads          int64
 	globalWrites         int64
 	gReadsMutex          sync.Mutex
