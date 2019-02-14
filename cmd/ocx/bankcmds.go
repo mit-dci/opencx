@@ -24,7 +24,7 @@ func (cl *openCxClient) GetBalance(args []string) error {
 		return fmt.Errorf("Error calling 'GetBalance' service method:\n%s", err)
 	}
 
-	cl.Printf("Balance for token %s: %f %s\n", balanceArgs.Asset, float64(balanceReply.Amount)/math.Pow10(8), balanceArgs.Asset)
+	logging.Infof("Balance for token %s: %f %s\n", balanceArgs.Asset, float64(balanceReply.Amount)/math.Pow10(8), balanceArgs.Asset)
 	return nil
 }
 
@@ -43,7 +43,7 @@ func (cl *openCxClient) GetDepositAddress(args []string) error {
 		return fmt.Errorf("Error calling 'GetDepositAddress' service method:\n%s", err)
 	}
 
-	cl.Printf("DepositAddress for token %s: %s\n", depositArgs.Asset, depositReply.Address)
+	logging.Infof("DepositAddress for token %s: %s\n", depositArgs.Asset, depositReply.Address)
 	return nil
 }
 

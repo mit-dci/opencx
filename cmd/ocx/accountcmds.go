@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/logging"
 )
 
 // Register registers the user for an account with a username and password
@@ -19,6 +20,6 @@ func (cl *openCxClient) Register(args []string) error {
 		return fmt.Errorf("Error calling 'Register' service method:\n%s", err)
 	}
 
-	cl.Printf("Successfully registered\n")
+	logging.Infof("Successfully registered\n")
 	return nil
 }

@@ -99,6 +99,8 @@ ok  	github.com/mit-dci/opencx/cxbenchmark	195.528s
 ```
 "Transactions per second": 61.986 tx/s
 
+After testing it more, depending on the size of the orderbook it's either fast or slow. As expected, the more orders for a specific price there are, the more time it takes to match. But once you're done matching many orders it's over.
+
 
 #### Ingesting blocks
 Currently when the server starts up, it ingests a whole bunch of blocks, looking for P2PKH outputs to the addresses it controls. When these do not have deposits in them, it is able to process them at about 200 blocks per second.

@@ -69,9 +69,8 @@ func (server *OpencxServer) MatchingLoop(pair match.Pair, bufferSize int) {
 		_, foundOrders := server.OrderMap[pair]
 		if foundOrders && len(server.OrderMap[pair]) >= bufferSize {
 
-			logging.Infof("Old order queue size: %d", len(server.OrderMap[pair]))
+			logging.Infof("Server order queue reached 1000; Matching all prices.")
 			server.OrderMap[pair] = []*match.LimitOrder{}
-			logging.Infof("server order queue size: %d", len(server.OrderMap[pair]))
 
 			server.LockIngests()
 			if err := server.OpencxDB.RunMatching(pair); err != nil {

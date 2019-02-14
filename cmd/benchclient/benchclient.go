@@ -1,8 +1,6 @@
 package benchclient
 
 import (
-	"os"
-
 	"github.com/mit-dci/opencx/cxrpc"
 )
 
@@ -16,12 +14,6 @@ func (cl *BenchClient) SetupBenchClient(server string, port int) error {
 	var err error
 
 	cl.RPCClient = new(cxrpc.OpencxRPCClient)
-
-	// TODO: change to file logging when it's needed, not now
-	cl.RPCClient.SetupLogger(os.Stdout)
-	if err != nil {
-		return err
-	}
 
 	err = cl.RPCClient.SetupConnection(server, port)
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 )
 
 // PlaceAndFill places a whole bunch of orders (in goroutines of course) and fills a whole bunch of orders.
-func PlaceAndFill(client *benchclient.BenchClient, user1 string, user2 string, pair string, howMany int) (numRuns int) {
+func PlaceAndFill(client *benchclient.BenchClient, user1 string, user2 string, pair string, howMany int) {
 	for i := 0; i < howMany; i++ {
 		// This shouldnt make any change in balance but each account should have at least 2000 satoshis (or the smallest unit in whatever chain)
 		bufErrChan := make(chan error, 4)
@@ -19,9 +19,35 @@ func PlaceAndFill(client *benchclient.BenchClient, user1 string, user2 string, p
 			if err := <-bufErrChan; err != nil {
 				logging.Errorf("Error placing and filling: %s", err)
 			}
-			numRuns++
 		}
+	}
+	return
+}
 
+// PlaceManyBuy places many orders at once
+func PlaceManyBuy(client *benchclient.BenchClient, user1 string, user2 string, pair string, howMany int) {
+	bufErrChan := make(chan error, howMany)
+	for i := 0; i < howMany; i++ {
+		go client.OrderAsync(user1, "buy", pair, 1000, 1.0, bufErrChan)
+	}
+	for i := 0; i < cap(bufErrChan); i++ {
+		if err := <-bufErrChan; err != nil {
+			logging.Errorf("Error placing many: %s", err)
+		}
+	}
+	return
+}
+
+// PlaceManySell places many orders at once
+func PlaceManySell(client *benchclient.BenchClient, user1 string, user2 string, pair string, howMany int) {
+	bufErrChan := make(chan error, howMany)
+	for i := 0; i < howMany; i++ {
+		go client.OrderAsync(user1, "sell", pair, 1000, 1.0, bufErrChan)
+	}
+	for i := 0; i < cap(bufErrChan); i++ {
+		if err := <-bufErrChan; err != nil {
+			logging.Errorf("Error placing many: %s", err)
+		}
 	}
 	return
 }

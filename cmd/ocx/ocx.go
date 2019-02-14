@@ -46,12 +46,6 @@ func (cl *openCxClient) setupCxClient(server string, port int) error {
 
 	cl.RPCClient = new(cxrpc.OpencxRPCClient)
 
-	// TODO: change to file logging when it's needed, not now
-	cl.RPCClient.SetupLogger(os.Stdout)
-	if err != nil {
-		return err
-	}
-
 	err = cl.RPCClient.SetupConnection(server, port)
 	if err != nil {
 		return err
@@ -62,8 +56,4 @@ func (cl *openCxClient) setupCxClient(server string, port int) error {
 
 func (cl *openCxClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	return cl.RPCClient.Call(serviceMethod, args, reply)
-}
-
-func (cl *openCxClient) Printf(format string, v ...interface{}) {
-	cl.RPCClient.Printf(format, v...)
 }
