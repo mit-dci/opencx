@@ -44,12 +44,12 @@ Memory Device
 
 All tests are run on the regtest environment as well.
 
-## Currently known limits:
+### Currently known limits:
 
  - If you try to use SQL injection you will succeed. The honor system is currently in place to protect against that vulnerability.
  - From start to finish, with many thousands of blocks, it takes a while to sync up. It needs to sync up because I have been changing the db stuff so much that it would have been real annoying to actually keep the state and height that we've synced to and such.
 
-# Placing orders and matching
+## Placing orders and matching
 
 At first I tested the performance of order placing, and every time an order was placed it would run matching. I realized this was extremely inefficient, and now run a goroutine to match orders continuously, while taking orders at any point in time. Locks are needed to keep multiple threads from reading and writing to the database, but that is where a distributed database or scaling solution would come in handy. The database could be sharded in the future. A good way to shard would be to separate order rows by price, since the matching for one price is completely separate from another price. This would help scale massively.
 
@@ -103,8 +103,60 @@ After testing it more, depending on the size of the orderbook it's either fast o
 
 NOTE: The benchmark requires users `tester` and `othertester` to have a bunch of money.
 
+Here are the results for combination tests. PlaceAndFill test place then immediately fill orders for multiple prices, meaning the matching loop will be somewhat busy. The PlaceBuyThenSell test place many buy orders, then place many sell orders, like an "all at once" operation. I'm still testing whether or not running matching for the price of an order immediately after the order is placed is a good idea, or any slower. The following only run the matching loop. The matching loop can be optimized as well, maybe it should be run on a time increment when the exchange isn't that busy, and run on an order increment when the exchange is busy.
 
-#### Ingesting blocks
+```
+ dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master  go test -v -benchtime=10s -bench=. 
+goos: linux
+goarch: amd64
+pkg: github.com/mit-dci/opencx/cxbenchmark
+BenchmarkPlaceOrders/PlaceAndFill1-8         	     200	  72169804 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell1-8     	     500	  34813599 ns/op
+BenchmarkPlaceOrders/PlaceAndFill10-8        	      30	 671836011 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell10-8    	      50	 344578718 ns/op
+BenchmarkPlaceOrders/PlaceAndFill100-8       	       2	5610319672 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell100-8   	       3	4029463074 ns/op
+BenchmarkPlaceOrders/PlaceAndFill1000-8      	       1	69659315612 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell1000-8  	       1	47541386132 ns/op
+PASS
+ok  	github.com/mit-dci/opencx/cxbenchmark	243.547s
+```
+
+```
+ dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master  go test -v -benchtime=10s -bench=.
+goos: linux
+goarch: amd64
+pkg: github.com/mit-dci/opencx/cxbenchmark
+BenchmarkPlaceOrders/PlaceAndFill1-8         	     300	  70524552 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell1-8     	     500	  39861595 ns/op
+BenchmarkPlaceOrders/PlaceAndFill10-8        	      20	 735612932 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell10-8    	      50	 348971955 ns/op
+BenchmarkPlaceOrders/PlaceAndFill100-8       	       2	5652193437 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell100-8   	       3	4086892375 ns/op
+BenchmarkPlaceOrders/PlaceAndFill1000-8      	       1	72111150586 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell1000-8  	       1	48667777616 ns/op
+PASS
+ok  	github.com/mit-dci/opencx/cxbenchmark	247.990s
+```
+
+```
+ dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master  go test -v -benchtime=10s -bench=.
+goos: linux
+goarch: amd64
+pkg: github.com/mit-dci/opencx/cxbenchmark
+BenchmarkPlaceOrders/PlaceAndFill1-8         	     300	  73141459 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell1-8     	     500	  36205554 ns/op
+BenchmarkPlaceOrders/PlaceAndFill10-8        	      30	 832876094 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell10-8    	      50	 351879723 ns/op
+BenchmarkPlaceOrders/PlaceAndFill100-8       	       2	8249407459 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell100-8   	       3	4381134289 ns/op
+BenchmarkPlaceOrders/PlaceAndFill1000-8      	       1	71376749722 ns/op
+BenchmarkPlaceOrders/PlaceBuyThenSell1000-8  	       1	47408481982 ns/op
+PASS
+ok  	github.com/mit-dci/opencx/cxbenchmark	249.438s
+```
+
+## Ingesting blocks
 Currently when the server starts up, it ingests a whole bunch of blocks, looking for P2PKH outputs to the addresses it controls. When these do not have deposits in them, it is able to process them at about 200 blocks per second.
 
 I currently have a shell script (100deposits.sh) that stress tests the server's ability to take deposits. The full node is actually the bottleneck for testing here.
