@@ -195,6 +195,7 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [ ] Get robust way of adding multiple tokens
  - [ ] Fix issue with price calculation on sell side
  - [ ] Fix SQL Injection vulnerability lol
+ - [ ] Lightning payment is market order
 
 #### Decentralization notes
 

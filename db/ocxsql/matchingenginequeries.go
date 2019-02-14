@@ -8,6 +8,30 @@ import (
 	"github.com/mit-dci/opencx/match"
 )
 
+// RunMatchingForPrice runs matching for only a specific price. Creates a transaction.
+func (db *DB) RunMatchingForPrice(pair match.Pair, price float64) (err error) {
+
+	// create the transaction
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		err = fmt.Errorf("Error beginning transaction while running matching for price: \n%s", err)
+		return
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error running matching for price, this might be bad: \n%s", err)
+		}
+		err = tx.Commit()
+	}()
+
+	if err = db.RunMatchingForPriceWithinTransaction(pair, price, tx); err != nil {
+		return
+	}
+
+	return
+}
+
 // RunMatchingBestPrices runs matching only on the best prices
 func (db *DB) RunMatchingBestPrices(pair match.Pair) (err error) {
 

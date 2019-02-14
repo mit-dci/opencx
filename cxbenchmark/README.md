@@ -42,6 +42,12 @@ All tests are run on the regtest environment as well.
  - If you try to use SQL injection you will succeed. The honor system is currently in place to protect against that vulnerability.
  - From start to finish, with many thousands of blocks, it takes a while to sync up. It needs to sync up because I have been changing the db stuff so much that it would have been real annoying to actually keep the state and height that we've synced to and such.
 
+# Placing orders and matching
+
+At first I tested the performance of order placing, and every time an order was placed it would run matching. I realized this was extremely inefficient, and now run a goroutine to match orders continuously, while taking orders at any point in time. Locks are needed to keep multiple threads from reading and writing to the database, but that is where a distributed database or scaling solution would come in handy. The database could be sharded in the future. A good way to shard would be to separate order rows by price, since the matching for one price is completely separate from another price. This would help scale massively.
+
+Currently the exchange matches orders for all price levels when there are 1000 orders that have been placed since last matching.
+
 #### Ingesting blocks
 Currently when the server starts up, it ingests a whole bunch of blocks, looking for P2PKH outputs to the addresses it controls. When these do not have deposits in them, it is able to process them at about 200 blocks per second.
 
