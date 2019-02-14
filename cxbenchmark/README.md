@@ -99,7 +99,9 @@ ok  	github.com/mit-dci/opencx/cxbenchmark	195.528s
 ```
 "Transactions per second": 61.986 tx/s
 
-After testing it more, depending on the size of the orderbook it's either fast or slow. As expected, the more orders for a specific price there are, the more time it takes to match. But once you're done matching many orders it's over.
+After testing it more, depending on the size of the orderbook it's either fast or slow. As expected, the more orders for a specific price there are, the more time it takes to match. But once you're done matching many orders it's fast again, since they get deleted. It would be very fast if we didn't care about consistency and only cared that we have proof a valid order was matched.
+
+NOTE: The benchmark requires users `tester` and `othertester` to have a bunch of money.
 
 
 #### Ingesting blocks
