@@ -44,19 +44,14 @@ func (server *OpencxServer) withdrawFromChain(wallet *wallit.Wallit, params *cha
 		if amount == 0 {
 			return "", fmt.Errorf("You can't withdraw 0 %s", assetString)
 		}
-		var bal uint64
 
 		server.LockIngests()
-		if bal, err = server.OpencxDB.GetBalance(username, assetString); err != nil {
+		if err = server.OpencxDB.Withdraw(username, assetString, amount); err != nil {
 			// if errors out, unlock
 			server.UnlockIngests()
 			return "", err
 		}
 		server.UnlockIngests()
-
-		if bal < amount {
-			return "", fmt.Errorf("You do not have enough balance to withdraw this amount")
-		}
 
 		// set log level for this thread
 		logging.SetLogLevel(2)

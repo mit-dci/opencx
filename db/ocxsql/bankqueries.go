@@ -462,3 +462,71 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (map[string]strin
 
 	return depositAddresses, nil
 }
+
+// Withdraw checks that the user has a certain amount of money and removes it if they do
+func (db *DB) Withdraw(username string, asset string, amount uint64) (err error) {
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		return
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while withdrawing using database: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// Use the balance schema
+
+	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+		return
+	}
+
+	// Check if the asset exists
+	validTable := false
+	for _, elem := range db.assetArray {
+		if asset == elem {
+			validTable = true
+		}
+	}
+
+	if !validTable {
+		err = fmt.Errorf("User %s tried to withdraw for %s which isn't a valid asset", username, asset)
+		return
+	}
+
+	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", asset, username)
+	rows, err := db.DBHandler.Query(getBalanceQuery)
+	if err != nil {
+		return
+	}
+
+	var bal uint64
+	if rows.Next() {
+		if err = rows.Scan(&bal); err != nil {
+			return
+		}
+	} else {
+		err = fmt.Errorf("User not registered, no balance")
+		return
+	}
+
+	if err = rows.Close(); err != nil {
+		return
+	}
+
+	if bal < amount {
+		err = fmt.Errorf("You do not have enough balance to withdraw this amount")
+		return
+	}
+
+	updatedBalance := bal - amount
+	reduceBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE name='%s'", asset, updatedBalance, username)
+	if _, err = tx.Exec(reduceBalanceQuery); err != nil {
+		return
+	}
+
+	return
+}

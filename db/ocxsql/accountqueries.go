@@ -4,6 +4,21 @@ import (
 	"fmt"
 )
 
+// RegisterUser registers a user
+func (db *DB) RegisterUser(username string, addresses map[string]string) (err error) {
+	// Do all this locking just cause
+	// Insert them into the DB
+	if err = db.InsertDepositAddresses(username, addresses); err != nil {
+		return
+	}
+
+	if err = db.InitializeAccountBalances(username); err != nil {
+		return
+	}
+
+	return
+}
+
 // InitializeAccountBalances initializes all database values for an account with username 'username'
 func (db *DB) InitializeAccountBalances(username string) (err error) {
 
