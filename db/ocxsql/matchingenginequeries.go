@@ -33,7 +33,7 @@ func (db *DB) RunMatchingForPrice(pair match.Pair, price float64) (err error) {
 }
 
 // CalculatePrice calculates the price based on the volume and side of the orders.
-func (db *DB) CalculatePrice(pair match.Pair) (err error) {
+func (db *DB) CalculatePrice(pair match.Pair) (price float64, err error) {
 
 	// create the transaction
 	tx, err := db.DBHandler.Begin()
@@ -86,10 +86,7 @@ func (db *DB) CalculatePrice(pair match.Pair) (err error) {
 		return
 	}
 
-	logging.Infof("sellExpectation: %f", sellExpectation)
-	logging.Infof("buyExpectation: %f", buyExpectation)
-	logging.Infof("totalVolume: %d", totalVolume)
-	logging.Infof("Expected price: %f", (sellExpectation+buyExpectation)/float64(totalVolume))
+	price = (sellExpectation + buyExpectation) / float64(totalVolume)
 
 	return
 }

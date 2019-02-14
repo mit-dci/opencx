@@ -81,14 +81,15 @@ type GetPriceReply struct {
 }
 
 // GetPrice returns the price for the specified asset
-func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) error {
+func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) (err error) {
 	cl.Server.LockIngests()
-	reply.Price = cl.Server.OpencxDB.GetPrice(args.TradingPair.String())
+	// reply.Price = cl.Server.OpencxDB.GetPrice(args.TradingPair.String())
 
-	if err := cl.Server.OpencxDB.CalculatePrice(*args.TradingPair); err != nil {
+	if reply.Price, err = cl.Server.OpencxDB.CalculatePrice(*args.TradingPair); err != nil {
 		cl.Server.UnlockIngests()
-		return fmt.Errorf("Error calculating price: \n%s", err)
+		err = fmt.Errorf("Error calculating price: \n%s", err)
+		return
 	}
 	cl.Server.UnlockIngests()
-	return nil
+	return
 }

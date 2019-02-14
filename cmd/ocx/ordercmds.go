@@ -70,7 +70,7 @@ func (cl *openCxClient) GetPrice(args []string) error {
 		return err
 	}
 
-	logging.Infof("Price: %f\n", getPriceReply.Price)
+	logging.Infof("Price: %f %s/%s\n", getPriceReply.Price, getPriceArgs.TradingPair.AssetWant.String(), getPriceArgs.TradingPair.AssetHave.String())
 	return nil
 }
 
