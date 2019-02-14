@@ -53,7 +53,46 @@ All tests are run on the regtest environment as well.
 
 At first I tested the performance of order placing, and every time an order was placed it would run matching. I realized this was extremely inefficient, and now run a goroutine to match orders continuously, while taking orders at any point in time. Locks are needed to keep multiple threads from reading and writing to the database, but that is where a distributed database or scaling solution would come in handy. The database could be sharded in the future. A good way to shard would be to separate order rows by price, since the matching for one price is completely separate from another price. This would help scale massively.
 
-Currently the exchange matches orders for all price levels when there are 1000 orders that have been placed since last matching. The number of orders essentially determines how frequently the matching happens. The order book is always updated when an order is placed.
+Currently the exchange matches orders for all price levels when there are 1000 orders that have been placed since last matching. The number of orders essentially determines how frequently the matching happens. The order book is always updated when an order is placed. There is a method implemented that is able to match for a specific price, but it does not currently run. It could be run after an order is placed.
+
+I am running a benchmark for matching and mass order placement with `go test -v -benchtime 2m -bench=.` in the `cxbenchmark` directory. The test prints out the number of orders were placed after it finishes. Here are the results for multiple runs:
+
+```
+dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master ●✚  go test -v -benchtime 2m -bench=.
+OCX Client: 2019/02/13 19:39:28 Set up logger
+OCX Client: 2019/02/13 19:39:28 Connected to exchange at localhost:12345
+goos: linux
+goarch: amd64
+pkg: github.com/mit-dci/opencx/cxbenchmark
+BenchmarkPlaceOrders/VariablePlacingAndFilling-8         	     100	1656899711 ns/op
+2019/02/13 19:42:15 [INFO] Number of runs: 12120
+PASS
+ok  	github.com/mit-dci/opencx/cxbenchmark	167.366
+```
+```
+ dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master  go test -v -benchtime 2m -bench=.
+OCX Client: 2019/02/13 19:42:27 Set up logger
+OCX Client: 2019/02/13 19:42:27 Connected to exchange at localhost:12345
+goos: linux
+goarch: amd64
+pkg: github.com/mit-dci/opencx/cxbenchmark
+BenchmarkPlaceOrders/VariablePlacingAndFilling-8         	     100	1505514559 ns/op
+2019/02/13 19:44:58 [INFO] Number of runs: 12120
+PASS
+ok  	github.com/mit-dci/opencx/cxbenchmark	151.776s
+```
+```
+ dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master ●  go test -v -benchtime 2m -bench=.
+OCX Client: 2019/02/13 19:45:07 Set up logger
+OCX Client: 2019/02/13 19:45:07 Connected to exchange at localhost:12345
+goos: linux
+goarch: amd64
+pkg: github.com/mit-dci/opencx/cxbenchmark
+BenchmarkPlaceOrders/VariablePlacingAndFilling-8         	     100	1938947412 ns/op
+2019/02/13 19:48:23 [INFO] Number of runs: 12120
+PASS
+ok  	github.com/mit-dci/opencx/cxbenchmark	195.528s
+```
 
 #### Ingesting blocks
 Currently when the server starts up, it ingests a whole bunch of blocks, looking for P2PKH outputs to the addresses it controls. When these do not have deposits in them, it is able to process them at about 200 blocks per second.
