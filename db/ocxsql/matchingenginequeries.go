@@ -26,6 +26,7 @@ func (db *DB) RunMatchingForPrice(pair match.Pair, price float64) (err error) {
 	}()
 
 	if err = db.RunMatchingForPriceWithinTransaction(pair, price, tx); err != nil {
+		logging.Errorf("This is the error runmatchpricewthintx is getting: %s", err)
 		return
 	}
 
@@ -225,6 +226,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 		return
 	}
 
+	logging.Infof("Sell orders length: %d", len(sellOrders))
 	getBuySideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
 	buyRows, buyQueryErr := tx.Query(getBuySideQuery)
 	if err = buyQueryErr; err != nil {
@@ -243,6 +245,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 	if err = buyRows.Close(); err != nil {
 		return
 	}
+	logging.Infof("Buy orders length: %d", len(buyOrders))
 
 	// loop through them both and make sure there are elements in both otherwise we're good
 	for len(buyOrders) > 0 && len(sellOrders) > 0 {
@@ -253,9 +256,23 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 
 			prevAmountHave := currSellOrder.AmountHave
 			prevAmountWant := currSellOrder.AmountWant
-			currBuyOrder.AmountHave -= currSellOrder.AmountWant
-			currBuyOrder.AmountWant -= currSellOrder.AmountHave
 
+			// this partial fulfillment / uint underflow quick fix needs to be looked into. Are we losing any money here?
+			if currBuyOrder.AmountWant < currSellOrder.AmountHave {
+				currBuyOrder.AmountWant = 0
+			} else {
+				currBuyOrder.AmountWant -= currSellOrder.AmountHave
+			}
+			currBuyOrder.AmountHave -= currSellOrder.AmountWant
+
+			logging.Infof("greater")
+			logging.Infof("buy id: %s", currBuyOrder.OrderID)
+			logging.Infof("sell id: %s", currSellOrder.OrderID)
+
+			logging.Infof("buy order amounthave: %d", currBuyOrder.AmountHave)
+			logging.Infof("buy order amountwant: %d", currBuyOrder.AmountWant)
+			logging.Infof("sell order amounthave: %d", currSellOrder.AmountHave)
+			logging.Infof("sell order amountwant: %d", currSellOrder.AmountWant)
 			// update order with new amounts
 			if err = db.UpdateOrderAmountsWithinTransaction(currBuyOrder, pair, tx); err != nil {
 				return
@@ -272,6 +289,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 				return
 			}
 
+			logging.Infof("done delete")
 			// credit buyOrder client with sellOrder amountHave
 			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Client, prevAmountHave, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
 				return
@@ -281,6 +299,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 				return
 			}
 
+			logging.Infof("done all greater")
 			// making sure we're going back in the order db, we're going to be making lots of order queries
 			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 				return
@@ -289,9 +308,16 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 
 			prevAmountHave := currBuyOrder.AmountHave
 			prevAmountWant := currBuyOrder.AmountWant
-			currSellOrder.AmountHave -= currBuyOrder.AmountWant
+
+			// this partial fulfillment / uint underflow quick fix needs to be looked into. Are we losing any money here?
+			if currSellOrder.AmountHave < currBuyOrder.AmountWant {
+				currSellOrder.AmountHave = 0
+			} else {
+				currSellOrder.AmountHave -= currBuyOrder.AmountWant
+			}
 			currSellOrder.AmountWant -= currBuyOrder.AmountHave
 
+			logging.Infof("less")
 			// update order with new amounts
 			if err = db.UpdateOrderAmountsWithinTransaction(currSellOrder, pair, tx); err != nil {
 				return
@@ -301,6 +327,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 				return
 			}
 
+			logging.Infof("done delete")
 			buyOrders = buyOrders[1:]
 			// use the balance schema because we're ending with balance transactions
 			if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
@@ -316,6 +343,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 				return
 			}
 
+			logging.Infof("done lesser")
 			// making sure we're going back in the order db, we're going to be making lots of order queries
 			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 				return
@@ -324,6 +352,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 
 			// this is if they can perfectly fill each others orders
 
+			logging.Infof("Order amounts are equal")
 			// delete buy order
 			if err = db.DeleteOrderWithinTransaction(currBuyOrder, pair, tx); err != nil {
 				return
@@ -333,6 +362,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 				return
 			}
 
+			logging.Infof("deleted orders")
 			sellOrders = sellOrders[1:]
 			buyOrders = buyOrders[1:]
 
@@ -349,6 +379,8 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair match.Pair, price float6
 			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Client, currBuyOrder.AmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
 				return
 			}
+
+			logging.Infof("done update")
 
 			// making sure we're going back in the order db, we're going to be making lots of order queries
 			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {

@@ -140,7 +140,7 @@ func (db *DB) SetupClient() error {
 
 	// Initialize order table
 	// You can have a price up to 30 digits total, and 10 decimal places.
-	err = db.InitializePairTables(db.orderSchema, "name TEXT, orderID TEXT, side TEXT, price DOUBLE(30,10) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
+	err = db.InitializePairTables(db.orderSchema, "name TEXT, orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
 	if err != nil {
 		return fmt.Errorf("Could not initialize order tables: \n%s", err)
 	}

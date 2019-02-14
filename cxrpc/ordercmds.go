@@ -40,7 +40,7 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	cl.Server.LockIngests()
 	if err := cl.Server.OpencxDB.RunMatchingForPrice(args.Order.TradingPair, orderPrice); err != nil {
 		cl.Server.UnlockIngests()
-		return fmt.Errorf("Error running matchin for price while submitting order: \n%s", err)
+		return fmt.Errorf("Error running matching for price while submitting order: \n%s", err)
 	}
 	cl.Server.UnlockIngests()
 

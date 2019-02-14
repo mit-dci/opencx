@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -120,6 +121,7 @@ func (db *DB) UpdateOrderAmountsWithinTransaction(order *match.LimitOrder, pair 
 
 	updateOrderQuery := fmt.Sprintf("UPDATE %s SET amountHave=%d, amountWant=%d WHERE orderID='%s';", pair.String(), order.AmountHave, order.AmountWant, order.OrderID)
 	if _, err = tx.Exec(updateOrderQuery); err != nil {
+		logging.Infof("weird order thing: %s", updateOrderQuery)
 		return
 	}
 	return
