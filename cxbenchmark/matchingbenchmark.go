@@ -51,3 +51,21 @@ func PlaceManySell(client *benchclient.BenchClient, user1 string, user2 string, 
 	}
 	return
 }
+
+// PlaceBuySellX runs functions with predone parameters, you only tell it how many times it should run and what client to use
+func PlaceBuySellX(client *benchclient.BenchClient, varRuns int) {
+	PlaceManyBuy(client, "tester", "othertester", "btc/ltc", varRuns)
+	PlaceManyBuy(client, "tester", "othertester", "btc/vtc", varRuns)
+	PlaceManyBuy(client, "tester", "othertester", "vtc/ltc", varRuns)
+	PlaceManySell(client, "tester", "othertester", "btc/ltc", varRuns)
+	PlaceManySell(client, "tester", "othertester", "btc/vtc", varRuns)
+	PlaceManySell(client, "tester", "othertester", "vtc/ltc", varRuns)
+	return
+}
+
+// PlaceFillX runs functions with predone parameters, you only tell it how many times it should run and what client to use
+func PlaceFillX(client *benchclient.BenchClient, varRuns int) {
+	PlaceAndFill(client, "tester", "othertester", "btc/ltc", varRuns)
+	PlaceAndFill(client, "tester", "othertester", "btc/vtc", varRuns)
+	PlaceAndFill(client, "tester", "othertester", "vtc/ltc", varRuns)
+}
