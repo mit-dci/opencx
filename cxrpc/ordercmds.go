@@ -1,6 +1,8 @@
 package cxrpc
 
 import (
+	"fmt"
+
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -26,9 +28,22 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 		// gotta put these here cause if it errors out then oops just locked everything
 		// logging.Errorf("Error with matching: \n%s", err)
 		cl.Server.UnlockIngests()
-		return err
+		return fmt.Errorf("Error placing order while submitting order: \n%s", err)
 	}
 	cl.Server.UnlockIngests()
+
+	orderPrice, err := args.Order.Price()
+	if err != nil {
+		return fmt.Errorf("Error submitting order and calculating price: \n%s", err)
+	}
+
+	cl.Server.LockIngests()
+	if err := cl.Server.OpencxDB.RunMatchingForPrice(args.Order.TradingPair, orderPrice); err != nil {
+		cl.Server.UnlockIngests()
+		return fmt.Errorf("Error running matchin for price while submitting order: \n%s", err)
+	}
+	cl.Server.UnlockIngests()
+
 	return nil
 }
 
@@ -44,11 +59,13 @@ type ViewOrderBookReply struct {
 }
 
 // ViewOrderBook handles the vieworderbook command
-func (cl *OpencxRPC) ViewOrderBook(args ViewOrderBookArgs, reply *ViewOrderBookReply) error {
-	var err error
+func (cl *OpencxRPC) ViewOrderBook(args ViewOrderBookArgs, reply *ViewOrderBookReply) (err error) {
+
+	cl.Server.LockIngests()
 	if reply.SellOrderBook, reply.BuyOrderBook, err = cl.Server.OpencxDB.ViewOrderBook(args.TradingPair); err != nil {
 		return err
 	}
+	cl.Server.UnlockIngests()
 
 	return nil
 }
@@ -65,6 +82,13 @@ type GetPriceReply struct {
 
 // GetPrice returns the price for the specified asset
 func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) error {
+	cl.Server.LockIngests()
 	reply.Price = cl.Server.OpencxDB.GetPrice(args.TradingPair.String())
+
+	if err := cl.Server.OpencxDB.CalculatePrice(*args.TradingPair); err != nil {
+		cl.Server.UnlockIngests()
+		return fmt.Errorf("Error calculating price: \n%s", err)
+	}
+	cl.Server.UnlockIngests()
 	return nil
 }

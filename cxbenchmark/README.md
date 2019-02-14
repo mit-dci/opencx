@@ -3,6 +3,13 @@
 This is a benchmarking suite that I use to benchmark all of the various RPC functions that the server allows.
 
 Specs of computer for benchmarking (Dell XPS 9550 Laptop, obtained from `/proc/cpuinfo` and `dmideinfo`):
+
+OS: Manjaro Linux
+```
+goos: linux
+goarch: amd64
+```
+
 ```
 vendor_id	: GenuineIntel
 cpu family	: 6
@@ -46,7 +53,7 @@ All tests are run on the regtest environment as well.
 
 At first I tested the performance of order placing, and every time an order was placed it would run matching. I realized this was extremely inefficient, and now run a goroutine to match orders continuously, while taking orders at any point in time. Locks are needed to keep multiple threads from reading and writing to the database, but that is where a distributed database or scaling solution would come in handy. The database could be sharded in the future. A good way to shard would be to separate order rows by price, since the matching for one price is completely separate from another price. This would help scale massively.
 
-Currently the exchange matches orders for all price levels when there are 1000 orders that have been placed since last matching.
+Currently the exchange matches orders for all price levels when there are 1000 orders that have been placed since last matching. The number of orders essentially determines how frequently the matching happens. The order book is always updated when an order is placed.
 
 #### Ingesting blocks
 Currently when the server starts up, it ingests a whole bunch of blocks, looking for P2PKH outputs to the addresses it controls. When these do not have deposits in them, it is able to process them at about 200 blocks per second.

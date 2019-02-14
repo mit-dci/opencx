@@ -32,6 +32,68 @@ func (db *DB) RunMatchingForPrice(pair match.Pair, price float64) (err error) {
 	return
 }
 
+// CalculatePrice calculates the price based on the volume and side of the orders.
+func (db *DB) CalculatePrice(pair match.Pair) (err error) {
+
+	// create the transaction
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		err = fmt.Errorf("Error beginning transaction while running matching for price: \n%s", err)
+		return
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error calculating price, this might be bad: \n%s", err)
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+		return
+	}
+
+	var sellExpectation float64
+	var buyExpectation float64
+	var totalVolume uint64
+
+	getAllOrdersQuery := fmt.Sprintf("SELECT side, price, amountHave, amountWant FROM %s;", pair.String())
+	rows, err := tx.Query(getAllOrdersQuery)
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		var currSide string
+		var currPrice float64
+		var currAmountHave uint64
+		var currAmountWant uint64
+		if err = rows.Scan(&currSide, &currPrice, &currAmountHave, &currAmountWant); err != nil {
+			return
+		}
+
+		if currSide == "buy" {
+			buyExpectation += float64(currAmountHave) * currPrice
+			totalVolume += currAmountHave
+		} else if currSide == "sell" {
+			sellExpectation += float64(currAmountWant) * currPrice
+			totalVolume += currAmountWant
+		}
+
+	}
+
+	if err = rows.Close(); err != nil {
+		return
+	}
+
+	logging.Infof("sellExpectation: %f", sellExpectation)
+	logging.Infof("buyExpectation: %f", buyExpectation)
+	logging.Infof("totalVolume: %d", totalVolume)
+	logging.Infof("Expected price: %f", (sellExpectation+buyExpectation)/float64(totalVolume))
+
+	return
+}
+
 // RunMatchingBestPrices runs matching only on the best prices
 func (db *DB) RunMatchingBestPrices(pair match.Pair) (err error) {
 
