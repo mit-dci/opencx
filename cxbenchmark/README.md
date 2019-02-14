@@ -69,6 +69,8 @@ BenchmarkPlaceOrders/VariablePlacingAndFilling-8         	     100	1656899711 ns
 PASS
 ok  	github.com/mit-dci/opencx/cxbenchmark	167.366
 ```
+"Transactions per second": 72.416 tx/s
+
 ```
  dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master  go test -v -benchtime 2m -bench=.
 OCX Client: 2019/02/13 19:42:27 Set up logger
@@ -81,6 +83,8 @@ BenchmarkPlaceOrders/VariablePlacingAndFilling-8         	     100	1505514559 ns
 PASS
 ok  	github.com/mit-dci/opencx/cxbenchmark	151.776s
 ```
+"Transactions per second": 79.855 tx/s
+
 ```
  dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master ●  go test -v -benchtime 2m -bench=.
 OCX Client: 2019/02/13 19:45:07 Set up logger
@@ -93,6 +97,8 @@ BenchmarkPlaceOrders/VariablePlacingAndFilling-8         	     100	1938947412 ns
 PASS
 ok  	github.com/mit-dci/opencx/cxbenchmark	195.528s
 ```
+"Transactions per second": 61.986 tx/s
+
 
 #### Ingesting blocks
 Currently when the server starts up, it ingests a whole bunch of blocks, looking for P2PKH outputs to the addresses it controls. When these do not have deposits in them, it is able to process them at about 200 blocks per second.
