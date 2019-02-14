@@ -102,26 +102,18 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 		table.SetHeader([]string{"orderID", "price", "volume", "side"})
 
 		for _, buyOrder := range viewOrderBookReply.BuyOrderBook {
-			buyPrice, err := buyOrder.Price()
-			if err != nil {
-				return err
-			}
 
 			// convert stuff to strings
-			strPrice := fmt.Sprintf("%f", buyPrice)
+			strPrice := fmt.Sprintf("%f", buyOrder.OrderbookPrice)
 			strVolume := fmt.Sprintf("%d", buyOrder.AmountHave)
 			// append to the table
 			data = append(data, []string{buyOrder.OrderID, strPrice, strVolume, buyOrder.Side})
 		}
 
 		for _, sellOrder := range viewOrderBookReply.SellOrderBook {
-			sellPrice, err := sellOrder.Price()
-			if err != nil {
-				return err
-			}
 
 			// convert stuff to strings
-			strPrice := fmt.Sprintf("%f", sellPrice)
+			strPrice := fmt.Sprintf("%f", sellOrder.OrderbookPrice)
 			strVolume := fmt.Sprintf("%d", sellOrder.AmountHave)
 			// append to the table
 			data = append(data, []string{sellOrder.OrderID, strPrice, strVolume, sellOrder.Side})
@@ -142,13 +134,9 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 		table.SetHeader([]string{"orderID", "price", "volume", "side"})
 
 		for _, sellOrder := range viewOrderBookReply.SellOrderBook {
-			sellPrice, err := sellOrder.Price()
-			if err != nil {
-				return err
-			}
 
 			// convert stuff to strings
-			strPrice := fmt.Sprintf("%f", sellPrice)
+			strPrice := fmt.Sprintf("%f", sellOrder.OrderbookPrice)
 			strVolume := fmt.Sprintf("%d", sellOrder.AmountHave)
 			// append to the table
 			data = append(data, []string{sellOrder.OrderID, strPrice, strVolume, sellOrder.Side})
@@ -167,13 +155,9 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 		table.SetHeader([]string{"orderID", "price", "volume", "side"})
 
 		for _, buyOrder := range viewOrderBookReply.BuyOrderBook {
-			buyPrice, err := buyOrder.Price()
-			if err != nil {
-				return err
-			}
 
 			// convert stuff to strings
-			strPrice := fmt.Sprintf("%f", buyPrice)
+			strPrice := fmt.Sprintf("%f", buyOrder.OrderbookPrice)
 			strVolume := fmt.Sprintf("%d", buyOrder.AmountHave)
 			// append to the table
 			data = append(data, []string{buyOrder.OrderID, strPrice, strVolume, buyOrder.Side})

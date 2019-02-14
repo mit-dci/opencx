@@ -24,11 +24,13 @@ type LimitOrder struct {
 	Side        string `json:"side"`
 	TradingPair Pair   `json:"pair"`
 	// amount of assetHave the user would like to trade
-	AmountHave uint64 `json:"amount"`
+	AmountHave uint64 `json:"amounthave"`
 	// amount of assetWant the user wants for their assetHave
-	AmountWant uint64    `json:"price"`
+	AmountWant uint64    `json:"amountwant"`
 	Timestamp  time.Time `json:"timestamp"`
 	OrderID    string    `json:"id"`
+	// only exists for returning orders back
+	OrderbookPrice float64 `json:"orderbookprice"`
 }
 
 // IsBuySide returns true if the limit order is buying

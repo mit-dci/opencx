@@ -272,6 +272,8 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 			if err = sellRows.Scan(&sellOrder.Client, &sellOrder.OrderID, &sellOrder.Side, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
 				return
 			}
+			// set price to return to clients
+			sellOrder.OrderbookPrice = price
 
 			sellOrders = append(sellOrders, sellOrder)
 		}
@@ -292,6 +294,8 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 			if err = buyRows.Scan(&buyOrder.Client, &buyOrder.OrderID, &buyOrder.Side, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
 				return
 			}
+			// set price to return to clients
+			buyOrder.OrderbookPrice = price
 
 			buyOrders = append(buyOrders, buyOrder)
 		}

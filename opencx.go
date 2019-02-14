@@ -22,6 +22,7 @@ var (
 	defaultRoot        = ".opencx/"
 	defaultPort        = 12345
 	defaultKeyFileName = "privkey.hex"
+	orderBufferSize    = 1000
 )
 
 func main() {
@@ -91,7 +92,7 @@ func main() {
 	// Get all the asset pairs then start the matching loop
 	assetPairs := match.GenerateAssetPairs()
 	for i, pair := range assetPairs {
-		go ocxServer.MatchingLoop(pair, 1000)
+		go ocxServer.MatchingLoop(pair, orderBufferSize)
 		logging.Infof("Pair %d: %s\n", i, pair)
 	}
 	// Update the addresses -> ONLY uncomment if you switch chains or something. This exchange isn't really meant to be switching between different testnets all the time
