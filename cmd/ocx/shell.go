@@ -87,8 +87,14 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error calling withdraw command: \n%s", err)
 		}
 	}
-	if cmd == "cancel" {
+	if cmd == "cancelorder" {
+		if len(args) != 1 {
+			return fmt.Errorf("Must specify 1 argument: orderID")
+		}
 
+		if err := cl.CancelOrder(args); err != nil {
+			return fmt.Errorf("Error calling cancel command: \n%s", err)
+		}
 	}
 	return nil
 }

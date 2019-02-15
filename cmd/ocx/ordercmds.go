@@ -176,3 +176,21 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 
 	return nil
 }
+
+// CancelOrder calls the cancel order rpc command
+func (cl *openCxClient) CancelOrder(args []string) (err error) {
+	cancelOrderArgs := &cxrpc.CancelOrderArgs{
+		OrderID: args[0],
+	}
+	cancelOrderReply := new(cxrpc.CancelOrderReply)
+
+	// Actually use the RPC Client to call the method
+	if err = cl.Call("OpencxRPC.CancelOrder", cancelOrderArgs, cancelOrderReply); err != nil {
+		err = fmt.Errorf("Error calling 'CancelOrder' service method:\n%s", err)
+		return
+	}
+
+	logging.Infof("Cancelled order successfully")
+
+	return
+}
