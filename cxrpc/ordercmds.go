@@ -109,12 +109,12 @@ type CancelOrderReply struct {
 
 // CancelOrder cancels the order
 func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) (err error) {
-	cl.Server.LockOrders()
+	cl.Server.LockIngests()
 	if err = cl.Server.OpencxDB.CancelOrder(args.OrderID); err != nil {
-		cl.Server.UnlockOrders()
+		cl.Server.UnlockIngests()
 		return
 	}
-	cl.Server.UnlockOrders()
+	cl.Server.UnlockIngests()
 
 	return
 }

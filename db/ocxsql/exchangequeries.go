@@ -166,6 +166,7 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 		return
 	}
 
+	didOrderExist := false
 	for _, pair := range db.pairsArray {
 		// figure out if there is even an order
 		getCurrentOrderQuery := fmt.Sprintf("SELECT name, amountHave, amountWant, side FROM %s WHERE orderID='%s';", pair.String(), orderID)
@@ -180,9 +181,16 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 			var amtWant uint64
 			var side string
 
+			didOrderExist = true
+
 			// get current values in case of partially filled order
 			err = rows.Scan(&client, &amtHave, &amtWant, &side)
 			if err != nil {
+				return
+			}
+
+			// do this so we don't get bad connection / busy buffer issues
+			if err = rows.Close(); err != nil {
 				return
 			}
 
@@ -209,6 +217,14 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 				return
 			}
 		}
+		// use order schema at end of loop so we go back to where we were
+		if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+			return
+		}
+	}
+	if !didOrderExist {
+		err = fmt.Errorf("Order does not exist in any orderbook")
+		return
 	}
 
 	// credit client with amounthave
