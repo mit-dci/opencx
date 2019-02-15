@@ -1,6 +1,7 @@
 package cxserver
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"sync"
@@ -21,8 +22,9 @@ import (
 )
 
 // put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
-const exchangeStartingPoint = 1444700
-const runningLocally = true
+const exchangeStartingPointBTC = 1454700
+const exchangeStartingPointLTC = 960000
+const runningLocally = false
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
@@ -70,7 +72,7 @@ func (server *OpencxServer) MatchingLoop(pair *match.Pair, bufferSize int) {
 		_, foundOrders := server.OrderMap[*pair]
 		if foundOrders && len(server.OrderMap[*pair]) >= bufferSize {
 
-			logging.Infof("Server order queue reached 1000; Matching all prices.")
+			logging.Infof("Server order queue reached %d; Matching all prices.", bufferSize)
 			server.OrderMap[*pair] = []*match.LimitOrder{}
 
 			server.LockIngests()
@@ -132,6 +134,10 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
 		btcParam = &coinparam.TestNet3Params
 	}
 
+	// if exchangeStartingPointBTC != 0 {
+	// 	btcParam.StartHeight = exchangeStartingPointBTC
+	// }
+
 	btcParam.DiffCalcFunction = dummyDifficulty
 	btcRoot := server.createSubRoot(btcParam.Name)
 
@@ -173,6 +179,10 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error) {
 		ltcParam.PoWFunction = dummyProofOfWork
 		ltcHost = "1"
 	}
+
+	// if exchangeStartingPointLTC != 0 {
+	// 	ltcParam.StartHeight = exchangeStartingPointLTC
+	// }
 
 	// difficulty in non bitcoin testnets has an air of mystery
 	ltcParam.DiffCalcFunction = dummyDifficulty
@@ -267,6 +277,20 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.Height
 		h := <-incomingBlockHeight
 
 		block := <-blockChan
+		if h.Height == 1457244 {
+			logging.Infof("Height: %d", h.Height)
+			logging.Infof("block hash: %s", block.BlockHash().String())
+			// txHashes, err := block.TxHashes()
+			// if err != nil {
+			// 	logging.Errorf("hashes failed")
+			// }
+			// for _, txhash := range txHashes {
+			// 	logging.Infof("Tx hash that came in: %s", txhash.String())
+			// }
+			buf := new(bytes.Buffer)
+			block.Serialize(buf)
+			logging.Infof("block serialized: %x", buf.Bytes())
+		}
 		logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), h.Height)
 		if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(h.Height), coinType); err != nil {
 			logging.Infof("something went horribly wrong with %s\n", coinType.Name)

@@ -67,6 +67,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 						Confirmations:       6,
 					}
 
+					logging.Infof("Received deposit for %s %s", newDeposit.Amount, newDeposit.CoinType.Name)
 					// logging.Infof("%s\n", newDeposit.String())
 					deposits = append(deposits, newDeposit)
 				}
@@ -82,7 +83,15 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	}
 	server.UnlockIngests()
 
-	if height%100 == 0 {
+	if coinType.Name == coinparam.TestNet3Params.Name {
+		logging.Infof("Finished ingesting %s block at height %d\n", coinType.Name, height)
+	}
+	if height == 1457244 {
+		for _, tx := range txList {
+			logging.Infof("Transaction ID: %s", tx.TxHash().String())
+		}
+	}
+	if height%10000 == 0 {
 		logging.Infof("Finished ingesting %s block at height %d\n", coinType.Name, height)
 	}
 	return nil

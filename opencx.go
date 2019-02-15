@@ -22,7 +22,7 @@ var (
 	defaultRoot        = ".opencx/"
 	defaultPort        = 12345
 	defaultKeyFileName = "privkey.hex"
-	orderBufferSize    = 1000
+	orderBufferSize    = 1
 )
 
 func main() {
