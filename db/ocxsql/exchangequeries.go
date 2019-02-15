@@ -146,7 +146,7 @@ func (db *DB) DeleteOrderWithinTransaction(order *match.LimitOrder, pair *match.
 }
 
 // CancelOrder runs the queries to cancel an order. Cancelling an individual order is atomic.
-func (db *DB) CancelOrder(order *match.LimitOrder) (err error) {
+func (db *DB) CancelOrder(orderID string) (err error) {
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
@@ -166,47 +166,49 @@ func (db *DB) CancelOrder(order *match.LimitOrder) (err error) {
 		return
 	}
 
-	// figure out if there is even an order
-	getCurrentOrderQuery := fmt.Sprintf("SELECT amountHave, amountWant, side FROM %s WHERE orderID='%s';", order.TradingPair.String(), order.OrderID)
-	rows, currOrderErr := tx.Query(getCurrentOrderQuery)
-	if err = currOrderErr; err != nil {
-		return
-	}
-
-	if rows.Next() {
-		var amtHave uint64
-		var amtWant uint64
-		var side string
-
-		// get current values in case of partially filled order
-		err = rows.Scan(&amtHave, &amtWant, &side)
-		if err != nil {
+	for _, pair := range db.pairsArray {
+		// figure out if there is even an order
+		getCurrentOrderQuery := fmt.Sprintf("SELECT name, amountHave, amountWant, side FROM %s WHERE orderID='%s';", pair.String(), orderID)
+		rows, currOrderErr := tx.Query(getCurrentOrderQuery)
+		if err = currOrderErr; err != nil {
 			return
 		}
 
-		// delete order from db
-		deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%s';", order.TradingPair.String(), order.OrderID)
-		if _, err = tx.Exec(deleteOrderQuery); err != nil {
-			return
-		}
+		if rows.Next() {
+			var client string
+			var amtHave uint64
+			var amtWant uint64
+			var side string
 
-		// use balance schema for updating balance
-		if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
-			return
-		}
+			// get current values in case of partially filled order
+			err = rows.Scan(&client, &amtHave, &amtWant, &side)
+			if err != nil {
+				return
+			}
 
-		var correctAssetHave *coinparam.Params
-		if side == "buy" {
-			correctAssetHave = order.TradingPair.AssetHave.GetAssociatedCoinParam()
-		} else if side == "sell" {
-			correctAssetHave = order.TradingPair.AssetWant.GetAssociatedCoinParam()
-		}
+			// delete order from db
+			deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%s';", pair.String(), orderID)
+			if _, err = tx.Exec(deleteOrderQuery); err != nil {
+				return
+			}
 
-		// update the balance of the client
-		if err = db.UpdateBalanceWithinTransaction(order.Client, amtHave, tx, correctAssetHave); err != nil {
-			return
-		}
+			// use balance schema for updating balance
+			if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+				return
+			}
 
+			var correctAssetHave *coinparam.Params
+			if side == "buy" {
+				correctAssetHave = pair.AssetHave.GetAssociatedCoinParam()
+			} else if side == "sell" {
+				correctAssetHave = pair.AssetWant.GetAssociatedCoinParam()
+			}
+
+			// update the balance of the client
+			if err = db.UpdateBalanceWithinTransaction(client, amtHave, tx, correctAssetHave); err != nil {
+				return
+			}
+		}
 	}
 
 	// credit client with amounthave
