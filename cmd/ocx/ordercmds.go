@@ -49,6 +49,7 @@ func (cl *openCxClient) OrderCommand(args []string) error {
 	}
 
 	logging.Infof("Order submitted successfully\n")
+	logging.Infof("Order ID: %s", orderReply.OrderID)
 	return nil
 }
 

@@ -10,18 +10,19 @@ import (
 )
 
 // PlaceOrder runs the queries which places an input order. Placing an individual order is atomic.
-func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
+func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 
 	// Check that they have the balance for the order
 	// if they do, place the order and update their balance
 	err = order.SetID()
 	if err != nil {
-		return err
+		return
 	}
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
-		return fmt.Errorf("Error beginning transaction while placing order: \n%s", err)
+		err = fmt.Errorf("Error beginning transaction while placing order: \n%s", err)
+		return
 	}
 	defer func() {
 		if err != nil {
@@ -105,6 +106,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (err error) {
 
 	//debug
 	// logging.Infof("done")
+	orderid = order.OrderID
 
 	// when placing an order subtract from the balance
 	return
@@ -148,12 +150,13 @@ func (db *DB) CancelOrder(order *match.LimitOrder) (err error) {
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
-		return fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
+		err = fmt.Errorf("Error cancelling order: \n%s", err)
+		return
 	}
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while running matching, this might be bad: \n%s", err)
+			err = fmt.Errorf("Error while cancelling order: \n%s", err)
 			return
 		}
 		err = tx.Commit()

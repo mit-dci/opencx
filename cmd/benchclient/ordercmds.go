@@ -143,3 +143,21 @@ func (cl *BenchClient) ViewOrderbook(assetPair string) error {
 	logging.Infof("\n%s\n", buf.String())
 	return nil
 }
+
+// CancelOrder calls the cancel order rpc command
+func (cl *BenchClient) CancelOrder(orderID string) (err error) {
+	cancelOrderArgs := &cxrpc.CancelOrderArgs{
+		OrderID: orderID,
+	}
+	cancelOrderReply := new(cxrpc.CancelOrderReply)
+
+	// Actually use the RPC Client to call the method
+	if err = cl.Call("OpencxRPC.CancelOrder", cancelOrderArgs, cancelOrderReply); err != nil {
+		err = fmt.Errorf("Error calling 'CancelOrder' service method:\n%s", err)
+		return
+	}
+
+	logging.Infof("Cancelled order successfully")
+
+	return
+}

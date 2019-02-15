@@ -13,25 +13,28 @@ type SubmitOrderArgs struct {
 
 // SubmitOrderReply holds the reply for the submitorder command
 type SubmitOrderReply struct {
-	// TODO empty for now
+	OrderID string
 }
 
 // SubmitOrder submits an order to the order book or throws an error
-func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) error {
+func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) (err error) {
 
 	cl.Server.LockOrders()
 	cl.Server.OrderMap[args.Order.TradingPair] = append(cl.Server.OrderMap[args.Order.TradingPair], args.Order)
 	cl.Server.UnlockOrders()
 
 	cl.Server.LockIngests()
-	if err := cl.Server.OpencxDB.PlaceOrder(args.Order); err != nil {
+	var id string
+	if id, err = cl.Server.OpencxDB.PlaceOrder(args.Order); err != nil {
 		// gotta put these here cause if it errors out then oops just locked everything
 		// logging.Errorf("Error with matching: \n%s", err)
 		cl.Server.UnlockIngests()
-		return fmt.Errorf("Error placing order while submitting order: \n%s", err)
+		err = fmt.Errorf("Error placing order while submitting order: \n%s", err)
+		return
 	}
 	cl.Server.UnlockIngests()
 
+	reply.OrderID = id
 	// orderPrice, err := args.Order.Price()
 	// if err != nil {
 	// 	return fmt.Errorf("Error submitting order and calculating price: \n%s", err)
@@ -44,7 +47,7 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	// }
 	// cl.Server.UnlockIngests()
 
-	return nil
+	return
 }
 
 // ViewOrderBookArgs holds the args for the vieworderbook command
@@ -91,5 +94,27 @@ func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) (err erro
 		return
 	}
 	cl.Server.UnlockIngests()
+	return
+}
+
+// CancelOrderArgs holds the args for the CancelOrder command
+type CancelOrderArgs struct {
+	OrderID string
+}
+
+// CancelOrderReply holds the args for the CancelOrder command
+type CancelOrderReply struct {
+	// empty
+}
+
+// CancelOrder cancels the order
+func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) (err error) {
+	cl.Server.LockOrders()
+	if err = cl.Server.OpencxDB.CancelOrder(args.OrderID); err != nil {
+		cl.Server.UnlockOrders()
+		return
+	}
+	cl.Server.UnlockOrders()
+
 	return
 }

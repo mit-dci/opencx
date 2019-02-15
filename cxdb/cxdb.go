@@ -25,7 +25,7 @@ type OpencxStore interface {
 	// GetDepositAddress gets the deposit address for a user and an asset.
 	GetDepositAddress(string, string) (string, error)
 	// PlaceOrder places an order in the datastore.
-	PlaceOrder(*match.LimitOrder) error
+	PlaceOrder(*match.LimitOrder) (string, error)
 	// ViewOrderBook takes in a trading pair and returns buy order and sell orders separately. This should eventually only return the orderbook, not sure.
 	ViewOrderBook(*match.Pair) ([]*match.LimitOrder, []*match.LimitOrder, error)
 	// CalculatePrice returns the calculated price based on the order book.
@@ -38,4 +38,6 @@ type OpencxStore interface {
 	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
 	// GetDepositAddressMap gets a map of the deposit addresses we own to usernames
 	GetDepositAddressMap(*coinparam.Params) (map[string]string, error)
+	// CancelOrder cancels an order with order id
+	CancelOrder(string) error
 }

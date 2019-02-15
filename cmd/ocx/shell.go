@@ -87,5 +87,8 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error calling withdraw command: \n%s", err)
 		}
 	}
+	if cmd == "cancel" {
+
+	}
 	return nil
 }
