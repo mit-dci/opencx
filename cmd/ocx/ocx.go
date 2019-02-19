@@ -10,7 +10,7 @@ import (
 
 // Let these be turned into config things at some point
 var (
-	defaultServer = "localhost"
+	defaultServer = "hubris.media.mit.edu"
 	defaultPort   = 12345
 )
 
