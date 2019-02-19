@@ -111,7 +111,7 @@ func main() {
 
 	// Start RPC Server
 	listener, err := net.Listen("tcp", ":"+fmt.Sprintf("%d", defaultPort))
-	fmt.Printf("Running RPC server on %s\n", listener.Addr().String())
+	logging.Infof("Running RPC server on %s\n", listener.Addr().String())
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
