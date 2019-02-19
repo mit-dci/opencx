@@ -32,27 +32,19 @@ Un-permissioned commands (and simple mockups of how it might work):
 
  - Register account
 
-`ocx register username password`
-
- - Log in (need a way to keep sessions or something)
-
-`ocx login username password`
+`ocx register username`
 
  - View orderbook
 
-`ocx vieworderbook assetwant assethave`
+`ocx vieworderbook pair`
 
 Or maybe we want dark pools? Could be a feature, probably out of scope, would be difficult to do if you want to match in a decentralized way, because of the whole "zero knowledge" thing added on. Decentralized matching for confidential _orders_ is probably very difficult, aside from the whole decentralized matching problem.
 
  - Get price (really just getorderbook but with a few more operations)
 
-`ocx getprice`
+`ocx getprice pair`
 
-- Get volume (need to track that server side)
-
-`ocx getvolume`
-
- - TODO: think of more that you might need
+This will get the price of a pair, based on midpoint of volume of bids and asks
 
 ## NOTE: nothing is permissioned, there used to be authentication but now there's not
 Permissioned commands:
@@ -66,21 +58,21 @@ The price is price, amountHave is the amount of the asset you have. If you're on
 
  - Get account's deposit address
 
-`ocx getdepositaddress`
+`ocx getdepositaddress account`
 
 This will return the address that is assigned to the user's account
 
  - Withdraw
 
-`ocx withdrawtoaddress asset amount recvaddress`
+`ocx withdrawtoaddress account asset amount recvaddress`
 
 Withdraw will send a transaction to the blockchain.
 
- - Delete account
+- Get Balance
 
-`ocx deleteaccount`
+`ocx getbalance name asset`
 
-For authentication, let's just do some user data storage and send a random token that expires in 30 minutes or something. Server checks token, client stores token and sends it with json.
+This will get your balance
 
 ## Storage
 ~~For now we're using Redis but that may change.~~
@@ -193,7 +185,7 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [x] Remove token stuff in shell
  - [x] ~~Correct dynamic confirmations~~ fixed but I just changed it to 6, but it *could* be made a lot better because I made it easy to do so.
  - [ ] Get robust way of adding multiple tokens
- - [ ] Fix issue with price calculation on sell side
+ - [x] Fix issue with price calculation on sell side
  - [ ] Fix SQL Injection vulnerability lol
  - [ ] Lightning payment is market order
 
