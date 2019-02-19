@@ -262,7 +262,7 @@ func (db *DB) RootInitSchemas(rootPassword string) error {
 	var err error
 
 	// Log in to root
-	rootHandler, err := sql.Open("mysql", "root:"+rootPassword+"@/")
+	rootHandler, err := sql.Open("mysql", defaultUsername+":"+defaultPassword+"@/")
 	if err != nil {
 		return fmt.Errorf("Error opening root db: \n%s", err)
 	}
@@ -273,12 +273,6 @@ func (db *DB) RootInitSchemas(rootPassword string) error {
 	err = rootHandler.Ping()
 	if err != nil {
 		return fmt.Errorf("Could not ping the database, is it running: \n%s", err)
-	}
-
-	createUserQuery := fmt.Sprintf("CREATE OR REPLACE USER '%s'@'localhost' IDENTIFIED BY '%s';", defaultUsername, defaultPassword)
-	_, err = rootHandler.Exec(createUserQuery)
-	if err != nil {
-		return fmt.Errorf("Could not create default user: \n%s", err)
 	}
 
 	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.balanceSchema)
@@ -315,12 +309,13 @@ func rootCreateSchemaForUser(rootHandler *sql.DB, username string, schemaString 
 		return fmt.Errorf("Could not create %s schema: \n%s", schemaString, err)
 	}
 
-	// grant permissions to default user
-	schemaQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", schemaString, username)
-	_, err = rootHandler.Exec(schemaQuery)
-	if err != nil {
-		return fmt.Errorf("Could not grant permissions to %s while creating %s schema: \n%s", schemaString, username, err)
-	}
+	// these should already exist
+	// // grant permissions to default user
+	// schemaQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", schemaString, username)
+	// _, err = rootHandler.Exec(schemaQuery)
+	// if err != nil {
+	// 	return fmt.Errorf("Could not grant permissions to %s while creating %s schema: \n%s", schemaString, username, err)
+	// }
 
 	return nil
 }
