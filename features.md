@@ -23,7 +23,7 @@ I'm guessing the exchange makes an address when you say you want to deposit, or 
 
 Basically money always comes in to the exchange, the exchange keeps track of your balance (and holds the funds in their wallets so they could pull a mtgox)
 
-ONCE money comes in to the exchange, send it to a pool address?
+~~ONCE money comes in to the exchange, send it to a pool address?~~
 
 ## Interacting with the exchange
 The exchange needs to have a few functions that the user interacts with:
@@ -32,11 +32,11 @@ Un-permissioned commands (and simple mockups of how it might work):
 
  - Register account
 
-`ocx register username`
+`ocx register name`
 
  - View orderbook
 
-`ocx vieworderbook pair`
+`ocx vieworderbook pair [buy/sell]`
 
 Or maybe we want dark pools? Could be a feature, probably out of scope, would be difficult to do if you want to match in a decentralized way, because of the whole "zero knowledge" thing added on. Decentralized matching for confidential _orders_ is probably very difficult, aside from the whole decentralized matching problem.
 
@@ -58,13 +58,13 @@ The price is price, amountHave is the amount of the asset you have. If you're on
 
  - Get account's deposit address
 
-`ocx getdepositaddress account`
+`ocx getdepositaddress name`
 
 This will return the address that is assigned to the user's account
 
  - Withdraw
 
-`ocx withdrawtoaddress account asset amount recvaddress`
+`ocx withdrawtoaddress name amount asset recvaddress`
 
 Withdraw will send a transaction to the blockchain.
 
@@ -73,6 +73,12 @@ Withdraw will send a transaction to the blockchain.
 `ocx getbalance name asset`
 
 This will get your balance
+
+- Get all balances
+
+`ocx getallbalances name`
+
+This will get balances for all of your assets.
 
 ## Storage
 ~~For now we're using Redis but that may change.~~

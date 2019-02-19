@@ -44,6 +44,8 @@ regtest=1
 debug=net
 ```
 
+If you'd like to run opencx with your own regtest nodes, make sure to change the `runningLocally` global in server.go to `true`, and the `defaultServer` to `localhost` in ocx.go. The default port is `12345` so there are various ways that can be changed. All of these global variables are intended to be in configuration files, but that's a lot of work that would be nice but isn't extremely necessary right now, since you can just edit some of the code. Same can be said with the DB username and password, you need to make a user `opencx` with password `testpass`. Both of these are in global variables, and have been changed in deployment, but would go in config files.
+
 # How to run opencx server / exchange
 First clone the repo and install dependencies:
 ```sh
