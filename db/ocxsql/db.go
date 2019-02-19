@@ -3,7 +3,6 @@ package ocxsql
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"sync"
 
 	// mysql is just the driver, always interact with database/sql api
@@ -18,7 +17,6 @@ var (
 	defaultPassword = "testpass"
 
 	// definitely move this to a config file
-	rootPass             = ""
 	balanceSchema        = "balances"
 	depositSchema        = "deposit"
 	pendingDepositSchema = "pending_deposits"
@@ -35,7 +33,6 @@ var (
 // or library for exchanges.
 type DB struct {
 	DBHandler            *sql.DB
-	logger               *log.Logger
 	balanceSchema        string
 	depositSchema        string
 	pendingDepositSchema string
@@ -93,7 +90,7 @@ func (db *DB) SetupClient() error {
 	db.pendingDepositSchema = pendingDepositSchema
 	db.orderSchema = orderSchema
 	// Create users and schemas and assign permissions to opencx
-	err = db.RootInitSchemas(rootPass)
+	err = db.RootInitSchemas()
 	if err != nil {
 		return fmt.Errorf("Root could not initialize schemas: \n%s", err)
 	}
@@ -258,7 +255,7 @@ func (db *DB) InitializeBalancesFromNames() error {
 }
 
 // RootInitSchemas initalizes the schemas, creates users, and grants permissions to those users
-func (db *DB) RootInitSchemas(rootPassword string) error {
+func (db *DB) RootInitSchemas() error {
 	var err error
 
 	// Log in to root
