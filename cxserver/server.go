@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/mit-dci/lit/btcutil/base58"
+
 	"github.com/mit-dci/opencx/cxdb"
 
 	"github.com/mit-dci/opencx/match"
@@ -149,6 +151,16 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
 		return
 	}
 
+	addrs, err := btcWallet.AdrDump()
+	if err != nil {
+		err = fmt.Errorf("Loll oooops")
+		return
+	}
+
+	for _, addr := range addrs {
+		base58addr := base58.CheckEncode(addr[:], btcParam.PubKeyHashAddrID)
+		logging.Infof("btc addr in wallet: %s", base58addr)
+	}
 	logging.Infof("BTC Wallet Started, cointype: %d\n", coinType)
 
 	blockChan := btcWallet.Hook.RawBlocks()
