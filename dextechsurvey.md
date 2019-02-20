@@ -12,16 +12,16 @@ It's good to get a survey of the research and not-yet-implemented solutions to p
    - [ ] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
    - [ ] [Batch Auction Optimization](https://github.com/gnosis/dex-research/tree/master/BatchAuctionOptimization)
    - [ ] [Plasma Research](https://github.com/gnosis/dex-research/tree/master/PlasmaResearch)
- - [ ] Vitalik Reddit: [Let's run on-chain decentralized exchanges the way we run prediction markets](https://www.reddit.com/r/ethereum/comments/55m04x/lets_run_onchain_decentralized_exchanges_the_way/) 
- - [ ] ethresear.ch ["Decentralized exchanges" category](https://ethresear.ch/c/decentralized-exchanges) as of 2/19/2019
+ - [x] Vitalik Reddit: [Let's run on-chain decentralized exchanges the way we run prediction markets](https://www.reddit.com/r/ethereum/comments/55m04x/lets_run_onchain_decentralized_exchanges_the_way/) 
+ - [x] ethresear.ch ["Decentralized exchanges" category](https://ethresear.ch/c/decentralized-exchanges) as of 2/19/2019
    - [x] [Introducing DTRADE. Confoederation dapp](https://ethresear.ch/t/introducing-dtrade-confoederatio-dapp/4870)
-   - [ ] [Self-referential proxy exchange - does this exist?](https://ethresear.ch/t/self-referential-proxy-exchange-does-this-exist/4515)
-   - [ ] [Batch auctions with uniform clearing price on plasma](https://ethresear.ch/t/batch-auctions-with-uniform-clearing-price-on-plasma/2554)
-   - [ ] [DutchX - fully decentralized auction based exchange](https://ethresear.ch/t/dutchx-fully-decentralized-auction-based-exchange/2443)
-   - [ ] [A note for the Dutch Team & other Dapp developers](https://ethresear.ch/t/a-note-for-the-dutch-team-other-dapp-developers/2637)
-   - [ ] [Improving front-running resistance of `x*y=k` market makers](https://ethresear.ch/t/improving-front-running-resistance-of-x-y-k-market-makers/1281)
-   - [ ] [Limit orders and slippage resistance in `x*y=k` market makers](https://ethresear.ch/t/limit-orders-and-slippage-resistance-in-x-y-k-market-makers/2071)
-   - [ ] [Reverse Parimutuel Options on Bitcoin](https://ethresear.ch/t/reverse-parimutuel-options-on-bitcoin/1816)
+   - [x] [Self-referential proxy exchange - does this exist?](https://ethresear.ch/t/self-referential-proxy-exchange-does-this-exist/4515)
+   - [x] [Batch auctions with uniform clearing price on plasma](https://ethresear.ch/t/batch-auctions-with-uniform-clearing-price-on-plasma/2554)
+   - [x] [DutchX - fully decentralized auction based exchange](https://ethresear.ch/t/dutchx-fully-decentralized-auction-based-exchange/2443)
+   - [x] [A note for the Dutch Team & other Dapp developers](https://ethresear.ch/t/a-note-for-the-dutch-team-other-dapp-developers/2637)
+   - [x] [Improving front-running resistance of `x*y=k` market makers](https://ethresear.ch/t/improving-front-running-resistance-of-x-y-k-market-makers/1281)
+   - [x] [Limit orders and slippage resistance in `x*y=k` market makers](https://ethresear.ch/t/limit-orders-and-slippage-resistance-in-x-y-k-market-makers/2071)
+   - [x] [Reverse Parimutuel Options on Bitcoin](https://ethresear.ch/t/reverse-parimutuel-options-on-bitcoin/1816)
  - [ ] Binance Chain
  - [ ] Altcoin.io - [Another Plasma DEX](https://blog.altcoin.io/plasma-dex-v1-launching-next-month-4cb5e5ea56f6)
 
@@ -107,7 +107,7 @@ This is basically a way of making sure low liquidity tokens are sorta liquid.
 This part is just TeX but it defines how you would do batch auction stuff on plasma. Again, not really something that would be interesting for someone making a decentralized exchange that isn't just an erc20 token swap contract on ethereum.
 
 ## Vitalik reddit
-In this reddit post he proposes an automated market maker smart contract, and suggests those be used for decentralized exchange contracts on ethereum.
+In this reddit post he proposes an automated market maker smart contract, and suggests those be used for decentralized exchange contracts on ethereum. I think this is where he proposed the idea for uniswap, since one of the two in the github organization for uniswap referenced it.
 
 ## ethresear.ch DEX topics
 The ethresear.ch DEX category seems to be pretty weak when it comes to talking about actual decentralized exchange, mostly just proposals for how to scale a DEX that is only on ethereum, or posts about a "new DEX Dapp". Now for the reviews:
@@ -148,6 +148,10 @@ The problem discussed in this post is basically that once you start taking up a 
 The limit orders are not necessarily executed very quickly but they are executed without affecting the issues of placing high volume trades on automated market makers.
 
 ### Reverse Parimutuel Options on Bitcoin
+This post basically proposes a way of trading using standard option calls, puts, and derivatives marktes to have a sort of "insurance" for companies and miners who need to protect from a falling market. It's essentially leverage, nothing about DEXes here, not really sure why it's in the DEX category
+
+### Conclusion on the ethresear.ch DEX category
+As expected, the only discussion worthwhile here is for those who would like to discuss strategies for doing advanced types of decentralized exchange for ERC20 tokens. The stuff about automated market makers is cool, but the rest really isn't relevant.
 
 ## Binance Chain
 
