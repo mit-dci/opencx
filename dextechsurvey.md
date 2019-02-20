@@ -89,9 +89,22 @@ NEX does a good job in summing up the Decentralized Exchange space, tradeoffs, a
 
 They then lay out their architecture, which is essentially a trusted matching engine and smart contracts on multiple chains. The matching engine is supposed to be deterministic and publicly verifiable. The cross chain exchange is done by the trusted matching engine, using the smart contracts on each chain, and orders must be signed by the user for orders to be placed. This is done through the smart contract. Withdrawal also happens with the smart contract, and that must be signed as well. These signatures and smart contracts are supposed to prevent the matching engine from making orders or withdrawing on the user's behalf, or doing anything that would decrease the balance of a user.
 
+Here's a basic run-through of what would happen:
+ 1. User calls a smart contract function to deposit money.
+   - Anything that interacts with that balance must be a signed, authenticated action.
+ 2. User calls a smart contract function to place an order, and that action must be signed. If successful, the balance goes to a matching engine escrow type place, the order is placed and the matching engine records the fact that it was (for user verification).
+   - If the user would like to cancel their order that is also a smart contract function, and must be signed. The act of placing an order essentially puts your funds in an escrow that you can pull out of _if you cancel your order / decide to withdraw_ or that the matching engine can use to settle trades.
+ 3. The matching engine matches an order and transfers the money, using smart contracts on either chain. The matching engine is still an authority, but non-custodial as far as your deposits in the contract.
+
+
 This is one of the most thoughtful pieces of decentralized exchange research, since they fully recognize that the matching engine will have to be trusted, and count it as a trade-off. The efforts towards making the matching less centralized are also thoughtful.
 
 ### The Heart of Nash Article review and thoughts
+This article is essentially a tip-of-the-iceberg explanation of the Nash matching engine, which claims to be a "provably fair, distributed system". This is the selling point of their decentralized exchange technology. They openly say that they are trading off trust in matching for the huge speed bonus you get by not having extremely redundant computation, like other DEXes that have their matching not off chain. They acknowledge this by requiring that their matching engine be provably fair and deterministic, so users can verify there is nothing bad happening. 
+
+Their matching engine is a distributed system with its own consensus algorithm.
+
+They explain that users use smart contracts to sign and place orders, and their matching engine supposedly also has a "heartbeat", which is something used to ensure determinism between parallel market processes. They don't really elaborate on the technical details at all.
 
 ## Gnosis DEX Research
 This is a repo by gnosis called dex-research so I decided to check it out.
