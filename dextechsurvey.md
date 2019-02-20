@@ -12,8 +12,8 @@ It's good to get a survey of the research and not-yet-implemented solutions to p
    - [ ] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
    - [ ] [Batch Auction Optimization](https://github.com/gnosis/dex-research/tree/master/BatchAuctionOptimization)
    - [ ] [Plasma Research](https://github.com/gnosis/dex-research/tree/master/PlasmaResearch)
- - [ ] ethresear.ch ["Decentralized exchanges" category](https://ethresear.ch/c/decentralized-exchanges)
-   - [x] [Introducing DTRADE. Confoederation dapp](https://ethresear.ch/t/introducing-dtrade-confoederatio-dapp/4870) as of 2/19/2019
+ - [ ] ethresear.ch ["Decentralized exchanges" category](https://ethresear.ch/c/decentralized-exchanges) as of 2/19/2019
+   - [x] [Introducing DTRADE. Confoederation dapp](https://ethresear.ch/t/introducing-dtrade-confoederatio-dapp/4870)
    - [ ] [Self-referential proxy exchange - does this exist?](https://ethresear.ch/t/self-referential-proxy-exchange-does-this-exist/4515)
    - [ ] [Batch auctions with uniform clearing price on plasma](https://ethresear.ch/t/batch-auctions-with-uniform-clearing-price-on-plasma/2554)
    - [ ] [DutchX - fully decentralized auction based exchange](https://ethresear.ch/t/dutchx-fully-decentralized-auction-based-exchange/2443)
