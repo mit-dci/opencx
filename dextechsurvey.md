@@ -12,14 +12,15 @@ It's good to get a survey of the research and not-yet-implemented solutions to p
    - [ ] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
    - [ ] [Batch Auction Optimization](https://github.com/gnosis/dex-research/tree/master/BatchAuctionOptimization)
    - [ ] [Plasma Research](https://github.com/gnosis/dex-research/tree/master/PlasmaResearch)
+ - [ ] Vitalik Reddit: [Let's run on-chain decentralized exchanges the way we run prediction markets](https://www.reddit.com/r/ethereum/comments/55m04x/lets_run_onchain_decentralized_exchanges_the_way/) 
  - [ ] ethresear.ch ["Decentralized exchanges" category](https://ethresear.ch/c/decentralized-exchanges) as of 2/19/2019
    - [x] [Introducing DTRADE. Confoederation dapp](https://ethresear.ch/t/introducing-dtrade-confoederatio-dapp/4870)
    - [ ] [Self-referential proxy exchange - does this exist?](https://ethresear.ch/t/self-referential-proxy-exchange-does-this-exist/4515)
    - [ ] [Batch auctions with uniform clearing price on plasma](https://ethresear.ch/t/batch-auctions-with-uniform-clearing-price-on-plasma/2554)
    - [ ] [DutchX - fully decentralized auction based exchange](https://ethresear.ch/t/dutchx-fully-decentralized-auction-based-exchange/2443)
    - [ ] [A note for the Dutch Team & other Dapp developers](https://ethresear.ch/t/a-note-for-the-dutch-team-other-dapp-developers/2637)
-   - [ ] [Improving front-running resistance of x*y=k market makers](https://ethresear.ch/t/improving-front-running-resistance-of-x-y-k-market-makers/1281)
-   - [ ] [Limit orders and slippage resistance in x*y=k market makers](https://ethresear.ch/t/limit-orders-and-slippage-resistance-in-x-y-k-market-makers/2071)
+   - [ ] [Improving front-running resistance of `x*y=k` market makers](https://ethresear.ch/t/improving-front-running-resistance-of-x-y-k-market-makers/1281)
+   - [ ] [Limit orders and slippage resistance in `x*y=k` market makers](https://ethresear.ch/t/limit-orders-and-slippage-resistance-in-x-y-k-market-makers/2071)
    - [ ] [Reverse Parimutuel Options on Bitcoin](https://ethresear.ch/t/reverse-parimutuel-options-on-bitcoin/1816)
  - [ ] Binance Chain
  - [ ] Altcoin.io - [Another Plasma DEX](https://blog.altcoin.io/plasma-dex-v1-launching-next-month-4cb5e5ea56f6)
@@ -27,6 +28,7 @@ It's good to get a survey of the research and not-yet-implemented solutions to p
 ## Topics
 These topics are for me to review and asses what the benefits of each are and how they would be relevant in an exchange. Most of these are reviewed topics as well as used for more general things.
  - [ ] "Provably fair" matching
+   - [ ] Difference between verifiable computation and zero knowledge proofs
  - [ ] Proof of assets
  - [ ] Cross chain swaps
  - [ ] Exchange channels (different than cross chain - like arwen?)
@@ -46,6 +48,8 @@ Looking at history is important, especially because we may have seen some of the
    - IC3 Preprint by Cornell, Cornell Tech, SJTU, and Eth Zürich
  - [ ] [Cryptographic Securities Exchanges](http://www.eecs.harvard.edu/~cat/cm.pdf)
    - By Christopher Thorpe and David C. Parkes, from EECS at harvard.
+ - [ ] [Deconstructing Decentralized Exchanges](https://stanford-jblp.pubpub.org/pub/deconstructing-dex)
+   - Essay by Lindsay X. Lin from Interstellar, published in the Stanford Journal of Blockchain Law and Policy
 
 ## Centralized exchanges
 It's also good to see what centralized exchanges could do if they were malicious - exploring attack vectors on the user and exchange.
@@ -65,6 +69,7 @@ These are currently implemented "solutions" to problems that users supposedly ha
  - [ ] Kyber Network
  - [ ] EtherDelta
  - [ ] IDEX
+ - [ ] Uniswap
 
 # Research, proposed DEXes, anything not currently implemented
 
@@ -97,8 +102,12 @@ dFusion is sort of a smart contract that will take in a bunch of orders, freeze 
 ### Batch Auction Optimization
 This is basically a way of making sure low liquidity tokens are sorta liquid.
 
+
 ### Plasma Research
 This part is just TeX but it defines how you would do batch auction stuff on plasma. Again, not really something that would be interesting for someone making a decentralized exchange that isn't just an erc20 token swap contract on ethereum.
+
+## Vitalik reddit
+In this reddit post he proposes an automated market maker smart contract, and suggests those be used for decentralized exchange contracts on ethereum.
 
 ## ethresear.ch DEX topics
 The ethresear.ch DEX category seems to be pretty weak when it comes to talking about actual decentralized exchange, mostly just proposals for how to scale a DEX that is only on ethereum, or posts about a "new DEX Dapp". Now for the reviews:
@@ -107,16 +116,36 @@ The ethresear.ch DEX category seems to be pretty weak when it comes to talking a
 This post is really just a link to a blog post about a platform called "Confoederation TRADE," which, from reading the actual post as well as the website, seems to be a collection of smart contracts on ethereum that are neither implemented nor justified. Reading the blog post and the website was a waste of time.
 
 ### Self-referential proxy exchange - does this exist?
+This post discusses an idea the original poster calls a "self-referential proxy exchange". Here are the requirements, as quoted from the post:
+> 1. The exchange has its own token.
+> 2. The exchange can accept and hold various crypto assets in exchange for its own token.
+> 3. The holders of that token can vote on the exchange rate between the token and other crypto assets (individually).
+
+Supposedly the point is that the users of the system are participating in a sort of gigantic futures contract. Not really relevant to decentralized exchange, but could be relevant to maybe stablecoins or implementable as a smart contract.
 
 ### Batch auctions with uniform clearing price on plasma
+This is a post by one of the gnosis people trying to spur conversation about their papers on batch auctions for eliminating front-running and bundling liquidity. Here is the basic idea:
+
+Consider the ethereum root / plasma chain model. The plasma chain is necessary for throughput as well as slashing conditions for collusion. The first step is that a set of "bonded" participants participate in distributed key generation. If they try to reveal secret messages that were exchanged in the distributed key generation process before the auction is over, they are subject to slashing. Then, those who would like to place orders will place them within a set period of time (the auction time), and once that time period is over the orders are revealed, price is calculated, and proofs for order settlement / matching are generated. 
+
+This is another one of those things that seems only useful on ethereum and doesn't really have much to do with decentralized exchange, other than their $1200 snark-based order matching, which is also essentially their version of a proof of work but it's on ethereum so _slashing fixes everything_.
 
 ### DutchX - fully decentralized auction based exchange
+This post is yet another on-chain ethereum DEX Dapp with one difference, it uses many dutch auction (2 per token pair) smart contracts. They are just contracts so any ERC20 token should be able to be listed, and there isn't much new being done.
+
+I'm not going to explain much in detail about the plethora of ethereum-or-otherwise based smart contract DEXes, because they usually have orders on-chain, do matching on-chain, are extremely slow, and increase the size of already large ledgers. There's tons of redundant computation being done that doesn't provide security guarantees, only fairness in the sense that the price-time priority matching algorithm is fair based on the timestamps of the order when the timestamping is being done on the blockchain.
+
+DutchX is also another Gnosis thing. They seem to like auction based exchange.
 
 ### A note for the Dutch Team & other Dapp developers
+This is just a complaint that DutchX isn't available in certain countries.
 
-### Improving front-running resistance of x*y=k market makers
+### Improving front-running resistance of `x*y=k` market makers
+Vitalik here addresses the issues of miners being able to front-run automated market maker based exchanges for profit. He proposes a way to turn that profit into the very least a griefing attack by the miner.
 
-### Limit orders and slippage resistance in x*y=k market makers
+### Limit orders and slippage resistance in `x*y=k` market makers
+The problem discussed in this post is basically that once you start taking up a large amount of the liquidity of the automated market maker, there's a high rate per token. The OP of this post is one of the two uniswap members, and he proposes a way to use on-chain limit orders as well as the automated `x*y=k` market maker to fill orders with high volume as well as those with low volume without too much "price slippage" due to trade volume increasing rate, in the nature of `x*y=k` market makers. 
+The limit orders are not necessarily executed very quickly but they are executed without affecting the issues of placing high volume trades on automated market makers.
 
 ### Reverse Parimutuel Options on Bitcoin
 
@@ -173,3 +202,5 @@ This post is really just a link to a blog post about a platform called "Confoede
 ## EtherDelta
 
 ## IDEX
+
+## Uniswap
