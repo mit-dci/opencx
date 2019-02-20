@@ -6,21 +6,21 @@ I'm going to try to review as much as possible about decentralized exchange tech
 It's good to get a survey of the research and not-yet-implemented solutions to problems that people supposedly have with exchange. Some things here are DEXes, some are techniques used to maybe decrease trust needed in exchange, but most are not formal and not peer reviewed.
  - [ ] Arwen
  - [ ] Nash / NEX
-  - [ ] [NEX Whitepaper](assets/whitepaper_v2.pdf)
-  - [ ] [The heart of Nash: Our off-chain matching engine](https://medium.com/nashsocial/the-heart-of-nash-our-off-chain-matching-engine-499cf2c23670)
+   - [ ] [NEX Whitepaper](assets/whitepaper_v2.pdf)
+   - [ ] [The heart of Nash: Our off-chain matching engine](https://medium.com/nashsocial/the-heart-of-nash-our-off-chain-matching-engine-499cf2c23670)
  - [ ] [gnosis/dex-research](https://github.com/gnosis/dex-research)
-  - [ ] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
-  - [ ] [Batch Auction Optimization](https://github.com/gnosis/dex-research/tree/master/BatchAuctionOptimization)
-  - [ ] [Plasma Research](https://github.com/gnosis/dex-research/tree/master/PlasmaResearch)
+   - [ ] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
+   - [ ] [Batch Auction Optimization](https://github.com/gnosis/dex-research/tree/master/BatchAuctionOptimization)
+   - [ ] [Plasma Research](https://github.com/gnosis/dex-research/tree/master/PlasmaResearch)
  - [ ] ethresear.ch ["Decentralized exchanges" category](https://ethresear.ch/c/decentralized-exchanges)
-  - [x] [Introducing DTRADE. Confoederation dapp](https://ethresear.ch/t/introducing-dtrade-confoederatio-dapp/4870) as of 2/19/2019
-  - [ ] [Self-referential proxy exchange - does this exist?](https://ethresear.ch/t/self-referential-proxy-exchange-does-this-exist/4515)
-  - [ ] [Batch auctions with uniform clearing price on plasma](https://ethresear.ch/t/batch-auctions-with-uniform-clearing-price-on-plasma/2554)
-  - [ ] [DutchX - fully decentralized auction based exchange](https://ethresear.ch/t/dutchx-fully-decentralized-auction-based-exchange/2443)
-  - [ ] [A note for the Dutch Team & other Dapp developers](https://ethresear.ch/t/a-note-for-the-dutch-team-other-dapp-developers/2637)
-  - [ ] [Improving front-running resistance of x*y=k market makers](https://ethresear.ch/t/improving-front-running-resistance-of-x-y-k-market-makers/1281)
-  - [ ] [Limit orders and slippage resistance in x*y=k market makers](https://ethresear.ch/t/limit-orders-and-slippage-resistance-in-x-y-k-market-makers/2071)
-  - [ ] [Reverse Parimutuel Options on Bitcoin](https://ethresear.ch/t/reverse-parimutuel-options-on-bitcoin/1816)
+   - [x] [Introducing DTRADE. Confoederation dapp](https://ethresear.ch/t/introducing-dtrade-confoederatio-dapp/4870) as of 2/19/2019
+   - [ ] [Self-referential proxy exchange - does this exist?](https://ethresear.ch/t/self-referential-proxy-exchange-does-this-exist/4515)
+   - [ ] [Batch auctions with uniform clearing price on plasma](https://ethresear.ch/t/batch-auctions-with-uniform-clearing-price-on-plasma/2554)
+   - [ ] [DutchX - fully decentralized auction based exchange](https://ethresear.ch/t/dutchx-fully-decentralized-auction-based-exchange/2443)
+   - [ ] [A note for the Dutch Team & other Dapp developers](https://ethresear.ch/t/a-note-for-the-dutch-team-other-dapp-developers/2637)
+   - [ ] [Improving front-running resistance of x*y=k market makers](https://ethresear.ch/t/improving-front-running-resistance-of-x-y-k-market-makers/1281)
+   - [ ] [Limit orders and slippage resistance in x*y=k market makers](https://ethresear.ch/t/limit-orders-and-slippage-resistance-in-x-y-k-market-makers/2071)
+   - [ ] [Reverse Parimutuel Options on Bitcoin](https://ethresear.ch/t/reverse-parimutuel-options-on-bitcoin/1816)
  - [ ] Binance Chain
  - [ ] Altcoin.io - [Another Plasma DEX](https://blog.altcoin.io/plasma-dex-v1-launching-next-month-4cb5e5ea56f6)
 
@@ -40,7 +40,12 @@ Looking at history is important, especially because we may have seen some of the
 
 ## Papers about crypto exchanges specifically
  - [ ] [Decentralized Cryptocurrency Exchange Security Analysis 6.857 Project](https://courses.csail.mit.edu/6.857/2018/project/Hao-Chang-Lu-Zhang-CCExch.pdf)
+   - Written for 6.857 by Parker Hao, Vincent Chang, Shao Lu, and Chenxing Zhang
+   - All CSAIL except Shao Lu, who is Harvard.
  - [ ] [Tesseract - Real Time Cryptocurrency Exchange Using Trusted Hardware](https://eprint.iacr.org/2017/1153.pdf)
+   - IC3 Preprint by Cornell, Cornell Tech, SJTU, and Eth Zürich
+ - [ ] [Cryptographic Securities Exchanges](http://www.eecs.harvard.edu/~cat/cm.pdf)
+   - By Christopher Thorpe and David C. Parkes, from EECS at harvard.
 
 ## Centralized exchanges
 It's also good to see what centralized exchanges could do if they were malicious - exploring attack vectors on the user and exchange.
@@ -69,6 +74,17 @@ These are currently implemented "solutions" to problems that users supposedly ha
 
 ### NEX Whitepaper Review
 Their whitepaper is now off of their site, but luckily I had it downloaded so it's linked in the checklist.
+
+NEX does a good job in summing up the Decentralized Exchange space, tradeoffs, and earlier approaches. They point out that decentralized exchanges that place orderbooks directly on the blockchain run price-time priority matching redundantly across all machines on the network, and run very slowly as a result. Here are some of the points about decentralized exchange taken from the paper:
+ - On-chain orderbooks and matching contracts or matching validation logic is very slow and very redundant.
+ - Automated market maker smart contracts are also very slow and could lost money based on the amount of liquidity they provide
+ - Centralized matching is the most efficient option
+ - Cross-chain exchange is difficult to do since traders must find counterparties first
+ - Cross chain relays such as kyber network cannot operate on bitcoin, or any other cryptocurrency without turing-complete smart contracts, and requires a trusted oracle
+
+They then lay out their architecture, which is essentially a trusted matching engine and smart contracts on multiple chains. The matching engine is supposed to be deterministic and publicly verifiable. The cross chain exchange is done by the trusted matching engine, using the smart contracts on each chain, and orders must be signed by the user for orders to be placed. This is done through the smart contract. Withdrawal also happens with the smart contract, and that must be signed as well. These signatures and smart contracts are supposed to prevent the matching engine from making orders or withdrawing on the user's behalf, or doing anything that would decrease the balance of a user.
+
+This is one of the most thoughtful pieces of decentralized exchange research, since they fully recognize that the matching engine will have to be trusted, and count it as a trade-off. The efforts towards making the matching less centralized are also thoughtful.
 
 ### The Heart of Nash Article review and thoughts
 
