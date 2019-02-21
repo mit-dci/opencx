@@ -4,7 +4,7 @@ I'm going to try to review as much as possible about decentralized exchange tech
 
 ## Research, proposed DEXes, anything not currently implemented
 It's good to get a survey of the research and not-yet-implemented solutions to problems that people supposedly have with exchange. Some things here are DEXes, some are techniques used to maybe decrease trust needed in exchange, but most are not formal and not peer reviewed.
- - [ ] Arwen
+ - [x] Arwen
  - [x] Nash / NEX
    - [x] [NEX Whitepaper](assets/whitepaper_v2.pdf)
    - [x] [The heart of Nash: Our off-chain matching engine](https://medium.com/nashsocial/the-heart-of-nash-our-off-chain-matching-engine-499cf2c23670)
