@@ -74,6 +74,44 @@ These are currently implemented "solutions" to problems that users supposedly ha
 # Research, proposed DEXes, anything not currently implemented
 
 ## Arwen
+So this is basically going to be my summary and review of Arwen as a cross-chain non-custodial exchange.
+
+Arwen starts out by exploring the current DEX landscape, explaining that p2p exchanges don't have liquidity if they don't have users, which is true. They also point out that at the current moment, centralized exchanges have the most liquidity currently.
+
+This is one of the reasons why arwen chooses to interact with centralized exchanges. They then summarize ethereum DEX protocols and how their atomic swaps use smart contracts but only really work with ETH and ERC20 tokens.
+
+
+Arwen then summarizes ther "TierNolan" protocol, which is really the HTLC's we know and love.
+
+Arwen then discusses the issues with settling HTLC's and broadcasting trades on-chain:
+ - Speed: Block times are long so you have to wait a long time to do stuff with your orders.
+ - Scalability: Healthy trading means lots of trades, lots of trades means lots of transactions, which we currently can't handle, and is hard to scale on chain.
+ - Front-running: Broadcasting your trades on chain leads to race conditions.
+
+The Arwen setup has two "escrows," which are extremely similar to lightning channels, although they're defined to only be between the user and the exchange.
+
+These channels are opened by publishing a funding transaction to the blockchain. They're multisig channels, 2 of 2 (Between the user and the exchange), and allow the same atomic swap and HTLC functionality as lightning. However, Arwen needs to withstand transaction malleability attacks since it wants to support non-segwit chains.
+
+Arwen then goes through different types of lockup griefing and their solutions, since they use HTLC's and HTLC's are vulnerable to lockup griefing. They point out that lockup griefing is very plausible in lightning due to potentially lots of intermediary nodes.
+
+They claim that as the exchange, there is no incentive to do lockup griefing since they make their money through trading, and that would destroy the exchanges' reputation, making the exchange earn less money.
+
+The user interacting with the exchange, however, could want to do lockup griefing. Arwen avoids this by making the user lock up their coins first, but also requires the user to pay a fee for the time that they are locking up the exchanges' assets. The user then has incentive to trade and close the exchange escrow when they are done. The exchange does give a rebate for time not used.
+
+They make the point that the only one who has the right (not the obligation) to execute the trade is the one that picked the preimage of the hash or "puzzle" in the HTLC, which is why in Arwen, the exchange is the one who does so.
+
+
+Arwen uses RFQ, which is basically this:
+ - User: "I'd like some BCH for my 1 BTC"
+ - Exchange: "Yeah you can get 10 BCH for 1 BTC for the next 10 minutes"
+Then the exchange and user do an atomic swap using an off chain HTLC, much like lightning.
+
+
+Limit orders work the same way, but instead the user just proposes what they want and what they have, and the exchange just doesn't execute the trade (and reveal the preimage to the hash in the HTLC) until that's the market price. The user can also always cancel these by closing the escrows.
+
+There's a note about unidirectional channels and how publishing the most recent transaction in arwen is always beneficial.
+
+Finally, there are a lot of diagrams about their implementation of limit orders and RFQs, and they also explain bidirectional RFQ's, where if you bought one asset then you should be able to also sell it back with another RFQ. It's a very dry paper but it's a very solid idea. It is still a market maker but as far as non custodial exchanges go, this is a good way to do it.
 
 ## Nash / NEX
 
