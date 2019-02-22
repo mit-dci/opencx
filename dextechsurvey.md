@@ -53,13 +53,12 @@ Looking at history is important, especially because we may have seen some of the
 
 ## Centralized exchanges
 It's also good to see what centralized exchanges could do if they were malicious - exploring attack vectors on the user and exchange.
- - [ ] OpenCX (lol)
- - [ ] Coinbase
- - [ ] Binance
- - [ ] MtGox
- - [ ] Bitfinex
- - [ ] Gemini
- - [ ] Smaller exchanges
+ - [x] OpenCX (lol)
+ - [x] Coinbase
+ - [x] Binance
+ - [x] MtGox
+ - [x] Bitfinex
+ - [x] Smaller exchanges
 
 ## Implemented DEXes and exchange problem solutions
 These are currently implemented "solutions" to problems that users supposedly have with cryptocurrency exchanges. I'll determine whether or not these actually solve any problems, and how well they solve them. One thing that I will be covering a lot is whether or not they are platforms which are bound to a single cryptocurrency, and rely on the fact that said currency is the biggest in order to solve what they set out to solve.
@@ -256,19 +255,24 @@ Some, like Nash, choose to settle trades by having the matching engine simultane
 # Centralized Exchanges
 
 ## OpenCX (lol)
+This is my small SQL-injection vulnerable exchange that gets about 100 transactions per second. There's a ton of stuff that could be done to increase performance, but it's completely custodial for now and is a good prototype exchange similar to ones out there today.
 
 ## Coinbase
+Coinbase is massively popular and holds a very large percentage of many cryptocurrencies. It has been audited by Andreas antonopoulos, and is trusted by many users around the world. However, it's also completely custodial and, if it wanted to, could steal all of it's users cryptocurrency. Being one of the biggest exchanges, it could very well legitimately liquidate all of its users assets through its own platform.
+
+Coinbase was also hit with a DoS attack when it initially said it wouldn't support Bitcoin Cash.
 
 ## Binance
+Binance is a very large, very popular crypto exchange that also is well trusted
 
 ## MtGox
+MtGox is infamous for being the largest and one of the most trusted cryptocurrency exchanges which had then "lost" approximately 850,000 bitcoins. It's suspected there had been bitcoin continously stolen out of its hot wallets since 2011, 3 years before the bitcoins were reported as being "lost". Mt Gox also participated in its own proof of reserves by moving 424242 bitcoins from cold storage to a new address, after a hacker dropped the price of bitcoin to one cent. There were various security issues with Mt Gox, and bitcoin was far from mature or perfect at that point.
 
 ## Bitfinex
-
-## Gemini
+Bitfinex was also previously the largest cryptocurrency exchange that also "lost" cryptocurrencies, about 120000 bitcoins were stolen from bitfinex.
 
 ## Smaller exchanges
-Bitstamp has participated in 
+Bitstamp has participated in its own "proof of reserves" by moving all of its assets to a new address.
 
 # Implemented DEXes and exchange problem solutions
 
