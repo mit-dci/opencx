@@ -30,7 +30,6 @@ These topics are for me to review and asses what the benefits of each are and ho
    - [ ] Difference between verifiable computation and zero knowledge proofs
  - [ ] Proof of assets
  - [ ] Cross chain swaps
- - [ ] Exchange channels (different than cross chain - like arwen?)
 
 ## Other articles about crypto exchanges in general, mostly greivances and events
 Looking at history is important, especially because we may have seen some of the problems that people care about.
@@ -49,6 +48,8 @@ Looking at history is important, especially because we may have seen some of the
    - By Christopher Thorpe and David C. Parkes, from EECS at harvard.
  - [ ] [Deconstructing Decentralized Exchanges](https://stanford-jblp.pubpub.org/pub/deconstructing-dex)
    - Essay by Lindsay X. Lin from Interstellar, published in the Stanford Journal of Blockchain Law and Policy
+ - [ ] [Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges](https://users.encs.concordia.ca/~clark/papers/2015_ccs.pdf)
+
 
 ## Centralized exchanges
 It's also good to see what centralized exchanges could do if they were malicious - exploring attack vectors on the user and exchange.
@@ -207,17 +208,32 @@ As expected, the only discussion worthwhile here is for those who would like to 
 ## Binance Chain
 Binance chain is basically bitshares with a different consensus algorithm. They use tons of tendermint software. Orders are on chain, matching is part of validation. There are one second block times.
 
-## Altcoin.io
-
 # Topics
 
 ## "Provably fair" matching
+Provably fair matching is mostly a topic brought up by NEX / Nash. The idea is to make sure that the matching is completely deterministic so that anyone on any computer can verify that each step is being done correctly. I'm not sure if anyone will verify it, or if anyone will be able to, considering the whole point of an off chain matching engine is to remove computing redundantly, but it's an interesting idea. 
+
+The actual question of "fairness" seems like a topic that is up to interpretation. Many believe that the price-time priority matching algorithm is the only fair algorithm. I'm not sure whether this is the case. 
+With price-time priority, there are issues with front-running and race conditions. There would be similar issues with bitcoin transactions if it didn't use transaction fees as incentive for miners to pick up transactions. With large distributed networks it would be difficult to determine "true" order of transactions anyways, since there would be conflicting opinions on which came first depending on how the transaction were propagated. 
+
+Maybe price-fee priority makes the problem of decentralized matching much simpler, by removing a constraint that was put there in order to enforce undefined "fairness" (time).
 
 ## Proof of assets
+Proof of assets and proof of solvency is something that has not been implemented in any major cryptocurrency exchange to date. The research for this topic was first introduced by Gregory Maxwell and Peter Todd in the bitcoin-wizards IRC. The Provisions paper suggests using additively homomorphic pederson commitments for zero knowledge proofs for proofs of solvency with certain properties.
+
+The provisions paper points out that "proof of reserves without a corresponding proof of liabilites is not sufficient to prove solvency."
+
+This means that it doesn't matter whether or not you can prove you have a certain amount of money to prove solvency unless you can prove you owe an equal or lesser amount of money. If you owe more money than you have, then you're not completely solvent.
+
+The difference between a proof of reserves and proof of assets is that a proof of reserves prove ownership of assets reserved to cover certain liabilities, where a proof of assets is just proof of ownership of assets.
+
+Unfortunately Provisions only works on pay to pubkey addresses, and can't prove ownership of P2PKH addresses or P2SH addresses. They acknowledge this limitation in the paper, and say it is "an interesting challenge for future work."
 
 ## Cross chain swaps
+For those who would like to create exchanges, either centralized or decentralized, one feature that is very important to users is the ability to exchange two different cryptocurrencies. This seems obvious, but current "decentralized exchanges" can only exchange token on one ledger, or one chain.
+Arwen may be the only "exchange" that has atomic swaps across two different ledgers / chains. This, along with advanced interoperability in general, is a topic that is not very well researched but is a very important area of research.
 
-## Exchange channels (different than cross chain - like arwen?)
+Some, like Nash, choose to settle trades by having the matching engine simultaneously call smart contracts, but one side of settlement doesn't actually guarantee the other side of settlement. This is why audits and provable fairness are necessary.
 
 # Other articles about crypto exchanges in general, mostly greivances and events
 
