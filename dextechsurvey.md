@@ -247,7 +247,7 @@ Some, like Nash, choose to settle trades by having the matching engine simultane
 
 ## Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges
 Provisions starts out by describing the idea of proofs of solvency. As stated somewhere else in this document, a proof of reserves (or assets) is not sufficient without a proof of liabilities. The paper recalls how the idea was introduced by Gregory Maxwell, and describes his solution to the problem.
-Gregory Maxwell's solution used a merkle tree, summing the balances of the leaf nodes in the parent nodes, and including the sum when hashing and concatenating the children. However, when the exchange is proving that the user's account is included in its liabilities, it also reveals the sibling node, so it reveals the liabilities for the account in the sibling node.
+Gregory Maxwell's solution used a merkle tree, summing the balances of the leaf nodes in the parent nodes, and including the sum of the child balances when hashing and concatenating the child hashes. So the actual hash of the children would be `h(Sum,leftHash,rightHash)`. However, when the exchange is proving that the user's account is included in its liabilities, it also reveals the sibling node, so it reveals the liabilities for the account in the sibling node.
 This also exposes the total liabilities of the exchange. The more proofs are made, the more information is revealed about other accounts.
 
 Provisions proposes a zero knowledge proof based solution to proof of solvency. One issue with doing this is that multiple exchanges could possibly collude to create a valid proof of solvency.
@@ -260,19 +260,54 @@ There are three protocols in Provisions:
 Cryptographic primitives in Provisions:
  1. The secp256k1 curve is used as the group G, with fixed public generators g and h. G is of prime order q.
  2. Pederson commitments
-   - The commitment to a message m in Z_q is defined as `com=(g^m)*(h^r)`, where r is chosen at random in Z_q.
+   - The commitment to a message m in Z_q is defined as `com=(g^m) * (h^r)`, where r is chosen at random in Z_q.
    - g is defined as being the standard g from secp256k1.
    - h is defined as the hash of the string `Provisions`
  3. Non-interactive Zero-Knowledge Proofs (NIZKP)
    - The paper says that they can be adapted from basic sigma protocols (like schnorr proof of knowledge of discrete log).
    - Any alternative sigma protocol to NIZKP compilation is sufficient (so just fiat-shamir whatever sigma protocol with knowledge soundness).
-   - Easiest proof of discrete log for me is the fiat-shamir'ed schnorr: `s = k - h(R,m)a <=> sG = kG - h(R,m)aG <=> sG = R - h(R,m)A`
+   - Easiest proof of discrete log for me is the fiat-shamir'ed schnorr: 
+     - `s = k - h(R,m)a <=> sG = kG - h(R,m)aG <=> sG = R - h(R,m)A`
 
 Assumptions in Provisions:
  1. The bitcoin blockchain is available for all parties to compute the quantity of bitcoin owned by each address.
    - In the paper, they define a y in the group G as a public key, and use `bal(y)` to denote the balance associated with y.
 
+First they describe **proof of assets**.
 
+The exchange selects a set of Bitcoin public keys, denoted PK as `y_1,...,y_n`, and describes `x_1,...,x_n in Z_q` as the secret keys so that `y_i = g^(x_i)` for i from 1 to n. They then define S to be a subset of PK for which the exchange knows the private key. Each `s_i` is a boolean, either 0 or 1, which indicates whether or not the exchange knows the secret key corresponding to that `y_i`.
+They then define `b_i` to be `g^(bal(y_i))`.
+
+They define `Assets` to be equal to the summation, with i from 1 to n, of `s_i * bal(y_i)`
+
+The individual pederson commitments for `bal(y_i)` (which remember, can be added homomorphically!) are defined as:
+
+`p_i = h^(v_i) * (b_i)^(s_i)`, where `v_i` is picked randomly in `Z_q`.
+
+So we can define the commitment `Z_Assets` as being the product of all `p_i` from 1 to n, yielding `Z_Assets = h^(sum of all v_i) * g^(Assets)`
+
+They then define other auxiliary values (not going to go through the rest of the math but it checks out and is sorta cool) to create a sigma protocol, an honest-verifier zero knowledge proof (HVZKP) for privacy-preserving proof of assets.
+
+Then they describe the **proof of liabilities**.
+
+Proof of liabilities again uses pederson commitments (or zk-SNARKS, depending on which version of the paper you read) with a couple changes so that the user can verify that their balance is included in the commitment to total liabilities on their own. Public auditors could also verify that each of the commitments to balances add to the commitment of total liabilities. This is another HVZKP.
+
+Finally they describe the very simple **Proof of solvency**.
+
+1. Exchange runs the first protocol to generate `Z_Assets`.
+2. Exchange runs the second protocol to generate `Z_Liabilities` and the list of liabilities.
+3. Exchange computes `Z_Assets * (Z_Liabilities)^(-1) = Z_(Assets-Liabilities)`
+4. Exchange proves in zero knowledge that `Z_(Assets-Liabilities)` is a commitment to the value 0.
+
+They then discuss a variation for fractional-reserve exchanges, and describe the proof of non-collision, proving that exchanges are not covering each other's liabilities.
+
+They do describe a situation where an exchange excludes a certain set of user balances, where they're not that sure that those users will check that the proof of solvency includes their balance. They calculate the probability, given that a random set of accounts check.
+
+Provisions also does not provide dispute resolution, and "If a user finds their account missing or balance incorrect, they do not have sufficient cryptographic evidence that this is the case". They say that it "appears unsolvable cryptographically". It's also not possible to know whether or not a user who says their balance isn't included, is correct.
+
+The goal for efficiency is to be able to produce a privacy-preserving proof of solvency for Coinbase, with roughly 2 million users.
+
+P2PKH and P2SH addresses can also not be used, only public keys that are on the blockchain.
 
 # Centralized Exchanges
 
