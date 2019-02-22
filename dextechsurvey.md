@@ -8,10 +8,10 @@ It's good to get a survey of the research and not-yet-implemented solutions to p
  - [x] Nash / NEX
    - [x] [NEX Whitepaper](assets/whitepaper_v2.pdf)
    - [x] [The heart of Nash: Our off-chain matching engine](https://medium.com/nashsocial/the-heart-of-nash-our-off-chain-matching-engine-499cf2c23670)
- - [ ] [gnosis/dex-research](https://github.com/gnosis/dex-research)
-   - [ ] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
-   - [ ] [Batch Auction Optimization](https://github.com/gnosis/dex-research/tree/master/BatchAuctionOptimization)
-   - [ ] [Plasma Research](https://github.com/gnosis/dex-research/tree/master/PlasmaResearch)
+ - [x] [gnosis/dex-research](https://github.com/gnosis/dex-research)
+   - [x] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
+   - [x] [Batch Auction Optimization](https://github.com/gnosis/dex-research/tree/master/BatchAuctionOptimization)
+   - [x] [Plasma Research](https://github.com/gnosis/dex-research/tree/master/PlasmaResearch)
  - [x] Vitalik Reddit: [Let's run on-chain decentralized exchanges the way we run prediction markets](https://www.reddit.com/r/ethereum/comments/55m04x/lets_run_onchain_decentralized_exchanges_the_way/) 
  - [x] ethresear.ch ["Decentralized exchanges" category](https://ethresear.ch/c/decentralized-exchanges) as of 2/19/2019
    - [x] [Introducing DTRADE. Confoederation dapp](https://ethresear.ch/t/introducing-dtrade-confoederatio-dapp/4870)
@@ -22,8 +22,7 @@ It's good to get a survey of the research and not-yet-implemented solutions to p
    - [x] [Improving front-running resistance of `x*y=k` market makers](https://ethresear.ch/t/improving-front-running-resistance-of-x-y-k-market-makers/1281)
    - [x] [Limit orders and slippage resistance in `x*y=k` market makers](https://ethresear.ch/t/limit-orders-and-slippage-resistance-in-x-y-k-market-makers/2071)
    - [x] [Reverse Parimutuel Options on Bitcoin](https://ethresear.ch/t/reverse-parimutuel-options-on-bitcoin/1816)
- - [ ] Binance Chain
- - [ ] Altcoin.io - [Another Plasma DEX](https://blog.altcoin.io/plasma-dex-v1-launching-next-month-4cb5e5ea56f6)
+ - [x] Binance Chain
 
 ## Topics
 These topics are for me to review and asses what the benefits of each are and how they would be relevant in an exchange. Most of these are reviewed topics as well as used for more general things.
@@ -64,7 +63,6 @@ It's also good to see what centralized exchanges could do if they were malicious
 ## Implemented DEXes and exchange problem solutions
 These are currently implemented "solutions" to problems that users supposedly have with cryptocurrency exchanges. I'll determine whether or not these actually solve any problems, and how well they solve them. One thing that I will be covering a lot is whether or not they are platforms which are bound to a single cryptocurrency, and rely on the fact that said currency is the biggest in order to solve what they set out to solve.
  - [ ] BitShares
- - [ ] Binance Chain (after Feb 20th)
  - [ ] 0x
  - [ ] Kyber Network
  - [ ] EtherDelta
@@ -147,11 +145,13 @@ They explain that users use smart contracts to sign and place orders, and their 
 ## Gnosis DEX Research
 This is a repo by gnosis called dex-research so I decided to check it out.
 
+It's an interesting look into batching orders as a form of auctioning an asset against another asset that uses zero knowledge proofs and plasma stuff. As a decentralized exchange, it's an interesting protocol but it's also yet another ethereum smart contract "DEX".
+
 ### dFusion
 dFusion is sort of a smart contract that will take in a bunch of orders, freeze them, then have people propose which orders to match using zk-SNARKS. Not implemented yet. [Here's a link to the ethresear.ch post](https://ethresear.ch/t/building-a-decentralized-exchange-using-snarks/3928), where they say that each snark will cost $1200 to produce on AWS. The incentive to spend $1200 would be that you get trading fees from the trades. They try to implement their batch auction optimization too, which makes since, it's literally one giant batch trade. They say auction closing / matching times would be anywhere from 3 hours to 1 day. The matching optimizes for "trader surplus" or "trading volume". The high cost of calculating the SNARK is a "crypto-economic" incentive to only post valid solutions. They also collect orders on chain, although they would probably do it on a plasma chain, so it's still ethereum only.
 
 ### Batch Auction Optimization
-This is basically a way of making sure low liquidity tokens are sorta liquid.
+This is basically a way of making sure low liquidity tokens are sorta liquid in their system of plasma batch auctions.
 
 
 ### Plasma Research
@@ -205,6 +205,7 @@ This post basically proposes a way of trading using standard option calls, puts,
 As expected, the only discussion worthwhile here is for those who would like to discuss strategies for doing advanced types of decentralized exchange for ERC20 tokens. The stuff about automated market makers is cool, but the rest really isn't relevant.
 
 ## Binance Chain
+Binance chain is basically bitshares with a different consensus algorithm. They use tons of tendermint software. Orders are on chain, matching is part of validation. There are one second block times.
 
 ## Altcoin.io
 
@@ -247,8 +248,6 @@ As expected, the only discussion worthwhile here is for those who would like to 
 # Implemented DEXes and exchange problem solutions
 
 ## BitShares
-
-## Binance Chain (after Feb 20th)
 
 ## 0x
 
