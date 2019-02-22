@@ -62,12 +62,12 @@ It's also good to see what centralized exchanges could do if they were malicious
 
 ## Implemented DEXes and exchange problem solutions
 These are currently implemented "solutions" to problems that users supposedly have with cryptocurrency exchanges. I'll determine whether or not these actually solve any problems, and how well they solve them. One thing that I will be covering a lot is whether or not they are platforms which are bound to a single cryptocurrency, and rely on the fact that said currency is the biggest in order to solve what they set out to solve.
- - [ ] BitShares
- - [ ] 0x
- - [ ] Kyber Network
- - [ ] EtherDelta
- - [ ] IDEX
- - [ ] Uniswap
+ - [x] BitShares
+ - [x] 0x
+ - [x] Kyber Network
+ - [x] EtherDelta
+ - [x] IDEX
+ - [x] Uniswap
 
 # Research, proposed DEXes, anything not currently implemented
 
@@ -277,17 +277,52 @@ Bitstamp has participated in its own "proof of reserves" by moving all of its as
 # Implemented DEXes and exchange problem solutions
 
 ## BitShares
+BitShares keeps an orderbook on-chain, and the matching algorithm is also a part of the validation logic. You can issue your own assets, and create a whole bunch of fancy "SmartCoins" and Collateralized tokens. There's also some form of margin trading.
+
+They use "Delegated Proof of Stake" consensus.
 
 ## 0x
+0x is basically EtherDelta (see below) but with a distributed / decentralized orderbook. Makers interact with "relayers" who maintain the order book. This replaces the EtherDelta servers' orderbook in the EtherDelta example. Relayers also take fees.
 
 ## Kyber Network
+I'm not 100% sure how the kyber network works, but I know it has a bunch of reserves and reserve operators for different tokens. The reserve operators are in charge of setting the exchange rates so the reserves don't run out?
+
+As always, everyone interacts with a smart contract and users will convert their tokens at a market rate with this smart contract.
+
+It seems somewhat similar to uniswap but not automated and third parties can provide reserves of any ERC20 token.
+
+There's also a "network operator" that determines which tokens are listed and delisted.
 
 ## EtherDelta
+[So the EtherDelta Founder was charged by the SEC for operating an unregistered exchange. He's paying a total of $388,000 in fines.](https://www.sec.gov/news/press-release/2018-258)
+
+EtherDelta keeps its orderbook off chain, and it also uses a smart contract for funds management. Someone who wants to place an order will communicate with an EtherDelta server with a signed order, and the EtherDelta orderbook will be updated. Takers look at the orderbook, and use orders as input to the smart contract with another matching order.
+
+Then the smart contract verifies that the signature originated from the order maker, and that the order is still valid. When that's verified, funds are transferred from one user to another in the smart contract, and users can withdraw. It does only work with ethereum tokens but at least it works with ethereum tokens.
 
 ## IDEX
+IDEX uses smart contracts for settlement but stores balances, the orderbook, transaction queue, and matching engine on IDEX servers. The user deposits into a smart contract and places an order using that smart contract. The IDEX server is authenticated to execute signed orders on the smart contract, and when it matches orders it calls a smart contract method to settle two smart contracts. Balances are updated and users can withdraw if they'd like.
 
 ## Uniswap
-Uniswap is an implementation of an `x*y=k` market maker, where there is some constant `k`, and there are reserves of assets on one side and reserves of assets on another side.
+Uniswap is an implementation of an `x*y=k` market maker, where there is some constant `k`, and `x` is an amount of one asset stored in the smart contract, and `y` is an amount of another asset stored in the smart contract. Suppose I created a `x*y=k` market maker, specified the constant to be `100`, and funded it with 10 BTC as `x` and 10 LTC as `y`. 
+
+The price is 1 BTC/LTC.
+
+Now I want to buy BTC. If I want to buy 1BTC then I would have to provide the amount of LTC which would keep `k` at 100.
+
+So `y = k/x`, `x=9` so I would have to provide `100 - 100/9`, or `1.11111111` LTC to the smart contract. This would make the price `x/y` or `y/x`, depending on which side of the pair you're trying to get the price of. It's really simple and is another way of looking at making markets.
 
 # Notes
-Matching algorithms are required to decide which orders 
+**Orders** specify a transfer of two assets. That's it. It essentially specifies 2 desired transactions.
+**Orderbooks** are sets of orders. Not all exchanges need orderbooks.
+**Matching algorithms** are required to decide which orders get executed, and when.
+
+`x*y=k` is technically a matching algorithm.
+Price-time priority is also a matching algorithm.
+Pro-rata is also a matching algorithm.
+
+**Settlement** is the term for executing the transfer of assets between two or more accounts / assets.
+
+Most settlement is custodial, since non-custodial matching and settlement is sorta difficult. There's a reason it's only been done on-chain. On chain is fairly easy.
+
+**Exchanges** are valuable because they provide and run a matching algorithm and automatic settlement. They also provide a price. The price is usually determined by either the orderbook or the matching algorithm, but most of all price is determined by the state of the system.
