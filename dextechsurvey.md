@@ -26,10 +26,10 @@ It's good to get a survey of the research and not-yet-implemented solutions to p
 
 ## Topics
 These topics are for me to review and asses what the benefits of each are and how they would be relevant in an exchange. Most of these are reviewed topics as well as used for more general things.
- - [ ] "Provably fair" matching
-   - [ ] Difference between verifiable computation and zero knowledge proofs
- - [ ] Proof of assets
- - [ ] Cross chain swaps
+ - [x] "Provably fair" matching
+   - [x] Difference between verifiable computation and zero knowledge proofs
+ - [x] Proof of assets
+ - [x] Cross chain swaps
 
 ## Other articles about crypto exchanges in general, mostly greivances and events
 Looking at history is important, especially because we may have seen some of the problems that people care about.
@@ -111,6 +111,10 @@ Limit orders work the same way, but instead the user just proposes what they wan
 There's a note about unidirectional channels and how publishing the most recent transaction in arwen is always beneficial.
 
 Finally, there are a lot of diagrams about their implementation of limit orders and RFQs, and they also explain bidirectional RFQ's, where if you bought one asset then you should be able to also sell it back with another RFQ. It's a very dry paper but it's a very solid idea. It is still a market maker but as far as non custodial exchanges go, this is a good way to do it.
+
+Also in the arwen paper there's a mistake, on the last page it says that "Plasma [28] is a proposal for a layer-two decentralized exchange protocol on Ethereum", which is blatantly false. Plasma is a proposal for layer-two off-chain transactions on ethereum, much like lightning but for ethereum. 
+
+**Opinion warning:** I don't think this paper should have been this long. It overcomplicates extremely simple ideas and the idea of arwen, even the "advanced" stuff like limit orders and bidirectional RFQ, is super simple. It seems like lightning but you know the person on the other side is an exchange, and the exchange assumes you're a client that wants to use the exchange, so you have a protocol for talking to each other. Compared to the level of ideas that have been discussed on the #bitcoin-wizards IRC, this definitely didn't need to be 21 pages.
 
 ## Nash / NEX
 
@@ -218,6 +222,10 @@ With price-time priority, there are issues with front-running and race condition
 
 Maybe price-fee priority makes the problem of decentralized matching much simpler, by removing a constraint that was put there in order to enforce undefined "fairness" (time).
 
+One other issue with "provable fairness" is the issue that if you were to submit a log of all inputs, the current state, and a program to allow the user to verify that the inputs and program lead to the current state, then the user would take an equal amount of time to verify that the computation happened correctly. This isn't exactly feasible for most, since if we were to do this for Google then it's not like we all have servers that match up to Google's. 
+
+Also this means if you did this for a program that doesn't stop, you essentially have to be running a clone of the system that the prover is running in order to keep up. So it would be better if we could verify that an exchange did some algorithm correctly in less time than it took the algorithm to run, hopefully constant or something with better asymptotic performance.
+
 ## Proof of assets
 Proof of assets and proof of solvency is something that has not been implemented in any major cryptocurrency exchange to date. The research for this topic was first introduced by Gregory Maxwell and Peter Todd in the bitcoin-wizards IRC. The Provisions paper suggests using additively homomorphic pederson commitments for zero knowledge proofs for proofs of solvency with certain properties.
 
@@ -260,6 +268,7 @@ Some, like Nash, choose to settle trades by having the matching engine simultane
 ## Gemini
 
 ## Smaller exchanges
+Bitstamp has participated in 
 
 # Implemented DEXes and exchange problem solutions
 
@@ -274,3 +283,7 @@ Some, like Nash, choose to settle trades by having the matching engine simultane
 ## IDEX
 
 ## Uniswap
+Uniswap is an implementation of an `x*y=k` market maker, where there is some constant `k`, and there are reserves of assets on one side and reserves of assets on another side.
+
+# Notes
+Matching algorithms are required to decide which orders 
