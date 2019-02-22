@@ -31,13 +31,6 @@ These topics are for me to review and asses what the benefits of each are and ho
  - [x] Proof of assets
  - [x] Cross chain swaps
 
-## Other articles about crypto exchanges in general, mostly greivances and events
-Looking at history is important, especially because we may have seen some of the problems that people care about.
- - [ ] [Bitcoin exchanges may not be ready for the big time -- Quartz](https://qz.com/1120991/bitcoin-exchanges-may-not-be-ready-for-the-big-time/)
- - [ ] [The History of the Mt Gox Hack: Bitcoin's Biggest Heist](https://blockonomi.com/mt-gox-hack/)
- - [ ] [A crypto exchange CEO dies - With the only key to $137 million -- WIRED](https://www.wired.com/story/crypto-exchange-ceo-dies-holding-only-key/)
- - [ ] [The State of Decentralized Exchanges](https://hackernoon.com/the-state-of-decentralized-exchanges-235064446ab0)
-
 ## Papers about crypto exchanges specifically
  - [ ] [Decentralized Cryptocurrency Exchange Security Analysis 6.857 Project](https://courses.csail.mit.edu/6.857/2018/project/Hao-Chang-Lu-Zhang-CCExch.pdf)
    - Written for 6.857 by Parker Hao, Vincent Chang, Shao Lu, and Chenxing Zhang
@@ -242,15 +235,44 @@ Arwen may be the only "exchange" that has atomic swaps across two different ledg
 
 Some, like Nash, choose to settle trades by having the matching engine simultaneously call smart contracts, but one side of settlement doesn't actually guarantee the other side of settlement. This is why audits and provable fairness are necessary.
 
-# Other articles about crypto exchanges in general, mostly greivances and events
+# Papers about crypto exchanges specifically
 
-## Bitcoin exchanges may not be ready for the big time -- Quartz
+## Decentralized Cryptocurrency Exchange Security Analysis 6.857 Project
 
-## The History of the Mt Gox Hack: Bitcoin's Biggest Heist
+## Tesseract - Real Time Cryptocurrency Exchange Using Trusted Hardware
 
-## A crypto exchange CEO dies - With the only key to $137 million -- WIRED
+## Cryptographic Securities Exchanges
 
-## The State of Decentralized Exchanges
+## Deconstructing Decentralized Exchanges
+
+## Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges
+Provisions starts out by describing the idea of proofs of solvency. As stated somewhere else in this document, a proof of reserves (or assets) is not sufficient without a proof of liabilities. The paper recalls how the idea was introduced by Gregory Maxwell, and describes his solution to the problem.
+Gregory Maxwell's solution used a merkle tree, summing the balances of the leaf nodes in the parent nodes, and including the sum when hashing and concatenating the children. However, when the exchange is proving that the user's account is included in its liabilities, it also reveals the sibling node, so it reveals the liabilities for the account in the sibling node.
+This also exposes the total liabilities of the exchange. The more proofs are made, the more information is revealed about other accounts.
+
+Provisions proposes a zero knowledge proof based solution to proof of solvency. One issue with doing this is that multiple exchanges could possibly collude to create a valid proof of solvency.
+However, they provide an extension to provisions which is able to prove that one exchange is not sharing addresses with another exchange running Provisions by also providing the result of a deterministic function on the private key. This does reveal the number of addresses (or private keys) the exchange controls though.
+There are three protocols in Provisions: 
+ 1. Proof of assets
+ 2. Proof of liabilities
+ 3. Proof of solvency
+
+Cryptographic primitives in Provisions:
+ 1. The secp256k1 curve is used as the group G, with fixed public generators g and h. G is of prime order q.
+ 2. Pederson commitments
+   - The commitment to a message m in Z_q is defined as `com=(g^m)*(h^r)`, where r is chosen at random in Z_q.
+   - g is defined as being the standard g from secp256k1.
+   - h is defined as the hash of the string `Provisions`
+ 3. Non-interactive Zero-Knowledge Proofs (NIZKP)
+   - The paper says that they can be adapted from basic sigma protocols (like schnorr proof of knowledge of discrete log).
+   - Any alternative sigma protocol to NIZKP compilation is sufficient (so just fiat-shamir whatever sigma protocol with knowledge soundness).
+   - Easiest proof of discrete log for me is the fiat-shamir'ed schnorr: `s = k - h(R,m)a <=> sG = kG - h(R,m)aG <=> sG = R - h(R,m)A`
+
+Assumptions in Provisions:
+ 1. The bitcoin blockchain is available for all parties to compute the quantity of bitcoin owned by each address.
+   - In the paper, they define a y in the group G as a public key, and use `bal(y)` to denote the balance associated with y.
+
+
 
 # Centralized Exchanges
 
@@ -314,7 +336,9 @@ So `y = k/x`, `x=9` so I would have to provide `100 - 100/9`, or `1.11111111` LT
 
 # Notes
 **Orders** specify a transfer of two assets. That's it. It essentially specifies 2 desired transactions.
+
 **Orderbooks** are sets of orders. Not all exchanges need orderbooks.
+
 **Matching algorithms** are required to decide which orders get executed, and when.
 
 `x*y=k` is technically a matching algorithm.
