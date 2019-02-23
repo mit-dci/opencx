@@ -137,6 +137,8 @@ func SetLogPath(logPath string) error {
 func createRoot(rootDir string) {
 	if _, err := os.Stat(rootDir); os.IsNotExist(err) {
 		logging.Infof("Creating root directory at %s\n", rootDir)
-		os.Mkdir(rootDir, os.ModePerm)
+		if err = os.Mkdir(rootDir, os.ModePerm); err != nil {
+			logging.Errorf("Error creating root dir: %s", err)
+		}
 	}
 }

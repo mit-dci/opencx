@@ -40,7 +40,10 @@ func (cl *openCxClient) OrderCommand(args []string) error {
 	if err != nil {
 		return fmt.Errorf("Error parsing price: \n%s", err)
 	}
-	newOrder.SetAmountWant(price)
+
+	if err = newOrder.SetAmountWant(price); err != nil {
+		return fmt.Errorf("Error setting amount want: \n%s", err)
+	}
 
 	orderArgs.Order = &newOrder
 	err = cl.Call("OpencxRPC.SubmitOrder", orderArgs, orderReply)

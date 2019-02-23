@@ -1,6 +1,9 @@
 # opencx
 A centralized exchange to help understand what a DEX should be
 
+## Security note
+There is no authentication and gosec still detects a bunch of stuff. Config files are also needed.
+
 # Requirements
  - Go 1.11+
  - [MariaDB](https://mariadb.org) (not needed for client)
