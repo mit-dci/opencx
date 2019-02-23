@@ -358,13 +358,14 @@ There are 5 parts to the Komodo Whitepaper:
 4. Komodo's Native Privacy Feature: Jumbler
 5. Additional Information Regarding the Komodo Ecosystem
 
-### Komodo's Method of Security: Delayed Proof o Work (dPoW)
+### Komodo's Method of Security: Delayed Proof of Work (dPoW)
 This part has lots of explanation about the foundations of consensus protocols, and in particular why Proof of Work is valuable.
 They first go on for a couple pages explaining encryption and proof of work in layman's terms, and, in the paper's own words:
 > The following descriptions are simplified explanations of a truly complex byzantine process. There are many other strategies cryptocurrency miners devise to out-mine their competition, and those strategies can vary widely.
 This is all part of a 6-page subsection, "What is a Consensus Mechanism?"
+
 They then explain other aspects of proof of work including environmental effects, 51% attacks, and the longest chain rule.
-They explain Proof of Stake, and compare it to Proof of Work.
+They explain proof of stake, and compare it to proof of work, as justification why they won't be using proof of stake.
 
 18 pages in, they start to explain Delayed Proof of Work.
 dPoW does not use the Chain with the most work for all blocks. Komodo has a stake-weighted vote to elect 64 separate notary nodes who notarize blocks.
