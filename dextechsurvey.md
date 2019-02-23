@@ -377,6 +377,32 @@ Every 65 blocks, a notary node gets the chance to mine the Komodo chain on "easy
 
 Every 2000 blocks, Komodo removes the ability for notary nodes to mine on easy difficulty for 64 blocks. After this period, notaries keep mining.
 
+At least 13 notaries are required to post a notarization transaction on the main KMD chain for the notarization to be successful.
+
+In Komodo, there are also asset chains, but the notary nodes only mine the main chain. Asset chains are notarized to the main KMD chain in the same way the KMD chain is notarized to a chain like bitcoin.
+
+It also apparently costs money (about 180BTC or $1,500,000) to run all the notary nodes. There are fees and payments to notary nodes if you would like to create an asset chain. This is about 333 KMD and 333 of the asset coin. 
+Notary nodes make their profit from mining the KMD chain.
+
+### The Decentralized Initial Coin Offering
+If you want to perform a dICO you have to reach out to the Komodo team. You also need to pay fees to the Komodo team for notarization services.
+The sign-up process (yes, a DECENTRALIZED intial coin offering has a SIGN-UP process) is not automated.
+
+In order to create a new asset you have to create an entirely new chain, and notarize into the KMD chain.
+
+In order to conduct an ICO, you must split up the supply into somewhat large "bags". You essentially sell these "bags" whenever you want.
+This is to prevent "whales" from gaining a majority in a small amount of time.
+
+### Komodo's Atomic-Swap Powered, Decentralized Exchange: BarterDEX
+BarterDEX has the intent to be very liquid, so they have "Liquidity Providers" who are designated market makers for the DEX.
+
+Full relay nodes store the orderbook, and non-relay nodes don't. Everyone uses public key addressing with the Ed25519 curve.
+
+They then explain what UTXOs are for a bunch of pages.
+
+From here, they outline all of the various fees and security deposits to prevent liquidity providers and users from being malicious. They use a reputation system for liquidity providers to make sure they don't do bad stuff.
+
+
 ## BitShares
 BitShares keeps an orderbook on-chain, and the matching algorithm is also a part of the validation logic. You can issue your own assets, and create a whole bunch of fancy "SmartCoins" and Collateralized tokens. There's also some form of margin trading.
 
