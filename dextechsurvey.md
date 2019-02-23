@@ -41,7 +41,7 @@ These topics are for me to review and asses what the benefits of each are and ho
    - By Christopher Thorpe and David C. Parkes, from EECS at harvard.
  - [ ] [Deconstructing Decentralized Exchanges](https://stanford-jblp.pubpub.org/pub/deconstructing-dex)
    - Essay by Lindsay X. Lin from Interstellar, published in the Stanford Journal of Blockchain Law and Policy
- - [ ] [Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges](https://users.encs.concordia.ca/~clark/papers/2015_ccs.pdf)
+ - [x] [Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges](https://users.encs.concordia.ca/~clark/papers/2015_ccs.pdf)
 
 
 ## Centralized exchanges
@@ -55,6 +55,7 @@ It's also good to see what centralized exchanges could do if they were malicious
 
 ## Implemented DEXes and exchange problem solutions
 These are currently implemented "solutions" to problems that users supposedly have with cryptocurrency exchanges. I'll determine whether or not these actually solve any problems, and how well they solve them. One thing that I will be covering a lot is whether or not they are platforms which are bound to a single cryptocurrency, and rely on the fact that said currency is the biggest in order to solve what they set out to solve.
+ - [ ] Komodo
  - [x] BitShares
  - [x] 0x
  - [x] Kyber Network
@@ -244,6 +245,18 @@ Some, like Nash, choose to settle trades by having the matching engine simultane
 ## Cryptographic Securities Exchanges
 
 ## Deconstructing Decentralized Exchanges
+TODO: summary of essay and general opinion
+
+The essay starts out by defining the architecture of a decentralized exchange, however it doesn't get one thing completely right. They state,
+> A decentralized exchange application builds on top of a decentralized exchange protocol, and adds an on-chain or off-chain order book database and a graphic user interface (GUI) and/or APIs so that the information is easily accessible.
+
+This isn't necessarily true, as some decentralized exchange applications, like automated market makers, have no use for an order book. One example of this is uniswap, which is an `x*y=k` market maker.
+
+But when it comes to their listing of the components of a decentralized exchange architecture, they are spot on:
+> 1. The blockchain platform & technical implementation
+> 2. The counterparty discovery mechanism
+> 3. The order matching algorithm
+> 4. The transaction settlement protocol
 
 ## Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges
 Provisions starts out by describing the idea of proofs of solvency. As stated somewhere else in this document, a proof of reserves (or assets) is not sufficient without a proof of liabilities. The paper recalls how the idea was introduced by Gregory Maxwell, and describes his solution to the problem.
@@ -332,6 +345,36 @@ Bitfinex was also previously the largest cryptocurrency exchange that also "lost
 Bitstamp has participated in its own "proof of reserves" by moving all of its assets to a new address.
 
 # Implemented DEXes and exchange problem solutions
+
+## Komodo
+I'm going to try to get through this 99-page whitepaper in an effort to figure out if there are any strengths or weaknesses to this protocol.
+
+Right off the bat, Komodo claims to be leaders in the field with their atomic swap technology, and apparently have some privacy features as well.
+
+There are 5 parts to the Komodo Whitepaper:
+1. Komodo’s Method of Security: Delayed Proof of Work (dPoW)
+2. The Decentralized Initial Coin Offering
+3. Komodo's Atomic-Swap Powered, Decentralized Exchange: BarterDEX
+4. Komodo's Native Privacy Feature: Jumbler
+5. Additional Information Regarding the Komodo Ecosystem
+
+### Komodo's Method of Security: Delayed Proof o Work (dPoW)
+This part has lots of explanation about the foundations of consensus protocols, and in particular why Proof of Work is valuable.
+They first go on for a couple pages explaining encryption and proof of work in layman's terms, and, in the paper's own words:
+> The following descriptions are simplified explanations of a truly complex byzantine process. There are many other strategies cryptocurrency miners devise to out-mine their competition, and those strategies can vary widely.
+This is all part of a 6-page subsection, "What is a Consensus Mechanism?"
+They then explain other aspects of proof of work including environmental effects, 51% attacks, and the longest chain rule.
+They explain Proof of Stake, and compare it to Proof of Work.
+
+18 pages in, they start to explain Delayed Proof of Work.
+dPoW does not use the Chain with the most work for all blocks. Komodo has a stake-weighted vote to elect 64 separate notary nodes who notarize blocks.
+The system requires notary nodes to generate a hash of a block hash on the Komodo network, the block height of that block on the Komodo network, and the letters "KMD".
+This gets published to the Bitcoin blockchain (or any other with Proof of Work) using an `OP_RETURN`. 
+This hash will get concatenated with the txid on whatever chain it's published on, and then that will be submitted with a notarization transaction to the Komodo chain.
+
+Every 65 blocks, a notary node gets the chance to mine the Komodo chain on "easy mode" (which I think is 10 zeros at the beginning of a block). Each notary is on its own cycle, so for 64 blocks notary nodes will be the only miners. Non notary nodes can theoretically mine during this period but probably won't because easy mode is so easy.
+
+Every 2000 blocks, Komodo removes the ability for notary nodes to mine on easy difficulty for 64 blocks. After this period, notaries keep mining.
 
 ## BitShares
 BitShares keeps an orderbook on-chain, and the matching algorithm is also a part of the validation logic. You can issue your own assets, and create a whole bunch of fancy "SmartCoins" and Collateralized tokens. There's also some form of margin trading.
