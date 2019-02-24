@@ -55,7 +55,7 @@ It's also good to see what centralized exchanges could do if they were malicious
 
 ## Implemented DEXes and exchange problem solutions
 These are currently implemented "solutions" to problems that users supposedly have with cryptocurrency exchanges. I'll determine whether or not these actually solve any problems, and how well they solve them. One thing that I will be covering a lot is whether or not they are platforms which are bound to a single cryptocurrency, and rely on the fact that said currency is the biggest in order to solve what they set out to solve.
- - [ ] Komodo
+ - [x] Komodo
  - [x] BitShares
  - [x] 0x
  - [x] Kyber Network
@@ -402,6 +402,18 @@ They then explain what UTXOs are for a bunch of pages.
 
 From here, they outline all of the various fees and security deposits to prevent liquidity providers and users from being malicious. They use a reputation system for liquidity providers to make sure they don't do bad stuff.
 
+Even in the "More detailed explanation of the atomic-swap" there is no discussion of any sort of HTLC, even though it's widely known and understandable what those are.
+
+There are plenty of other miscellaneous features that are more or less up to user to make useful, and the inclusion of many of these features make it seem like the fundamental design not thought about enough.
+
+### Komodo's Native Privacy Feature: Jumblr
+Komodo started as a fork of zcash so it basically just has zcash privacy. Luckily they switched off of BTCV14 after corresponding with Zcash for the recent bug.
+They also use the same parameters of Zcash.
+
+### Additional Information Regarding the Komodo Ecosystem
+They tried to create fiat-pegged cryptocurrencies but don't think it's necessary because they think governments will want to integrate natively with BarterDEX. They are putting all of their fiat-pegged stuff on hold for now.
+
+The creator of Komodo, jl777, stays anonymous and they have many features on their many platforms, but these features often get abandoned or just prototyped once. Most of this technology is said to be in "beta" stage, however I would personally consider all cryptocurrencies in "beta" stage right now.
 
 ## BitShares
 BitShares keeps an orderbook on-chain, and the matching algorithm is also a part of the validation logic. You can issue your own assets, and create a whole bunch of fancy "SmartCoins" and Collateralized tokens. There's also some form of margin trading.
