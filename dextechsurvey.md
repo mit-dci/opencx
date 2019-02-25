@@ -258,6 +258,65 @@ But when it comes to their listing of the components of a decentralized exchange
 > 3. The order matching algorithm
 > 4. The transaction settlement protocol
 
+They bring light to some decentralized exchanges such as BarterDEX, BitShares OpenLedgerDEX, and Stellar's decentralized exchange. BarterDEX is the unique one in that you can perform atomic swaps with the orderbook relayers, as long as you can find a relayer that provides liquidity for one of your assets.
+The OpenLedgerDEX and Stellar's decentralized exchange both require tokens to be on their respective platforms in order for the exchange to work.
+Finally, they mention Cosmos and PolkaDot, which are both essentially blockchains with built-in networking and interoperability protocols meant for interoperability with other chains.
+
+The next section compares the pros and cons of various methods of keeping the orderbook as well as counterparty discovery mechanisms.
+Here are the pros and cons (pretty much straight from the paper) of on-chain orderbooks:
+> Benefits:
+> 1. Less censorable
+> 2. Less trust required
+> Trade-offs:
+> 1. Order book inherits performance, cost, and security characteristics of the underlying blockchain
+> 2. Slower updates
+> 3. Stale orders
+
+And the pros and cons of off-chain orderbooks:
+> Benefits:
+> 1. Performance improvements
+> 2. Cost improvements
+> 3. Fewer blockchain-originated risks to the order book
+> 4. Compatible with all ERC-20 tokens
+
+This point might not be accurate depending on the implementation
+> Trade-offs:
+> 1. Higher degree of trust required
+> 2. Greater restrictions
+> 3. Inaccurate order books
+
+And the pros and cons of liquidity reserve-based DEXes:
+> Benefits:
+> 1. Lower friction to trade
+> Trade-offs:
+> 1. Requires trust in a smart contract or third party
+> 2. Uncertain pricing
+> 3. Tendency to favor large reserve contributors
+> 4. Reserves may be available and liquid only for the most popular tokens
+
+They make some very good comparisons and points about specific platforms but they are well-summarized in the "Benefits" and "Trade-offs" sections.
+
+The next section is all about matching mechanisms.
+They explain that centralized exchanges typically use limit orderbooks that allows them to match mainly limit and market orders automatically, whereas some decentralized exchange protocols don't use limit orderbooks, automated matching, or orderbooks at all.
+They summarize manual order filling, which protocols like 0x use, "matching" for reserve-based decentralized protocols, and automated order filling for a variety of protocols.
+
+The last section is about Transaction settlement. This is only a couple sentences long, and basically says that settlement can be slow depending on the speed of reliable confirmation on the underlying chains.
+
+They finally go through the various use cases for decentralized exchanges such as:
+1. Access
+2. Security
+3. Liquidity
+4. Latency
+5. Cost
+6. Trust Level
+
+The trust level is something very relevant, and they highlight 3 main things that need to be trusted in order for a user to trust a protocol:
+> 1. the decentralized exchange application creator and operator to perform activities such as hosting and publishing order books or performing order matching, 
+> 2. the underlying decentralized exchange protocol, including relevant smart contracts, and 
+> 3. the security, miners, and validators of the underlying distributed ledger.
+
+They highlight the various reasons why users would sacrifice trust or place more importance on one or more of these three, and conclude the essay.
+
 ## Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges
 Provisions starts out by describing the idea of proofs of solvency. As stated somewhere else in this document, a proof of reserves (or assets) is not sufficient without a proof of liabilities. The paper recalls how the idea was introduced by Gregory Maxwell, and describes his solution to the problem.
 Gregory Maxwell's solution used a merkle tree, summing the balances of the leaf nodes in the parent nodes, and including the sum of the child balances when hashing and concatenating the child hashes. So the actual hash of the children would be `h(Sum,leftHash,rightHash)`. However, when the exchange is proving that the user's account is included in its liabilities, it also reveals the sibling node, so it reveals the liabilities for the account in the sibling node.
