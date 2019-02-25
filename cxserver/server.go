@@ -1,7 +1,6 @@
 package cxserver
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"sync"
@@ -32,7 +31,7 @@ const runningLocally = false
 type OpencxServer struct {
 	OpencxDB   cxdb.OpencxStore
 	OpencxRoot string
-	OpencxPort int
+	OpencxPort uint16
 	// Hehe it's the vault, pls don't steal
 	OpencxBTCTestPrivKey *hdkeychain.ExtendedKey
 	OpencxVTCTestPrivKey *hdkeychain.ExtendedKey
@@ -93,12 +92,10 @@ func (server *OpencxServer) MatchingLoop(pair *match.Pair, bufferSize int) {
 // TODO now that I know how to use this hdkeychain stuff, let's figure out how to create addresses to store
 
 // SetupServerKeys just loads a private key from a file wallet
-func (server *OpencxServer) SetupServerKeys(keypath string) error {
-	privkey, err := lnutil.ReadKeyFile(keypath)
-	if err != nil {
-		return fmt.Errorf("Error reading key from file: \n%s", err)
-	}
+func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) error {
 
+	logging.Infof("privkey bytes: %x", privkey[:])
+	logging.Infof("privkey deref bytes: %x", (*privkey)[:])
 	rootBTCKey, err := hdkeychain.NewMaster(privkey[:], &coinparam.TestNet3Params)
 	if err != nil {
 		return fmt.Errorf("Error creating master BTC Test key from private key: \n%s", err)
@@ -289,26 +286,24 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.Height
 		h := <-incomingBlockHeight
 
 		block := <-blockChan
-		if h.Height == 1457244 {
-			logging.Infof("Height: %d", h.Height)
-			logging.Infof("block hash: %s", block.BlockHash().String())
-			// txHashes, err := block.TxHashes()
-			// if err != nil {
-			// 	logging.Errorf("hashes failed")
-			// }
-			// for _, txhash := range txHashes {
-			// 	logging.Infof("Tx hash that came in: %s", txhash.String())
-			// }
-			buf := new(bytes.Buffer)
-			block.Serialize(buf)
-			logging.Infof("block serialized: %x", buf.Bytes())
-		}
 		logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), h.Height)
 		if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(h.Height), coinType); err != nil {
 			logging.Infof("something went horribly wrong with %s\n", coinType.Name)
 			logging.Errorf("Here's what went horribly wrong: %s\n", err)
 		}
 	}
+}
+
+// MatchingRoutine is supposed to be run as a goroutine from placeorder so we can wait a bit while we run an order
+func (server *OpencxServer) MatchingRoutine(started chan bool, pair *match.Pair, price float64) {
+	server.LockIngests()
+	started <- true
+	if err := server.OpencxDB.RunMatchingForPrice(pair, price); err != nil {
+		logging.Errorf("Error running matching while doing matching routine: \n%s")
+		server.UnlockIngests()
+	}
+
+	server.UnlockIngests()
 }
 
 func dummyDifficulty(headers []*wire.BlockHeader, height int32, p *coinparam.Params) (uint32, error) {

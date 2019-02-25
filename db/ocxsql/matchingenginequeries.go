@@ -207,7 +207,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 	}
 
 	// this will select all sell side, ordered by time ascending so the earliest one will be at the front
-	getSellSideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
+	getSellSideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price>%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
 	sellRows, sellQueryErr := tx.Query(getSellSideQuery)
 	if err = sellQueryErr; err != nil {
 		return
@@ -227,7 +227,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 	}
 
 	// logging.Infof("Sell orders length: %d", len(sellOrders))
-	getBuySideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
+	getBuySideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price<%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
 	buyRows, buyQueryErr := tx.Query(getBuySideQuery)
 	if err = buyQueryErr; err != nil {
 		return

@@ -37,7 +37,9 @@ These topics are for me to review and asses what the benefits of each are and ho
    - All CSAIL except Shao Lu, who is Harvard.
  - [ ] [Tesseract - Real Time Cryptocurrency Exchange Using Trusted Hardware](https://eprint.iacr.org/2017/1153.pdf)
    - IC3 Preprint by Cornell, Cornell Tech, SJTU, and Eth Zürich
- - [ ] [Cryptographic Rule-Based Trading](http://www.eecs.harvard.edu/~cat/papers/thorpe_willis.pdf)
+ - [ ] [Cryptographic Combinatorial Securities Exchanges](http://www.eecs.harvard.edu/~cat/papers/portfolio.pdf)
+   - By Christopher Thorpe and David C. Parkes, from EECS at Harvard.
+ - [ ] [Cryptographic Rule-Based Trading (Short Paper)](http://www.eecs.harvard.edu/~cat/papers/thorpe_willis.pdf)
    - By Christopher Thorpe and Steven R. Willis, from EECS at Harvard
  - [ ] [Cryptographic Securities Exchanges](http://www.eecs.harvard.edu/~cat/cm.pdf)
    - By Christopher Thorpe and David C. Parkes, from EECS at Harvard.
@@ -247,7 +249,12 @@ Some, like Nash, choose to settle trades by having the matching engine simultane
 
 ## Tesseract - Real Time Cryptocurrency Exchange Using Trusted Hardware
 
+## Cryptographic Combinatorial Securities Exchanges
+
+## Cryptographic Rule-Based Trading (Short Paper)
+
 ## Cryptographic Securities Exchanges
+
 
 ## Deconstructing Decentralized Exchanges
 TODO: summary of essay and general opinion

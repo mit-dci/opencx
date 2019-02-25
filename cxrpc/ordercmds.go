@@ -35,17 +35,13 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	cl.Server.UnlockIngests()
 
 	reply.OrderID = id
-	// orderPrice, err := args.Order.Price()
-	// if err != nil {
-	// 	return fmt.Errorf("Error submitting order and calculating price: \n%s", err)
-	// }
+	orderPrice, err := args.Order.Price()
+	if err != nil {
+		return fmt.Errorf("Error submitting order and calculating price: \n%s", err)
+	}
 
-	// cl.Server.LockIngests()
-	// if err := cl.Server.OpencxDB.RunMatchingForPrice(args.Order.TradingPair, orderPrice); err != nil {
-	// 	cl.Server.UnlockIngests()
-	// 	return fmt.Errorf("Error running matching for price while submitting order: \n%s", err)
-	// }
-	// cl.Server.UnlockIngests()
+	startedChan := make(chan bool, 1)
+	go cl.Server.MatchingRoutine(startedChan, &args.Order.TradingPair, orderPrice)
 
 	return
 }

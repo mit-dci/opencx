@@ -20,7 +20,7 @@ require (
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c // indirect
 	github.com/jackpal/gateway v1.0.5 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.1 // indirect
-	github.com/jessevdk/go-flags v1.4.0 // indirect
+	github.com/jessevdk/go-flags v1.4.0
 	github.com/lib/pq v1.0.0
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect

@@ -34,6 +34,8 @@ type OpencxStore interface {
 	Withdraw(string, string, uint64) error
 	// RunMatching runs the matching logic for all prices in the exchange. Matching is less abstracted because it is done very often, so the overhead makes a difference.
 	RunMatching(*match.Pair) error
+	// RunMatchingForPrice runs matching only for a specific price, likely the price that an order is coming in
+	RunMatchingForPrice(*match.Pair, float64) error
 	// UpdateDeposits updates the deposits when a block comes in
 	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
 	// GetDepositAddressMap gets a map of the deposit addresses we own to usernames
