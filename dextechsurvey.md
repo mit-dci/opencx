@@ -37,11 +37,16 @@ These topics are for me to review and asses what the benefits of each are and ho
    - All CSAIL except Shao Lu, who is Harvard.
  - [ ] [Tesseract - Real Time Cryptocurrency Exchange Using Trusted Hardware](https://eprint.iacr.org/2017/1153.pdf)
    - IC3 Preprint by Cornell, Cornell Tech, SJTU, and Eth Zürich
+ - [ ] [Cryptographic Rule-Based Trading](http://www.eecs.harvard.edu/~cat/papers/thorpe_willis.pdf)
+   - By Christopher Thorpe and Steven R. Willis, from EECS at Harvard
  - [ ] [Cryptographic Securities Exchanges](http://www.eecs.harvard.edu/~cat/cm.pdf)
-   - By Christopher Thorpe and David C. Parkes, from EECS at harvard.
- - [ ] [Deconstructing Decentralized Exchanges](https://stanford-jblp.pubpub.org/pub/deconstructing-dex)
+   - By Christopher Thorpe and David C. Parkes, from EECS at Harvard.
+ - [x] [Deconstructing Decentralized Exchanges](https://stanford-jblp.pubpub.org/pub/deconstructing-dex)
    - Essay by Lindsay X. Lin from Interstellar, published in the Stanford Journal of Blockchain Law and Policy
  - [x] [Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges](https://users.encs.concordia.ca/~clark/papers/2015_ccs.pdf)
+
+## People that seem to have lots of experience with securities exchanges and cryptographic protocols
+ - [**Cristopher Thorpe**](http://www.eecs.harvard.edu/~cat/)
 
 
 ## Centralized exchanges
