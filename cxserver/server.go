@@ -2,24 +2,18 @@ package cxserver
 
 import (
 	"fmt"
-	"os"
 	"sync"
 
-	"github.com/mit-dci/lit/btcutil/base58"
-
-	"github.com/mit-dci/opencx/cxdb"
-
-	"github.com/mit-dci/opencx/match"
-
-	"github.com/mit-dci/lit/wallit"
-
 	"github.com/mit-dci/lit/btcutil/chaincfg/chainhash"
-
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/lnutil"
+	"github.com/mit-dci/lit/wallit"
 	"github.com/mit-dci/lit/wire"
+
+	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 // put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
@@ -94,8 +88,6 @@ func (server *OpencxServer) MatchingLoop(pair *match.Pair, bufferSize int) {
 // SetupServerKeys just loads a private key from a file wallet
 func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) error {
 
-	logging.Infof("privkey bytes: %x", privkey[:])
-	logging.Infof("privkey deref bytes: %x", (*privkey)[:])
 	rootBTCKey, err := hdkeychain.NewMaster(privkey[:], &coinparam.TestNet3Params)
 	if err != nil {
 		return fmt.Errorf("Error creating master BTC Test key from private key: \n%s", err)
@@ -119,9 +111,6 @@ func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) error {
 
 // SetupBTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
-	// set log level for this thread
-	logging.SetLogLevel(2)
-
 	var btcHost string
 	var btcParam *coinparam.Params
 	if runningLocally {
@@ -133,12 +122,8 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
 		btcParam = &coinparam.TestNet3Params
 	}
 
-	// if exchangeStartingPointBTC != 0 {
-	// 	btcParam.StartHeight = exchangeStartingPointBTC
-	// }
-
 	btcParam.DiffCalcFunction = dummyDifficulty
-	btcRoot := server.createSubRoot(btcParam.Name)
+	btcRoot := server.OpencxRoot + btcParam.Name
 
 	logging.Infof("Starting BTC Wallet\n")
 
@@ -148,16 +133,6 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
 		return
 	}
 
-	addrs, err := btcWallet.AdrDump()
-	if err != nil {
-		err = fmt.Errorf("Loll oooops")
-		return
-	}
-
-	for _, addr := range addrs {
-		base58addr := base58.CheckEncode(addr[:], btcParam.PubKeyHashAddrID)
-		logging.Infof("btc addr in wallet: %s", base58addr)
-	}
 	logging.Infof("BTC Wallet Started, cointype: %d\n", coinType)
 
 	blockChan := btcWallet.Hook.RawBlocks()
@@ -172,8 +147,6 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
 
 // SetupLTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupLTCChainhook(errChan chan error) {
-	// set log level for this thread
-	logging.SetLogLevel(2)
 
 	var ltcHost string
 	var ltcParam *coinparam.Params
@@ -189,14 +162,10 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error) {
 		ltcHost = "1"
 	}
 
-	// if exchangeStartingPointLTC != 0 {
-	// 	ltcParam.StartHeight = exchangeStartingPointLTC
-	// }
-
 	// difficulty in non bitcoin testnets has an air of mystery
 	ltcParam.DiffCalcFunction = dummyDifficulty
 
-	ltcRoot := server.createSubRoot(ltcParam.Name)
+	ltcRoot := server.OpencxRoot + ltcParam.Name
 
 	logging.Infof("Starting LTC Wallet\n")
 
@@ -220,8 +189,6 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error) {
 
 // SetupVTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupVTCChainhook(errChan chan error) {
-	// set log level for this thread
-	logging.SetLogLevel(2)
 
 	var vtcHost string
 	var vtcParam *coinparam.Params
@@ -237,7 +204,7 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error) {
 	}
 
 	vtcParam.DiffCalcFunction = dummyDifficulty
-	vtcRoot := server.createSubRoot(vtcParam.Name)
+	vtcRoot := server.OpencxRoot + vtcParam.Name
 
 	logging.Infof("Starting VTC Wallet\n")
 
@@ -257,26 +224,6 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error) {
 
 	errChan <- nil
 	return
-}
-
-// TransactionHandler handles incoming transactions
-func (server *OpencxServer) TransactionHandler(incomingTxChan chan lnutil.HeightEvent) {
-	for {
-		logging.Infof("Waiting for incoming transaction...\n")
-		txHeight := <-incomingTxChan
-
-		logging.Infof("Got transaction at height %d for cointype %d\n", txHeight.Height, txHeight.CoinType)
-	}
-}
-
-// createSubRoot creates sub root directories that hold info for each chain
-func (server *OpencxServer) createSubRoot(subRoot string) string {
-	subRootDir := server.OpencxRoot + subRoot
-	if _, err := os.Stat(subRootDir); os.IsNotExist(err) {
-		logging.Infof("Creating root directory at %s\n", subRootDir)
-		os.Mkdir(subRootDir, os.ModePerm)
-	}
-	return subRootDir
 }
 
 // HeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
