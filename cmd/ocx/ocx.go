@@ -4,54 +4,68 @@ import (
 	"log"
 	"os"
 
+	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/cxrpc"
-	"github.com/mit-dci/opencx/logging"
-)
-
-// Let these be turned into config things at some point
-var (
-	defaultServer = "hubris.media.mit.edu"
-	defaultPort   = 12345
 )
 
 type openCxClient struct {
 	RPCClient *cxrpc.OpencxRPCClient
+	PrivKey   *[32]byte
+}
+
+type ocxConfig struct {
+	ConfigFile string
+
+	// stuff for files and directories
+	LogFilename string `long:"logFilename" description:"Filename for output log file"`
+	OcxHomeDir  string `long:"dir" description:"Location of the root directory relative to home directory"`
+
+	// stuff for ports
+	Rpchost string `long:"rpchost" description:"Hostname of OpenCX Server you'd like to connect to"`
+	Rpcport uint16 `long:"rpcport" description:"Port of the OpenCX Port you'd like to connect to"`
+
+	// logging and debug parameters
+	LogLevel []bool `short:"v" description:"Set verbosity level to verbose (-v), very verbose (-vv) or very very verbose (-vvv)"`
+}
+
+// Let these be turned into config things at some point
+var (
+	defaultConfigFilename = "ocx.conf"
+	defaultLogFilename    = "ocxlog.txt"
+	defaultOcxHomeDirName = os.Getenv("HOME") + "/.ocx/"
+	defaultKeyFileName    = "privkey.hex"
+	defaultLogLevel       = 0
+	defaultHomeDir        = os.Getenv("HOME")
+	defaultRpcport        = uint16(12345)
+	defaultRpchost        = "hubris.media.mit.edu"
+)
+
+// newConfigParser returns a new command line flags parser.
+func newConfigParser(conf *ocxConfig, options flags.Options) *flags.Parser {
+	parser := flags.NewParser(conf, options)
+	return parser
 }
 
 // opencx-cli is the client, opencx is the server
 func main() {
 	var err error
+	var client openCxClient
 
-	logging.SetLogLevel(2)
+	conf := &ocxConfig{
+		OcxHomeDir: defaultOcxHomeDirName,
+		Rpchost:    defaultRpchost,
+		Rpcport:    defaultRpcport,
+	}
 
-	commandArg := os.Args[1:]
-
-	client := new(openCxClient)
-	err = client.setupCxClient(defaultServer, defaultPort)
-
-	if err != nil {
+	client.PrivKey = ocxSetup(conf)
+	client.RPCClient = new(cxrpc.OpencxRPCClient)
+	if err = client.RPCClient.SetupConnection(conf.Rpchost, conf.Rpcport); err != nil {
 		log.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
 	}
 
-	// TODO just for now
-	err = client.parseCommands(commandArg)
-	if err != nil {
+	if err = client.parseCommands(os.Args[1:]); err != nil {
 		log.Fatalf("Error parsing commands: \n%s", err)
 	}
-}
-
-// NewOpenCxClient creates a new openCxClient for use as an RPC Client
-func (cl *openCxClient) setupCxClient(server string, port int) error {
-	var err error
-
-	cl.RPCClient = new(cxrpc.OpencxRPCClient)
-
-	err = cl.RPCClient.SetupConnection(server, port)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (cl *openCxClient) Call(serviceMethod string, args interface{}, reply interface{}) error {

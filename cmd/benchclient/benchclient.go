@@ -10,7 +10,7 @@ type BenchClient struct {
 }
 
 // SetupBenchClient creates a new BenchClient for use as an RPC Client
-func (cl *BenchClient) SetupBenchClient(server string, port int) error {
+func (cl *BenchClient) SetupBenchClient(server string, port uint16) error {
 	var err error
 
 	cl.RPCClient = new(cxrpc.OpencxRPCClient)

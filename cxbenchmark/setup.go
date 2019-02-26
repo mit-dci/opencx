@@ -10,7 +10,7 @@ import (
 // Let these be turned into config things at some point
 var (
 	defaultServer = "localhost"
-	defaultPort   = 12345
+	defaultPort   = uint16(12345)
 )
 
 // SetupBenchmark sets up the benchmark and returns the client
