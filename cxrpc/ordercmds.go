@@ -34,11 +34,11 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 		return fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
 	}
 
+	// possible replay attack: if we're using the same pubkey for two exchanges and this is like a feature on the exchange, then an exchange could have you
+	// place an order on their exchange, even with a nonce, and then send it over to the other exchange. When you submit an order on one exchange,
+	// you essentially submit an order to all of them. But like once we have channels for orders then this isn't a thing anymore because the channel
+	// tx's are signed
 	logging.Infof("Pubkey %x submitted order", pubkey.SerializeUncompressed())
-
-	cl.Server.LockOrders()
-	cl.Server.OrderMap[args.Order.TradingPair] = append(cl.Server.OrderMap[args.Order.TradingPair], args.Order)
-	cl.Server.UnlockOrders()
 
 	cl.Server.LockIngests()
 	var id string
@@ -50,6 +50,10 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 		return
 	}
 	cl.Server.UnlockIngests()
+
+	cl.Server.LockOrders()
+	cl.Server.OrderMap[args.Order.TradingPair] = append(cl.Server.OrderMap[args.Order.TradingPair], args.Order)
+	cl.Server.UnlockOrders()
 
 	reply.OrderID = id
 	orderPrice, err := args.Order.Price()
