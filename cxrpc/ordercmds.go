@@ -3,12 +3,17 @@ package cxrpc
 import (
 	"fmt"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
+	"golang.org/x/crypto/sha3"
 )
 
 // SubmitOrderArgs holds the args for the submitorder command
 type SubmitOrderArgs struct {
 	Order *match.LimitOrder
+	// Signature is a compact signature so we can do pubkey recovery
+	Signature []byte
 }
 
 // SubmitOrderReply holds the reply for the submitorder command
@@ -18,6 +23,18 @@ type SubmitOrderReply struct {
 
 // SubmitOrder submits an order to the order book or throws an error
 func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) (err error) {
+
+	// hash order.
+	sha3 := sha3.New256()
+	sha3.Write(args.Order.Serialize())
+	e := sha3.Sum(nil)
+
+	pubkey, _, err := koblitz.RecoverCompact(koblitz.S256(), args.Signature, e)
+	if err != nil {
+		return fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
+	}
+
+	logging.Infof("Pubkey %x submitted order", pubkey.SerializeUncompressed())
 
 	cl.Server.LockOrders()
 	cl.Server.OrderMap[args.Order.TradingPair] = append(cl.Server.OrderMap[args.Order.TradingPair], args.Order)
@@ -127,7 +144,9 @@ type GetPairsReply struct {
 
 // GetPairs gets all the pairs
 func (cl *OpencxRPC) GetPairs(args GetPairsArgs, reply *GetPairsReply) (err error) {
-	// list := cl.Server.AssetArray
+	for _, pair := range cl.Server.PairsArray {
+		reply.PairList = append(reply.PairList, pair.PrettyString())
+	}
 
 	return
 }

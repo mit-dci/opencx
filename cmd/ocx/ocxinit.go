@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	flags "github.com/jessevdk/go-flags"
-	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/opencx/logging"
 )
 
@@ -24,36 +23,32 @@ func createDefaultConfigFile(destinationPath string) error {
 
 	writer := bufio.NewWriter(dest)
 	defaultArgs := []byte("rpchost=hubris.media.mit.edu\nrpcport=12345")
-	_, err = writer.Write(defaultArgs)
-	if err != nil {
+
+	if _, err = writer.Write(defaultArgs); err != nil {
 		return err
 	}
 	writer.Flush()
 	return nil
 }
 
-func ocxSetup(conf *ocxConfig) *[32]byte {
+func ocxSetup(conf *ocxConfig) {
 	// Pre-parse the command line options to see if an alternative config
 	// file or the version flag was specified. Config file will be read later
 	// and cli options would be parsed again below
 
 	parser := newConfigParser(conf, flags.Default)
-	_, err := parser.ParseArgs(os.Args)
-	if err != nil {
+
+	if _, err := parser.ParseArgs(os.Args); err != nil {
 		// catch all cli argument errors
 		logging.Fatal(err)
 	}
 
-	// set default log level
-	logging.SetLogLevel(defaultLogLevel)
-
 	// create home directory
-	_, err = os.Stat(conf.OcxHomeDir)
+	_, err := os.Stat(conf.OcxHomeDir)
 	if err != nil {
 		logging.Errorf("Error while creating a directory")
 	}
 	if os.IsNotExist(err) {
-		// first time the guy is running lit, lets set tn3 to true
 		os.Mkdir(conf.OcxHomeDir, 0700)
 		logging.Infof("Creating a new config file")
 		err := createDefaultConfigFile(conf.OcxHomeDir)
@@ -102,11 +97,5 @@ func ocxSetup(conf *ocxConfig) *[32]byte {
 	}
 	logging.SetLogLevel(logLevel) // defaults to 2
 
-	keyPath := filepath.Join(conf.OcxHomeDir, defaultKeyFileName)
-	privkey, err := lnutil.ReadKeyFile(keyPath)
-	if err != nil {
-		logging.Errorf("Error reading key from file: \n%s", err)
-	}
-
-	return privkey
+	return
 }

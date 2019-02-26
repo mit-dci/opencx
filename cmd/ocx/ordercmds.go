@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"golang.org/x/crypto/sha3"
+
+	"github.com/mit-dci/lit/crypto/koblitz"
+
 	"github.com/mit-dci/opencx/logging"
 
 	"github.com/mit-dci/opencx/cxrpc"
@@ -14,20 +18,27 @@ import (
 )
 
 // OrderCommand submits an order (for now) TODO
-func (cl *openCxClient) OrderCommand(args []string) error {
+func (cl *openCxClient) OrderCommand(args []string) (err error) {
 	orderArgs := new(cxrpc.SubmitOrderArgs)
 	orderReply := new(cxrpc.SubmitOrderReply)
 
 	var newOrder match.LimitOrder
 	newOrder.Client = args[0]
 	newOrder.Side = args[1]
+
+	if err = cl.UnlockKey(); err != nil {
+		logging.Fatalf("Could not unlock key! Fatal!")
+	}
+
+	privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
+
 	if newOrder.Side != "buy" && newOrder.Side != "sell" {
 		return fmt.Errorf("Order's side isn't buy or sell, try again")
 	}
 
 	// get the trading pair string from the shell input - third parameter
-	err := newOrder.TradingPair.FromString(args[2])
-	if err != nil {
+
+	if err = newOrder.TradingPair.FromString(args[2]); err != nil {
 		return fmt.Errorf("Error getting asset pair from string: \n%s", err)
 	}
 
@@ -44,6 +55,14 @@ func (cl *openCxClient) OrderCommand(args []string) error {
 	if err = newOrder.SetAmountWant(price); err != nil {
 		return fmt.Errorf("Error setting amount want: \n%s", err)
 	}
+
+	sha3 := sha3.New256()
+	sha3.Write(newOrder.Serialize())
+	e := sha3.Sum(nil)
+	// Sign order
+	compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
+
+	orderArgs.Signature = compactSig
 
 	orderArgs.Order = &newOrder
 	err = cl.Call("OpencxRPC.SubmitOrder", orderArgs, orderReply)
@@ -103,7 +122,7 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 		var data [][]string
 		buf := new(bytes.Buffer)
 		table := tablewriter.NewWriter(buf)
-		table.SetHeader([]string{"orderID", "price", "volume", "side"})
+		table.SetHeader([]string{"orderID", "client", "price", "volume", "side"})
 
 		for _, buyOrder := range viewOrderBookReply.BuyOrderBook {
 
@@ -111,7 +130,7 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 			strPrice := fmt.Sprintf("%f", buyOrder.OrderbookPrice)
 			strVolume := fmt.Sprintf("%d", buyOrder.AmountHave)
 			// append to the table
-			data = append(data, []string{buyOrder.OrderID, strPrice, strVolume, buyOrder.Side})
+			data = append(data, []string{buyOrder.OrderID, buyOrder.Client, strPrice, strVolume, buyOrder.Side})
 		}
 
 		for _, sellOrder := range viewOrderBookReply.SellOrderBook {
@@ -120,7 +139,7 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 			strPrice := fmt.Sprintf("%f", sellOrder.OrderbookPrice)
 			strVolume := fmt.Sprintf("%d", sellOrder.AmountHave)
 			// append to the table
-			data = append(data, []string{sellOrder.OrderID, strPrice, strVolume, sellOrder.Side})
+			data = append(data, []string{sellOrder.OrderID, sellOrder.Client, strPrice, strVolume, sellOrder.Side})
 		}
 
 		table.AppendBulk(data)
@@ -135,7 +154,7 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 		var data [][]string
 		buf := new(bytes.Buffer)
 		table := tablewriter.NewWriter(buf)
-		table.SetHeader([]string{"orderID", "price", "volume", "side"})
+		table.SetHeader([]string{"orderID", "client", "price", "volume", "side"})
 
 		for _, sellOrder := range viewOrderBookReply.SellOrderBook {
 
@@ -143,7 +162,7 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 			strPrice := fmt.Sprintf("%f", sellOrder.OrderbookPrice)
 			strVolume := fmt.Sprintf("%d", sellOrder.AmountHave)
 			// append to the table
-			data = append(data, []string{sellOrder.OrderID, strPrice, strVolume, sellOrder.Side})
+			data = append(data, []string{sellOrder.OrderID, sellOrder.Client, strPrice, strVolume, sellOrder.Side})
 		}
 
 		table.AppendBulk(data)
@@ -156,7 +175,7 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 		var data [][]string
 		buf := new(bytes.Buffer)
 		table := tablewriter.NewWriter(buf)
-		table.SetHeader([]string{"orderID", "price", "volume", "side"})
+		table.SetHeader([]string{"orderID", "client", "price", "volume", "side"})
 
 		for _, buyOrder := range viewOrderBookReply.BuyOrderBook {
 
@@ -164,7 +183,7 @@ func (cl *openCxClient) ViewOrderbook(args []string) error {
 			strPrice := fmt.Sprintf("%f", buyOrder.OrderbookPrice)
 			strVolume := fmt.Sprintf("%d", buyOrder.AmountHave)
 			// append to the table
-			data = append(data, []string{buyOrder.OrderID, strPrice, strVolume, buyOrder.Side})
+			data = append(data, []string{buyOrder.OrderID, buyOrder.Client, strPrice, strVolume, buyOrder.Side})
 		}
 
 		table.AppendBulk(data)
@@ -202,7 +221,7 @@ func (cl *openCxClient) GetPairs() (err error) {
 	getPairsArgs := new(cxrpc.GetPairsArgs)
 	getPairsReply := new(cxrpc.GetPairsReply)
 
-	if err = cl.Call("Opencx.GetPairs", getPairsArgs, getPairsReply); err != nil {
+	if err = cl.Call("OpencxRPC.GetPairs", getPairsArgs, getPairsReply); err != nil {
 		err = fmt.Errorf("Error calling 'GetPairs' service method:\n%s", err)
 		return
 	}

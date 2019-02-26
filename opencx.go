@@ -87,10 +87,13 @@ func main() {
 	defer db.DBHandler.Close()
 
 	// Anyways, here's where we set the server
-	ocxServer := new(cxserver.OpencxServer)
-	ocxServer.OpencxDB = db
-	ocxServer.OpencxRoot = conf.OpencxHomeDir
-	ocxServer.OpencxPort = conf.Rpcport
+	ocxServer := &cxserver.OpencxServer{
+		OpencxDB:   db,
+		OpencxRoot: conf.OpencxHomeDir,
+		OpencxPort: conf.Rpcport,
+		PairsArray: assetPairs,
+		AssetArray: assets,
+	}
 
 	// Check that the private key exists and if it does, load it
 	if err = ocxServer.SetupServerKeys(key); err != nil {
@@ -126,13 +129,13 @@ func main() {
 	rpc1.Server = ocxServer
 
 	if err = rpc.Register(rpc1); err != nil {
-		log.Fatalf("Error registering RPC Interface:\n%s", err)
+		logging.Fatalf("Error registering RPC Interface:\n%s", err)
 	}
 
 	// Start RPC Server
 	var listener net.Listener
 	if listener, err = net.Listen("tcp", conf.Rpchost+":"+fmt.Sprintf("%d", conf.Rpcport)); err != nil {
-		log.Fatal("listen error:", err)
+		logging.Fatal("listen error:", err)
 	}
 	logging.Infof("Running RPC server on %s\n", listener.Addr().String())
 

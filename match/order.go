@@ -2,6 +2,7 @@ package match
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/rand"
@@ -84,6 +85,22 @@ func (l *LimitOrder) SetID() error {
 
 	l.OrderID = fmt.Sprintf("%x", sha.Sum(nil))
 	return nil
+}
+
+// Serialize serializes an order, possible replay attacks here since this is what you're signing?
+// but anyways this is the order: pair amountHave amountWant <length side> side
+func (l *LimitOrder) Serialize() (buf []byte) {
+	// serializable fields:
+	// trading pair (2 bytes)
+	// amounthave (8 bytes)
+	// amountwant (8 bytes)
+	buf = make([]byte, 26+len(l.Side))
+	buf = append(buf, l.TradingPair.Serialize()...)
+	binary.LittleEndian.PutUint64(buf, l.AmountHave)
+	binary.LittleEndian.PutUint64(buf, l.AmountWant)
+	binary.LittleEndian.PutUint64(buf, uint64(len(l.Side)))
+	buf = append(buf, []byte(l.Side)...)
+	return
 }
 
 // SetAmountWant sets the amountwant value of the limit order according to a price

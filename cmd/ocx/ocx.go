@@ -1,14 +1,17 @@
 package main
 
 import (
-	"log"
 	"os"
+	"path/filepath"
 
 	flags "github.com/jessevdk/go-flags"
+	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/logging"
 )
 
 type openCxClient struct {
+	KeyPath   string
 	RPCClient *cxrpc.OpencxRPCClient
 	PrivKey   *[32]byte
 }
@@ -57,17 +60,25 @@ func main() {
 		Rpcport:    defaultRpcport,
 	}
 
-	client.PrivKey = ocxSetup(conf)
+	ocxSetup(conf)
+	client.KeyPath = filepath.Join(conf.OcxHomeDir, defaultKeyFileName)
 	client.RPCClient = new(cxrpc.OpencxRPCClient)
 	if err = client.RPCClient.SetupConnection(conf.Rpchost, conf.Rpcport); err != nil {
-		log.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
+		logging.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
 	}
 
 	if err = client.parseCommands(os.Args[1:]); err != nil {
-		log.Fatalf("Error parsing commands: \n%s", err)
+		logging.Fatalf("Error parsing commands: \n%s", err)
 	}
 }
 
 func (cl *openCxClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	return cl.RPCClient.Call(serviceMethod, args, reply)
+}
+
+func (cl *openCxClient) UnlockKey() (err error) {
+	if cl.PrivKey, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
+		logging.Errorf("Error reading key from file: \n%s", err)
+	}
+	return
 }

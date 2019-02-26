@@ -38,8 +38,8 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	// and cli options would be parsed again below
 
 	parser := newConfigParser(conf, flags.Default)
-	_, err := parser.ParseArgs(os.Args)
-	if err != nil {
+
+	if _, err := parser.ParseArgs(os.Args); err != nil {
 		// catch all cli argument errors
 		logging.Fatal(err)
 	}
@@ -48,12 +48,11 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	logging.SetLogLevel(defaultLogLevel)
 
 	// create home directory
-	_, err = os.Stat(conf.OpencxHomeDir)
+	_, err := os.Stat(conf.OpencxHomeDir)
 	if err != nil {
 		logging.Errorf("Error while creating a directory")
 	}
 	if os.IsNotExist(err) {
-		// first time the guy is running lit, lets set tn3 to true
 		os.Mkdir(conf.OpencxHomeDir, 0700)
 		logging.Infof("Creating a new config file")
 		err := createDefaultConfigFile(conf.OpencxHomeDir)

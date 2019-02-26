@@ -36,6 +36,11 @@ func assetCast(attemptedAsset byte) Asset {
 	return NullAsset
 }
 
+// PrettyString is used to do asset1/asset2 rather than the database-safe asset1_asset2
+func (p *Pair) PrettyString() string {
+	return p.AssetWant.String() + "/" + p.AssetHave.String()
+}
+
 func (a Asset) String() string {
 	return ByteToAssetString(byte(a))
 }
@@ -118,4 +123,19 @@ func (p *Pair) FromString(pairString string) error {
 	}
 
 	return nil
+}
+
+// Serialize serializes the pair into a byte array
+func (p Pair) Serialize() []byte {
+	return []byte{byte(p.AssetWant), byte(p.AssetHave)}
+}
+
+// Deserialize deserializes a byte array into a pair
+func (p Pair) Deserialize(buf []byte) (err error) {
+	if len(buf) != 2 {
+		err = fmt.Errorf("Tried to deserialize ")
+	}
+	p.AssetWant = assetCast(buf[0])
+	p.AssetHave = assetCast(buf[1])
+	return
 }

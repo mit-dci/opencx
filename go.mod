@@ -10,7 +10,7 @@ require (
 	github.com/boltdb/bolt v1.3.1
 	github.com/btcsuite/btcd v0.0.0-20190115013929-ed77733ec07d
 	github.com/btcsuite/fastsha256 v0.0.0-20160815193821-637e65642941 // indirect
-	github.com/btcsuite/golangcrypto v0.0.0-20150304025918-53f62d9b43e8 // indirect
+	github.com/btcsuite/golangcrypto v0.0.0-20150304025918-53f62d9b43e8
 	github.com/dchest/blake256 v1.0.0 // indirect
 	github.com/deedlefake/crypto v0.0.0-20170910233742-2f50d39c528d // indirect
 	github.com/fatih/color v1.7.0 // indirect
