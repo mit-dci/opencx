@@ -37,7 +37,7 @@ type DB struct {
 	depositSchema        string
 	pendingDepositSchema string
 	orderSchema          string
-	assetArray           []string
+	assetArray           []match.Asset
 	pairsArray           []*match.Pair
 	globalReads          int64
 	globalWrites         int64
@@ -81,7 +81,7 @@ func (db *DB) IncrementWrites() {
 }
 
 // SetupClient sets up the mysql client and driver
-func (db *DB) SetupClient() error {
+func (db *DB) SetupClient(assets []match.Asset, pairs []*match.Pair) error {
 	var err error
 
 	db.gPriceMap = make(map[string]float64)
@@ -102,7 +102,7 @@ func (db *DB) SetupClient() error {
 	}
 
 	db.DBHandler = dbHandle
-	db.assetArray = assetArray
+	db.assetArray = assets
 	db.pairsArray = match.GenerateAssetPairs()
 
 	err = db.DBHandler.Ping()

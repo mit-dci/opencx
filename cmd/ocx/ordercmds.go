@@ -197,3 +197,20 @@ func (cl *openCxClient) CancelOrder(args []string) (err error) {
 
 	return
 }
+
+func (cl *openCxClient) GetPairs() (err error) {
+	getPairsArgs := new(cxrpc.GetPairsArgs)
+	getPairsReply := new(cxrpc.GetPairsReply)
+
+	if err = cl.Call("Opencx.GetPairs", getPairsArgs, getPairsReply); err != nil {
+		err = fmt.Errorf("Error calling 'GetPairs' service method:\n%s", err)
+		return
+	}
+
+	logging.Infof("List of valid trading pairs: ")
+	for _, pair := range getPairsReply.PairList {
+		logging.Infof("%s", pair)
+	}
+
+	return
+}

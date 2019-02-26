@@ -71,8 +71,14 @@ func main() {
 
 	db := new(ocxsql.DB)
 
+	// Get all the pairs
+	assetPairs := match.GenerateAssetPairs()
+
+	// Get all the assets
+	assets := match.AssetList()
+
 	// Setup DB Client
-	err = db.SetupClient()
+	err = db.SetupClient(assets, assetPairs)
 	if err != nil {
 		log.Fatalf("Error setting up sql client: \n%s", err)
 	}
@@ -93,9 +99,9 @@ func main() {
 
 	hookErrorChannel := make(chan error, 3)
 	// Set up all chain hooks
-	go ocxServer.SetupBTCChainhook(hookErrorChannel)
-	go ocxServer.SetupLTCChainhook(hookErrorChannel)
-	go ocxServer.SetupVTCChainhook(hookErrorChannel)
+	go ocxServer.SetupBTCChainhook(hookErrorChannel, conf.Reghost)
+	go ocxServer.SetupLTCChainhook(hookErrorChannel, conf.Litereghost)
+	go ocxServer.SetupVTCChainhook(hookErrorChannel, conf.Rtvtchost)
 
 	// Wait until all hooks are started to do the rest
 	for i := 0; i < 3; i++ {
@@ -110,7 +116,6 @@ func main() {
 	ocxServer.InitMatchingMaps()
 
 	// Get all the asset pairs then start the matching loop
-	assetPairs := match.GenerateAssetPairs()
 	for i, pair := range assetPairs {
 		go ocxServer.MatchingLoop(pair, orderBufferSize)
 		logging.Infof("Pair %d: %s\n", i, pair)

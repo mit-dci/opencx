@@ -10,18 +10,20 @@ import (
 // Pair is a struct that represents a trading pair
 type Pair struct {
 	// AssetWant is the asset that buyers want, and that sellers are selling. credit buyers with this.
-	AssetWant asset `json:"assetWant"`
+	AssetWant Asset `json:"assetWant"`
 	// AssetHave is the asset that sellers are buying, and that buyers have. credit sellers with this.
-	AssetHave asset `json:"assetHave"`
+	AssetHave Asset `json:"assetHave"`
 }
 
 // type aliases are only usually used for codebase refactoring, so make this better when you have time. At some point a struct will probably need to be made.
 // like I'm probably going to replace this with just a master list of all the chainhooks / coinparams we could use
 // since everything should stem from that
-type asset byte
+
+// Asset is a type which represents an asset
+type Asset byte
 
 // AssetCast makes sure that we don't instantiate
-func assetCast(attemptedAsset byte) asset {
+func assetCast(attemptedAsset byte) Asset {
 	switch attemptedAsset {
 	case LTCTest:
 		return LTCTest
@@ -34,12 +36,12 @@ func assetCast(attemptedAsset byte) asset {
 	return NullAsset
 }
 
-func (a asset) String() string {
+func (a Asset) String() string {
 	return ByteToAssetString(byte(a))
 }
 
 // generateUniquePairs generates unique asset pairs based on the assets available
-func generateUniquePairs(assetList []byte) []*Pair {
+func generateUniquePairs(assetList []Asset) []*Pair {
 
 	assetListLen := len(assetList)
 	numPairIndeces := assetListLen * (assetListLen - 1) / 2
@@ -48,8 +50,8 @@ func generateUniquePairs(assetList []byte) []*Pair {
 	for i, elem := range assetList {
 		for lower := i + 1; lower < assetListLen; lower++ {
 			pairList[pairListIndex] = &Pair{
-				AssetWant: assetCast(elem),
-				AssetHave: assetCast(assetList[lower]),
+				AssetWant: elem,
+				AssetHave: assetList[lower],
 			}
 			pairListIndex++
 		}
@@ -77,7 +79,7 @@ func (p Pair) String() string {
 // I just needed an asset struct in the first place
 
 // GetAssociatedCoinParam gets the coinparam parameters related to said asset
-func (a asset) GetAssociatedCoinParam() *coinparam.Params {
+func (a Asset) GetAssociatedCoinParam() *coinparam.Params {
 	switch a {
 	case BTCTest:
 		return &coinparam.TestNet3Params

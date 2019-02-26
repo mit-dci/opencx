@@ -2,10 +2,12 @@ package ocxsql
 
 import (
 	"fmt"
+
+	"github.com/mit-dci/opencx/match"
 )
 
 // RegisterUser registers a user
-func (db *DB) RegisterUser(username string, addresses map[string]string) (err error) {
+func (db *DB) RegisterUser(username string, addresses map[match.Asset]string) (err error) {
 	// Do all this locking just cause
 	// Insert them into the DB
 	if err = db.InsertDepositAddresses(username, addresses); err != nil {
@@ -55,7 +57,7 @@ func (db *DB) InitializeAccountBalances(username string) (err error) {
 }
 
 // InsertDepositAddresses inserts deposit addresses based on the addressmap you give it
-func (db *DB) InsertDepositAddresses(username string, addressMap map[string]string) (err error) {
+func (db *DB) InsertDepositAddresses(username string, addressMap map[match.Asset]string) (err error) {
 	// begin the transaction
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
@@ -78,11 +80,11 @@ func (db *DB) InsertDepositAddresses(username string, addressMap map[string]stri
 	}
 
 	// go through assets
-	for _, assetString := range db.assetArray {
+	for _, asset := range db.assetArray {
 		// if you found an address in the map
-		if addr, found := addressMap[assetString]; found {
+		if addr, found := addressMap[asset]; found {
 			// insert into db
-			insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s') ON DUPLICATE KEY UPDATE address='%s';", assetString, username, addr, addr)
+			insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s') ON DUPLICATE KEY UPDATE address='%s';", asset, username, addr, addr)
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
 			}
@@ -119,9 +121,9 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 	}
 
 	// Go through assets (btc, ltc, vtc...)
-	for _, assetString := range db.assetArray {
+	for _, asset := range db.assetArray {
 		// Find all distinct usernames
-		getUsernamesQuery := fmt.Sprintf("SELECT DISTINCT name FROM %s;", assetString)
+		getUsernamesQuery := fmt.Sprintf("SELECT DISTINCT name FROM %s;", asset)
 		rows, usernameErr := tx.Query(getUsernamesQuery)
 		if err = usernameErr; err != nil {
 			return
@@ -137,15 +139,15 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 			}
 
 			// generate addresses according to chain
-			if assetString == "btc" {
+			if asset == match.BTCTest {
 				if addr, err = btcAddrFunc(username); err != nil {
 					return
 				}
-			} else if assetString == "ltc" {
+			} else if asset == match.LTCTest {
 				if addr, err = ltcAddrFunc(username); err != nil {
 					return
 				}
-			} else if assetString == "vtc" {
+			} else if asset == match.VTCTest {
 				if addr, err = vtcAddrFunc(username); err != nil {
 					return
 				}
@@ -166,7 +168,7 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 		// go through all the usernames and addresses obtained and update them
 		for username, addr := range addrPairs {
 			// Actually update the table -- doing this outside the scan so we don't get busy buffer issues
-			insertDepositAddrQuery := fmt.Sprintf("UPDATE %s SET address='%s' WHERE name='%s';", assetString, addr, username)
+			insertDepositAddrQuery := fmt.Sprintf("UPDATE %s SET address='%s' WHERE name='%s';", asset, addr, username)
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
 			}

@@ -12,13 +12,13 @@ const (
 )
 
 // AssetList returns the list of assets that the exchange supports
-func AssetList() []byte {
-	return []byte{BTCTest, VTCTest, LTCTest}
+func AssetList() []Asset {
+	return []Asset{BTCTest, VTCTest, LTCTest}
 }
 
 // largeAssetList is something used for testing the generateassetpairs function, this should be put into a unit test once tests are written
-func largeAssetList() []byte {
-	return []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a}
+func largeAssetList() []Asset {
+	return []Asset{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a}
 }
 
 // ByteToAssetString turns a byte (which would be in a "pair") into a string

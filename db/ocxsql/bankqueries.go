@@ -20,17 +20,6 @@ func (db *DB) GetBalance(username string, asset string) (uint64, error) {
 		return 0, fmt.Errorf("Could not use balance schema: \n%s", err)
 	}
 
-	// Check if the asset exists
-	validTable := false
-	for _, elem := range db.assetArray {
-		if asset == elem {
-			validTable = true
-		}
-	}
-
-	if !validTable {
-		return 0, fmt.Errorf("User %s tried to get balance for %s which isn't a valid asset", username, asset)
-	}
 	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", asset, username)
 	res, err := db.DBHandler.Query(getBalanceQuery)
 	// db.IncrementReads()
@@ -313,17 +302,6 @@ func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
 		return "", fmt.Errorf("Could not use deposit schema: \n%s", err)
 	}
 
-	// Check if the asset exists
-	validTable := false
-	for _, elem := range db.assetArray {
-		if asset == elem {
-			validTable = true
-		}
-	}
-
-	if !validTable {
-		return "", fmt.Errorf("User %s tried to get deposit for %s which isn't a valid asset", username, asset)
-	}
 	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE name='%s';", asset, username)
 	res, err := db.DBHandler.Query(getBalanceQuery)
 	db.IncrementReads()
@@ -366,17 +344,6 @@ func (db *DB) GetDepositName(address string, coinType *coinparam.Params) (string
 		return "", fmt.Errorf("Could not use deposit schema: \n%s", err)
 	}
 
-	// Check if the asset exists
-	validTable := false
-	for _, elem := range db.assetArray {
-		if asset == elem {
-			validTable = true
-		}
-	}
-
-	if !validTable {
-		return "", fmt.Errorf("User %s tried to get deposit for %s which isn't a valid asset", address, asset)
-	}
 	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE address='%s';", asset, address)
 	res, err := db.DBHandler.Query(getBalanceQuery)
 	db.IncrementReads()
@@ -481,19 +448,6 @@ func (db *DB) Withdraw(username string, asset string, amount uint64) (err error)
 	// Use the balance schema
 
 	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
-		return
-	}
-
-	// Check if the asset exists
-	validTable := false
-	for _, elem := range db.assetArray {
-		if asset == elem {
-			validTable = true
-		}
-	}
-
-	if !validTable {
-		err = fmt.Errorf("User %s tried to withdraw for %s which isn't a valid asset", username, asset)
 		return
 	}
 

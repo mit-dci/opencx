@@ -17,9 +17,9 @@ import (
 // should not check validity of the things it is doing, just update or insert or return whatever.
 type OpencxStore interface {
 	// SetupClient makes sure that whatever things need to be done before we use the datastore can be done before we need to use the datastore.
-	SetupClient() error
+	SetupClient([]match.Asset, []*match.Pair) error
 	// RegisterUser takes in a user, and a map of asset to addresses for the user. It inserts the necessary information in databases to register the user.
-	RegisterUser(string, map[string]string) error
+	RegisterUser(string, map[match.Asset]string) error
 	// GetBalance gets the balance for a user and an asset.
 	GetBalance(string, string) (uint64, error)
 	// GetDepositAddress gets the deposit address for a user and an asset.

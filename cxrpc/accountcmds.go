@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 // RegisterArgs holds the args for register
@@ -26,16 +27,16 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) (err erro
 	}()
 
 	// Create addresses based on username and put them into maps
-	addrMap := make(map[string]string)
-	if addrMap["btc"], err = cl.Server.NewAddressBTC(args.Username); err != nil {
+	addrMap := make(map[match.Asset]string)
+	if addrMap[match.BTCTest], err = cl.Server.NewAddressBTC(args.Username); err != nil {
 		return
 	}
 
-	if addrMap["ltc"], err = cl.Server.NewAddressLTC(args.Username); err != nil {
+	if addrMap[match.LTCTest], err = cl.Server.NewAddressLTC(args.Username); err != nil {
 		return
 	}
 
-	if addrMap["vtc"], err = cl.Server.NewAddressVTC(args.Username); err != nil {
+	if addrMap[match.VTCTest], err = cl.Server.NewAddressVTC(args.Username); err != nil {
 		return
 	}
 

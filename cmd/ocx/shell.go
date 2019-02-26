@@ -61,8 +61,8 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "vieworderbook" {
-		if len(args) > 2 {
-			return fmt.Errorf("Must specify 2 or 1 arguments: pair [buy|sell]")
+		if len(args) != 1 || len(args) != 2 {
+			return fmt.Errorf("Must specify from 1 to 2 arguments: pair [buy|sell]")
 		}
 
 		if err := cl.ViewOrderbook(args); err != nil {
@@ -94,6 +94,15 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 
 		if err := cl.CancelOrder(args); err != nil {
 			return fmt.Errorf("Error calling cancel command: \n%s", err)
+		}
+	}
+	if cmd == "getpairs" {
+		if len(args) != 0 {
+			return fmt.Errorf("Don't specify arguments please")
+		}
+
+		if err := cl.GetPairs(); err != nil {
+			return fmt.Errorf("Error getting pairs: \n%s", err)
 		}
 	}
 	return nil

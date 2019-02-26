@@ -114,3 +114,20 @@ func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) 
 
 	return
 }
+
+// GetPairsArgs holds the args for the GetPairs command
+type GetPairsArgs struct {
+	// empty
+}
+
+// GetPairsReply holds the reply for the GetPairs command
+type GetPairsReply struct {
+	PairList []string
+}
+
+// GetPairs gets all the pairs
+func (cl *OpencxRPC) GetPairs(args GetPairsArgs, reply *GetPairsReply) (err error) {
+	// list := cl.Server.AssetArray
+
+	return
+}

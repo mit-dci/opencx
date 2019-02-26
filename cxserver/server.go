@@ -17,8 +17,6 @@ import (
 )
 
 // put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
-const exchangeStartingPointBTC = 1454700
-const exchangeStartingPointLTC = 960000
 const runningLocally = false
 
 // OpencxServer is how rpc can query the database and whatnot
@@ -35,6 +33,8 @@ type OpencxServer struct {
 	OpencxBTCWallet      *wallit.Wallit
 	OpencxLTCWallet      *wallit.Wallit
 	OpencxVTCWallet      *wallit.Wallit
+	AssetArray           []match.Asset
+	PairsArray           []*match.Pair
 
 	orderMutex *sync.Mutex
 	OrderMap   map[match.Pair][]*match.LimitOrder
@@ -110,16 +110,13 @@ func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) error {
 }
 
 // SetupBTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
-	var btcHost string
+func (server *OpencxServer) SetupBTCChainhook(errChan chan error, hostString string) {
 	var btcParam *coinparam.Params
-	if runningLocally {
-		btcHost = "localhost:18444"
+	if lnutil.YupString(hostString) {
+		btcParam = &coinparam.TestNet3Params
+	} else {
 		btcParam = &coinparam.RegressionNetParams
 		btcParam.StartHeight = 0
-	} else {
-		btcHost = "1"
-		btcParam = &coinparam.TestNet3Params
 	}
 
 	btcParam.DiffCalcFunction = dummyDifficulty
@@ -127,7 +124,7 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
 
 	logging.Infof("Starting BTC Wallet\n")
 
-	btcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, btcHost, btcRoot, "", btcParam)
+	btcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, hostString, btcRoot, "", btcParam)
 	if err != nil {
 		errChan <- fmt.Errorf("Error when starting btc wallet")
 		return
@@ -146,30 +143,25 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error) {
 }
 
 // SetupLTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupLTCChainhook(errChan chan error) {
-
-	var ltcHost string
+func (server *OpencxServer) SetupLTCChainhook(errChan chan error, hostString string) {
 	var ltcParam *coinparam.Params
-	if runningLocally {
+	if lnutil.YupString(hostString) {
 		// TODO: move all this stuff up to be server parameters. Find a way to elegantly manage and add multiple chains while keeping track of parameters
 		// and nicely connecting to nodes, while handling unable to connect stuff
-		ltcParam = &coinparam.LiteRegNetParams
-		ltcHost = "localhost:19444"
-		ltcParam.StartHeight = 0
-	} else {
 		ltcParam = &coinparam.LiteCoinTestNet4Params
 		ltcParam.PoWFunction = dummyProofOfWork
-		ltcHost = "1"
+	} else {
+		ltcParam = &coinparam.LiteRegNetParams
+		ltcParam.StartHeight = 0
 	}
 
 	// difficulty in non bitcoin testnets has an air of mystery
 	ltcParam.DiffCalcFunction = dummyDifficulty
-
 	ltcRoot := server.OpencxRoot + ltcParam.Name
 
 	logging.Infof("Starting LTC Wallet\n")
 
-	ltcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, ltcHost, ltcRoot, "", ltcParam)
+	ltcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, hostString, ltcRoot, "", ltcParam)
 	if err != nil {
 		errChan <- fmt.Errorf("Error when starting ltc wallet")
 		return
@@ -188,19 +180,14 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error) {
 }
 
 // SetupVTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupVTCChainhook(errChan chan error) {
-
-	var vtcHost string
+func (server *OpencxServer) SetupVTCChainhook(errChan chan error, hostString string) {
 	var vtcParam *coinparam.Params
-	if runningLocally {
-		vtcParam = &coinparam.VertcoinRegTestParams
-		vtcHost = "localhost:20444"
-		vtcParam.DefaultPort = "20444"
-	} else {
+	if lnutil.YupString(hostString) {
 		vtcParam = &coinparam.VertcoinTestNetParams
 		vtcParam.PoWFunction = dummyProofOfWork
 		vtcParam.DNSSeeds = []string{"jlovejoy.mit.edu", "gertjaap.ddns.net", "fr1.vtconline.org", "tvtc.vertcoin.org"}
-		vtcHost = "1"
+	} else {
+		vtcParam = &coinparam.VertcoinRegTestParams
 	}
 
 	vtcParam.DiffCalcFunction = dummyDifficulty
@@ -208,7 +195,7 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error) {
 
 	logging.Infof("Starting VTC Wallet\n")
 
-	vtcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, vtcHost, vtcRoot, "", vtcParam)
+	vtcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, vtcRoot, "", vtcParam)
 	if err != nil {
 		errChan <- fmt.Errorf("Error when starting vtc wallet")
 		return
