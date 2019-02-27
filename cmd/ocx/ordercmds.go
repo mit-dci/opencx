@@ -21,14 +21,17 @@ func (cl *openCxClient) OrderCommand(args []string) (err error) {
 	client := args[0]
 	side := args[1]
 	pair := args[2]
+
 	amountHave, err := strconv.ParseUint(args[3], 10, 64)
 	if err != nil {
 		return fmt.Errorf("Error parsing amountHave, please enter something valid:\n%s", err)
 	}
+
 	price, err := strconv.ParseFloat(args[4], 64)
 	if err != nil {
 		return fmt.Errorf("Error parsing price: \n%s", err)
 	}
+
 	var reply *cxrpc.SubmitOrderReply
 	if reply, err = cl.RPCClient.OrderCommand(client, side, pair, amountHave, price); err != nil {
 		return
@@ -106,7 +109,10 @@ func (cl *openCxClient) ViewOrderbook(args []string) (err error) {
 // CancelOrder calls the cancel order rpc command
 func (cl *openCxClient) CancelOrder(args []string) (err error) {
 	orderID := args[0]
-	if err = cl.RPCClient.CancelOrder(orderID); err != nil {
+
+	// remove this and _ when cancel order has returns
+	// var cancelOrderReply *cxrpc.CancelOrderReply
+	if _, err = cl.RPCClient.CancelOrder(orderID); err != nil {
 		return
 	}
 

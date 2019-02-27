@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/opencx/logging"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/mit-dci/opencx/cxrpc"
@@ -28,6 +27,7 @@ func (cl *BenchClient) OrderCommand(client string, side string, pair string, amo
 func (cl *BenchClient) OrderAsync(client string, side string, pair string, amountHave uint64, price float64, replyChan chan *cxrpc.SubmitOrderReply, errChan chan error) {
 
 	errChan <- func() error {
+		// TODO: this can be refactored to look more like the rest of the code, it's just using channels and works really well so I don't want to mess with it rn
 		orderArgs := new(cxrpc.SubmitOrderArgs)
 		orderReply := new(cxrpc.SubmitOrderReply)
 
@@ -64,26 +64,24 @@ func (cl *BenchClient) OrderAsync(client string, side string, pair string, amoun
 			return fmt.Errorf("Error calling 'SubmitOrder' service method:\n%s", err)
 		}
 
-		// logging.Infof("Order submitted successfully\n")
 		return nil
 	}()
 
 }
 
 // GetPrice calls the getprice rpc command
-func (cl *BenchClient) GetPrice(assetString string) (reply *cxrpc.GetPriceReply, err error) {
-
-	getPriceArgs := new(cxrpc.GetPriceArgs)
-
-	// can't be a nil pointer to call methods on it
-	getPriceArgs.TradingPair = new(match.Pair)
+func (cl *BenchClient) GetPrice(assetString string) (getPriceReply *cxrpc.GetPriceReply, err error) {
+	getPriceReply = new(cxrpc.GetPriceReply)
+	getPriceArgs := &cxrpc.GetPriceArgs{
+		TradingPair: new(match.Pair),
+	}
 
 	// get the trading pair string from the shell input - first parameter
 	if err = getPriceArgs.TradingPair.FromString(assetString); err != nil {
 		return
 	}
 
-	if err = cl.Call("OpencxRPC.GetPrice", getPriceArgs, reply); err != nil {
+	if err = cl.Call("OpencxRPC.GetPrice", getPriceArgs, getPriceReply); err != nil {
 		return
 	}
 
@@ -91,22 +89,19 @@ func (cl *BenchClient) GetPrice(assetString string) (reply *cxrpc.GetPriceReply,
 }
 
 // ViewOrderbook return s the orderbook TODO
-func (cl *BenchClient) ViewOrderbook(assetPair string) (reply *cxrpc.ViewOrderBookReply, err error) {
-	viewOrderBookArgs := new(cxrpc.ViewOrderBookArgs)
-
-	// can't be a nil pointer to call methods on it
-	viewOrderBookArgs.TradingPair = new(match.Pair)
+func (cl *BenchClient) ViewOrderbook(assetPair string) (viewOrderbookReply *cxrpc.ViewOrderBookReply, err error) {
+	viewOrderbookReply = new(cxrpc.ViewOrderBookReply)
+	viewOrderBookArgs := &cxrpc.ViewOrderBookArgs{
+		TradingPair: new(match.Pair),
+	}
 
 	// get the trading pair string from the shell input - first parameter
-
 	if err = viewOrderBookArgs.TradingPair.FromString(assetPair); err != nil {
-		return nil, err
+		return
 	}
 
 	// Actually use the RPC Client to call the method
-
-	if err = cl.Call("OpencxRPC.ViewOrderBook", viewOrderBookArgs, reply); err != nil {
-		err = fmt.Errorf("Error calling 'ViewOrderBook' service method:\n%s", err)
+	if err = cl.Call("OpencxRPC.ViewOrderBook", viewOrderBookArgs, viewOrderbookReply); err != nil {
 		return
 	}
 
@@ -114,29 +109,26 @@ func (cl *BenchClient) ViewOrderbook(assetPair string) (reply *cxrpc.ViewOrderBo
 }
 
 // CancelOrder calls the cancel order rpc command
-func (cl *BenchClient) CancelOrder(orderID string) (err error) {
+func (cl *BenchClient) CancelOrder(orderID string) (cancelOrderReply *cxrpc.CancelOrderReply, err error) {
+	cancelOrderReply = new(cxrpc.CancelOrderReply)
 	cancelOrderArgs := &cxrpc.CancelOrderArgs{
 		OrderID: orderID,
 	}
-	cancelOrderReply := new(cxrpc.CancelOrderReply)
 
 	// Actually use the RPC Client to call the method
 	if err = cl.Call("OpencxRPC.CancelOrder", cancelOrderArgs, cancelOrderReply); err != nil {
-		err = fmt.Errorf("Error calling 'CancelOrder' service method:\n%s", err)
 		return
 	}
-
-	logging.Infof("Cancelled order successfully")
 
 	return
 }
 
 // GetPairs gets the available trading pairs
-func (cl *BenchClient) GetPairs() (reply *cxrpc.GetPairsReply, err error) {
+func (cl *BenchClient) GetPairs() (getPairsReply *cxrpc.GetPairsReply, err error) {
+	getPairsReply = new(cxrpc.GetPairsReply)
 	getPairsArgs := new(cxrpc.GetPairsArgs)
 
-	if err = cl.Call("OpencxRPC.GetPairs", getPairsArgs, reply); err != nil {
-		err = fmt.Errorf("Error calling 'GetPairs' service method:\n%s", err)
+	if err = cl.Call("OpencxRPC.GetPairs", getPairsArgs, getPairsReply); err != nil {
 		return
 	}
 

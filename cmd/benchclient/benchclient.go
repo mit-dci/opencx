@@ -11,17 +11,12 @@ type BenchClient struct {
 }
 
 // SetupBenchClient creates a new BenchClient for use as an RPC Client
-func (cl *BenchClient) SetupBenchClient(server string, port uint16) error {
-	var err error
-
-	cl = &BenchClient{
-		RPCClient: new(cxrpc.OpencxRPCClient),
-	}
+func (cl *BenchClient) SetupBenchClient(server string, port uint16) (err error) {
+	cl.RPCClient = new(cxrpc.OpencxRPCClient)
 
 	// we set the privkey here because we aren't using a command line to send orders
-	err = cl.RPCClient.SetupConnection(server, port)
-	if err != nil {
-		return err
+	if err = cl.RPCClient.SetupConnection(server, port); err != nil {
+		return
 	}
 
 	return nil

@@ -4,16 +4,19 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/logging"
 )
 
 // GetBalance calls the getbalance rpc command
 func (cl *BenchClient) GetBalance(username string, asset string) (getBalanceReply *cxrpc.GetBalanceReply, err error) {
+	getBalanceReply = new(cxrpc.GetBalanceReply)
 	getBalanceArgs := &cxrpc.GetBalanceArgs{
 		Username: username,
 		Asset:    asset,
 	}
 
 	if err = cl.Call("OpencxRPC.GetBalance", getBalanceArgs, getBalanceReply); err != nil {
+		logging.Errorf("call error")
 		return
 	}
 
@@ -22,6 +25,7 @@ func (cl *BenchClient) GetBalance(username string, asset string) (getBalanceRepl
 
 // GetDepositAddress calls the getdepositaddress rpc command
 func (cl *BenchClient) GetDepositAddress(username string, asset string) (getDepositAddressReply *cxrpc.GetDepositAddressReply, err error) {
+	getDepositAddressReply = new(cxrpc.GetDepositAddressReply)
 	getDepositAddressArgs := &cxrpc.GetDepositAddressArgs{
 		Username: username,
 		Asset:    asset,
@@ -58,6 +62,7 @@ func (cl *BenchClient) GetAllBalances(username string) (balances map[string]uint
 
 // Withdraw calls the withdraw rpc command
 func (cl *BenchClient) Withdraw(username string, amount uint64, asset string, address string) (withdrawReply *cxrpc.WithdrawReply, err error) {
+	withdrawReply = new(cxrpc.WithdrawReply)
 	withdrawArgs := &cxrpc.WithdrawArgs{
 		Username: username,
 		Amount:   amount,
