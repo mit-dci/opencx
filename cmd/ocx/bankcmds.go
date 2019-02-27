@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"strconv"
 
@@ -9,89 +8,64 @@ import (
 	"github.com/mit-dci/opencx/logging"
 )
 
-func (cl *openCxClient) GetBalance(args []string) error {
-	balanceArgs := new(cxrpc.GetBalanceArgs)
-	balanceReply := new(cxrpc.GetBalanceReply)
-
+func (cl *openCxClient) GetBalance(args []string) (err error) {
 	username := args[0]
 	asset := args[1]
 
-	balanceArgs.Username = username
-	balanceArgs.Asset = asset
-
-	err := cl.Call("OpencxRPC.GetBalance", balanceArgs, balanceReply)
-	if err != nil {
-		return fmt.Errorf("Error calling 'GetBalance' service method:\n%s", err)
+	var balanceReply *cxrpc.GetBalanceReply
+	if balanceReply, err = cl.RPCClient.GetBalance(username, asset); err != nil {
+		return
 	}
 
-	logging.Infof("Balance for token %s: %f %s\n", balanceArgs.Asset, float64(balanceReply.Amount)/math.Pow10(8), balanceArgs.Asset)
-	return nil
+	logging.Infof("Balance for token %s: %f %s\n", asset, float64(balanceReply.Amount)/math.Pow10(8), asset)
+	return
 }
 
-func (cl *openCxClient) GetDepositAddress(args []string) error {
-	depositArgs := new(cxrpc.GetDepositAddressArgs)
-	depositReply := new(cxrpc.GetDepositAddressReply)
-
+func (cl *openCxClient) GetDepositAddress(args []string) (err error) {
 	username := args[0]
 	asset := args[1]
 
-	depositArgs.Username = username
-	depositArgs.Asset = asset
-
-	err := cl.Call("OpencxRPC.GetDepositAddress", depositArgs, depositReply)
-	if err != nil {
-		return fmt.Errorf("Error calling 'GetDepositAddress' service method:\n%s", err)
+	var getDepositAddressReply *cxrpc.GetDepositAddressReply
+	if getDepositAddressReply, err = cl.RPCClient.GetDepositAddress(username, asset); err != nil {
+		return
 	}
 
-	logging.Infof("DepositAddress for token %s: %s\n", depositArgs.Asset, depositReply.Address)
-	return nil
+	logging.Infof("DepositAddress for token %s: %s\n", asset, getDepositAddressReply.Address)
+	return
 }
 
 // GetAllBalances get the balance for every token
-func (cl *openCxClient) GetAllBalances(args []string) error {
-	var err error
+func (cl *openCxClient) GetAllBalances(args []string) (err error) {
+	username := args[0]
 
-	err = cl.GetBalance([]string{args[0], "btc"})
-	if err != nil {
-		return err
+	var getAllBalancesReply map[string]uint64
+	if getAllBalancesReply, err = cl.RPCClient.GetAllBalances(username); err != nil {
+		return
 	}
 
-	err = cl.GetBalance([]string{args[0], "vtc"})
-	if err != nil {
-		return err
+	for asset, amount := range getAllBalancesReply {
+		logging.Infof("Balance for token %s: %f %s\n", asset, float64(amount)/math.Pow10(8), asset)
 	}
 
-	err = cl.GetBalance([]string{args[0], "ltc"})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return
 }
 
-func (cl *openCxClient) Withdraw(args []string) error {
-	var err error
+func (cl *openCxClient) Withdraw(args []string) (err error) {
+	username := args[0]
 
-	withdrawArgs := new(cxrpc.WithdrawArgs)
-	withdrawReply := new(cxrpc.WithdrawReply)
-
-	withdrawArgs.Username = args[0]
-	withdrawArgs.Amount, err = strconv.ParseUint(args[1], 10, 64)
-	if err != nil {
-		return err
-	}
-	withdrawArgs.Asset = args[2]
-	withdrawArgs.Address = args[3]
-
-	if err := cl.Call("OpencxRPC.Withdraw", withdrawArgs, withdrawReply); err != nil {
-		return fmt.Errorf("Error calling 'Withdraw' service method:\n%s", err)
+	var amount uint64
+	if amount, err = strconv.ParseUint(args[1], 10, 64); err != nil {
+		return
 	}
 
-	if withdrawReply.Txid == "" {
-		return fmt.Errorf("Error: Unsupported Asset")
+	asset := args[2]
+	address := args[3]
+
+	var withdrawReply *cxrpc.WithdrawReply
+	if withdrawReply, err = cl.RPCClient.Withdraw(username, amount, asset, address); err != nil {
+		return
 	}
 
 	logging.Infof("Withdraw transaction ID: %s\n", withdrawReply.Txid)
-
-	return nil
+	return
 }
