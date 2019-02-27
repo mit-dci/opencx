@@ -1,25 +1,19 @@
 package main
 
 import (
-	"fmt"
-
-	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"
 )
 
 // Register registers the user for an account with a username and password
-func (cl *openCxClient) Register(args []string) error {
+func (cl *openCxClient) Register(args []string) (err error) {
+	username := args[0]
 
-	registerArgs := new(cxrpc.RegisterArgs)
-	registerReply := new(cxrpc.RegisterReply)
-
-	registerArgs.Username = args[0]
-
-	err := cl.Call("OpencxRPC.Register", registerArgs, registerReply)
-	if err != nil {
-		return fmt.Errorf("Error calling 'Register' service method:\n%s", err)
+	// if there is ever a reply for register uncomment this and replace the _
+	// var registerReply *cxrpc.RegisterReply
+	if _, err = cl.RPCClient.Register(username); err != nil {
+		return
 	}
 
 	logging.Infof("Successfully registered\n")
-	return nil
+	return
 }

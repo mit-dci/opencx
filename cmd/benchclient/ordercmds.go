@@ -1,27 +1,31 @@
 package benchclient
 
 import (
-	"bytes"
 	"fmt"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/logging"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/match"
-
-	"github.com/olekukonko/tablewriter"
 )
 
 // OrderCommand submits an order synchronously. Uses asynchronous order function
-func (cl *BenchClient) OrderCommand(client string, side string, pair string, amountHave uint64, price float64) (err error) {
-	errorChannel := make(chan error)
-	cl.OrderAsync(client, side, pair, amountHave, price, errorChannel)
+func (cl *BenchClient) OrderCommand(client string, side string, pair string, amountHave uint64, price float64) (reply *cxrpc.SubmitOrderReply, err error) {
+	errorChannel := make(chan error, 1)
+	replyChannel := make(chan *cxrpc.SubmitOrderReply, 1)
+	cl.OrderAsync(client, side, pair, amountHave, price, replyChannel, errorChannel)
 	err = <-errorChannel
+	if err != nil {
+		return
+	}
+	reply = <-replyChannel
 	return
 }
 
 // OrderAsync is supposed to be run in a separate goroutine, OrderCommand makes this synchronous however
-func (cl *BenchClient) OrderAsync(client string, side string, pair string, amountHave uint64, price float64, errChan chan error) {
+func (cl *BenchClient) OrderAsync(client string, side string, pair string, amountHave uint64, price float64, replyChan chan *cxrpc.SubmitOrderReply, errChan chan error) {
 
 	errChan <- func() error {
 		orderArgs := new(cxrpc.SubmitOrderArgs)
@@ -30,6 +34,8 @@ func (cl *BenchClient) OrderAsync(client string, side string, pair string, amoun
 		var newOrder match.LimitOrder
 		newOrder.Client = client
 		newOrder.Side = side
+
+		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
 		if newOrder.Side != "buy" && newOrder.Side != "sell" {
 			return fmt.Errorf("Order's side isn't buy or sell, try again")
 		}
@@ -44,6 +50,14 @@ func (cl *BenchClient) OrderAsync(client string, side string, pair string, amoun
 
 		newOrder.SetAmountWant(price)
 
+		// create e = hash(m)
+		sha3 := sha3.New256()
+		sha3.Write(newOrder.Serialize())
+		e := sha3.Sum(nil)
+		// Sign order
+		compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
+
+		orderArgs.Signature = compactSig
 		orderArgs.Order = &newOrder
 		err = cl.Call("OpencxRPC.SubmitOrder", orderArgs, orderReply)
 		if err != nil {
@@ -57,91 +71,46 @@ func (cl *BenchClient) OrderAsync(client string, side string, pair string, amoun
 }
 
 // GetPrice calls the getprice rpc command
-func (cl *BenchClient) GetPrice(assetString string) error {
-	var err error
+func (cl *BenchClient) GetPrice(assetString string) (reply *cxrpc.GetPriceReply, err error) {
 
 	getPriceArgs := new(cxrpc.GetPriceArgs)
-	getPriceReply := new(cxrpc.GetPriceReply)
 
 	// can't be a nil pointer to call methods on it
 	getPriceArgs.TradingPair = new(match.Pair)
 
 	// get the trading pair string from the shell input - first parameter
 	if err = getPriceArgs.TradingPair.FromString(assetString); err != nil {
-		return err
+		return
 	}
 
-	if err = cl.Call("OpencxRPC.GetPrice", getPriceArgs, getPriceReply); err != nil {
-		return err
+	if err = cl.Call("OpencxRPC.GetPrice", getPriceArgs, reply); err != nil {
+		return
 	}
 
-	logging.Infof("Price: %f\n", getPriceReply.Price)
-	return nil
+	return
 }
 
 // ViewOrderbook return s the orderbook TODO
-func (cl *BenchClient) ViewOrderbook(assetPair string) error {
-	var err error
-
+func (cl *BenchClient) ViewOrderbook(assetPair string) (reply *cxrpc.ViewOrderBookReply, err error) {
 	viewOrderBookArgs := new(cxrpc.ViewOrderBookArgs)
-	viewOrderBookReply := new(cxrpc.ViewOrderBookReply)
 
 	// can't be a nil pointer to call methods on it
 	viewOrderBookArgs.TradingPair = new(match.Pair)
 
 	// get the trading pair string from the shell input - first parameter
-	err = viewOrderBookArgs.TradingPair.FromString(assetPair)
-	if err != nil {
-		return err
+
+	if err = viewOrderBookArgs.TradingPair.FromString(assetPair); err != nil {
+		return nil, err
 	}
 
 	// Actually use the RPC Client to call the method
-	err = cl.Call("OpencxRPC.ViewOrderBook", viewOrderBookArgs, viewOrderBookReply)
-	if err != nil {
-		return fmt.Errorf("Error calling 'ViewOrderBook' service method:\n%s", err)
+
+	if err = cl.Call("OpencxRPC.ViewOrderBook", viewOrderBookArgs, reply); err != nil {
+		err = fmt.Errorf("Error calling 'ViewOrderBook' service method:\n%s", err)
+		return
 	}
 
-	// Build the table
-	var data [][]string
-	buf := new(bytes.Buffer)
-	table := tablewriter.NewWriter(buf)
-	table.SetHeader([]string{"orderID", "price", "volume", "side"})
-
-	// get all buy orders and add to table
-	for _, buyOrder := range viewOrderBookReply.BuyOrderBook {
-		buyPrice, err := buyOrder.Price()
-		if err != nil {
-			return err
-		}
-
-		// convert stuff to strings
-		strPrice := fmt.Sprintf("%f", buyPrice)
-		strVolume := fmt.Sprintf("%d", buyOrder.AmountHave)
-		// append to the table
-		data = append(data, []string{buyOrder.OrderID, strPrice, strVolume, buyOrder.Side})
-	}
-
-	// get all the sell orders and add to table
-	for _, sellOrder := range viewOrderBookReply.SellOrderBook {
-		sellPrice, err := sellOrder.Price()
-		if err != nil {
-			return err
-		}
-
-		// convert stuff to strings
-		strPrice := fmt.Sprintf("%f", sellPrice)
-		strVolume := fmt.Sprintf("%d", sellOrder.AmountHave)
-		// append to the table
-		data = append(data, []string{sellOrder.OrderID, strPrice, strVolume, sellOrder.Side})
-	}
-
-	// render the table
-	table.AppendBulk(data)
-	table.Render()
-
-	// actually print out table stored in buffer
-	logging.Infof("\n%s\n", buf.String())
-	return nil
+	return
 }
 
 // CancelOrder calls the cancel order rpc command
@@ -158,6 +127,18 @@ func (cl *BenchClient) CancelOrder(orderID string) (err error) {
 	}
 
 	logging.Infof("Cancelled order successfully")
+
+	return
+}
+
+// GetPairs gets the available trading pairs
+func (cl *BenchClient) GetPairs() (reply *cxrpc.GetPairsReply, err error) {
+	getPairsArgs := new(cxrpc.GetPairsArgs)
+
+	if err = cl.Call("OpencxRPC.GetPairs", getPairsArgs, reply); err != nil {
+		err = fmt.Errorf("Error calling 'GetPairs' service method:\n%s", err)
+		return
+	}
 
 	return
 }
