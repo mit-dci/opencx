@@ -2,6 +2,7 @@ package cxbenchmark
 
 import (
 	"github.com/mit-dci/opencx/cmd/benchclient"
+	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"
 )
 
@@ -10,10 +11,11 @@ func PlaceAndFill(client *benchclient.BenchClient, user1 string, user2 string, p
 	for i := 0; i < howMany; i++ {
 		// This shouldnt make any change in balance but each account should have at least 2000 satoshis (or the smallest unit in whatever chain)
 		bufErrChan := make(chan error, 4)
-		go client.OrderAsync(user1, "buy", pair, 1000, 1.0, bufErrChan)
-		go client.OrderAsync(user2, "sell", pair, 1000, 1.0, bufErrChan)
-		go client.OrderAsync(user1, "sell", pair, 2000, 2.0, bufErrChan)
-		go client.OrderAsync(user2, "buy", pair, 1000, 2.0, bufErrChan)
+		orderChan := make(chan *cxrpc.SubmitOrderReply)
+		go client.OrderAsync(user1, "buy", pair, 1000, 1.0, orderChan, bufErrChan)
+		go client.OrderAsync(user2, "sell", pair, 1000, 1.0, orderChan, bufErrChan)
+		go client.OrderAsync(user1, "sell", pair, 2000, 2.0, orderChan, bufErrChan)
+		go client.OrderAsync(user2, "buy", pair, 1000, 2.0, orderChan, bufErrChan)
 
 		for i := 0; i < cap(bufErrChan); i++ {
 			if err := <-bufErrChan; err != nil {
@@ -27,8 +29,9 @@ func PlaceAndFill(client *benchclient.BenchClient, user1 string, user2 string, p
 // PlaceManyBuy places many orders at once
 func PlaceManyBuy(client *benchclient.BenchClient, user1 string, user2 string, pair string, howMany int) {
 	bufErrChan := make(chan error, howMany)
+	orderChan := make(chan *cxrpc.SubmitOrderReply)
 	for i := 0; i < howMany; i++ {
-		go client.OrderAsync(user1, "buy", pair, 1000, 1.0, bufErrChan)
+		go client.OrderAsync(user1, "buy", pair, 1000, 1.0, orderChan, bufErrChan)
 	}
 	for i := 0; i < cap(bufErrChan); i++ {
 		if err := <-bufErrChan; err != nil {
@@ -41,8 +44,9 @@ func PlaceManyBuy(client *benchclient.BenchClient, user1 string, user2 string, p
 // PlaceManySell places many orders at once
 func PlaceManySell(client *benchclient.BenchClient, user1 string, user2 string, pair string, howMany int) {
 	bufErrChan := make(chan error, howMany)
+	orderChan := make(chan *cxrpc.SubmitOrderReply)
 	for i := 0; i < howMany; i++ {
-		go client.OrderAsync(user1, "sell", pair, 1000, 1.0, bufErrChan)
+		go client.OrderAsync(user1, "sell", pair, 1000, 1.0, orderChan, bufErrChan)
 	}
 	for i := 0; i < cap(bufErrChan); i++ {
 		if err := <-bufErrChan; err != nil {

@@ -51,11 +51,6 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 					return err
 				}
 
-				// if coinType.Name == "vtcreg" {
-				// 	logging.Infof("Generated address: %s\n", addr)
-				// 	logging.Infof("Address thing we own; %s\n", addressesWeOwn)
-				// }
-
 				if name, found := addressesWeOwn[addr.String()]; found {
 					newDeposit := match.Deposit{
 						Name:                name,
@@ -83,6 +78,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	}
 	server.UnlockIngests()
 
+	logging.Debugf("Finished ingesting %s block at height %d", coinType.Name, height)
 	if height%10000 == 0 {
 		logging.Infof("Finished ingesting %s block at height %d\n", coinType.Name, height)
 	}

@@ -105,5 +105,14 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error getting pairs: \n%s", err)
 		}
 	}
+	if cmd == "getlitconnection" {
+		if len(args) != 1 {
+			return fmt.Errorf("Must specify one argument: asset")
+		}
+
+		if err := cl.GetLitConnection(args); err != nil {
+			return fmt.Errorf("Error getting lit connection: \n%s", err)
+		}
+	}
 	return nil
 }

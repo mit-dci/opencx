@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/opencx/cxrpc"
-	"github.com/mit-dci/opencx/logging"
 )
 
 // GetBalance calls the getbalance rpc command
@@ -16,7 +15,6 @@ func (cl *BenchClient) GetBalance(username string, asset string) (getBalanceRepl
 	}
 
 	if err = cl.Call("OpencxRPC.GetBalance", getBalanceArgs, getBalanceReply); err != nil {
-		logging.Errorf("call error")
 		return
 	}
 

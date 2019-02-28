@@ -108,8 +108,6 @@ func main() {
 		logging.Fatalf("Error starting lit node: \n%s", err)
 	}
 
-	logging.Infof("%p", ocxServer.ExchangeNode)
-
 	btcCoinTypeChan := make(chan int, 1)
 	ltcCoinTypeChan := make(chan int, 1)
 	vtcCoinTypeChan := make(chan int, 1)
@@ -131,7 +129,6 @@ func main() {
 	btcCoinType := <-btcCoinTypeChan
 	ltcCoinType := <-ltcCoinTypeChan
 	vtcCoinType := <-vtcCoinTypeChan
-	logging.Infof("btc: %d, ltc: %d, vtc: %d", btcCoinType, ltcCoinType, vtcCoinType)
 
 	// Waited until the wallets are started, time to link them!
 	if err = ocxServer.LinkAllWallets(btcCoinType, ltcCoinType, vtcCoinType); err != nil {
@@ -144,7 +141,7 @@ func main() {
 	// Get all the asset pairs then start the matching loop
 	for i, pair := range assetPairs {
 		go ocxServer.MatchingLoop(pair, orderBufferSize)
-		logging.Infof("Pair %d: %s\n", i, pair)
+		logging.Debugf("Pair %d: %s\n", i, pair)
 	}
 
 	// Register RPC Commands and set server

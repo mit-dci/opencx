@@ -59,8 +59,8 @@ func (cl *BenchClient) OrderAsync(client string, side string, pair string, amoun
 
 		orderArgs.Signature = compactSig
 		orderArgs.Order = &newOrder
-		err = cl.Call("OpencxRPC.SubmitOrder", orderArgs, orderReply)
-		if err != nil {
+
+		if err = cl.Call("OpencxRPC.SubmitOrder", orderArgs, orderReply); err != nil {
 			return fmt.Errorf("Error calling 'SubmitOrder' service method:\n%s", err)
 		}
 
