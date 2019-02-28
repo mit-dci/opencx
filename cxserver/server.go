@@ -118,6 +118,8 @@ func (server *OpencxServer) SetupLitNode(privkey *[32]byte, nodePath string, tra
 	if server.ExchangeNode, err = qln.NewLitNode(privkey, nodePath, trackerURL, proxyURL, nat); err != nil {
 		return
 	}
+
+	logging.Infof("started lit node!")
 	return
 }
 
@@ -276,11 +278,16 @@ func (server *OpencxServer) LinkAllWallets(btcCoinType int, ltcCoinType int, vtc
 
 // LinkOneWallet is a modified version of linkwallet in lit that doesn't make the wallet but links it with an already running one. Your responsibility to pass the correct cointype and tower.
 func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, tower bool) (err error) {
+	// we don't need param passed as a parameter to this function, the wallet already has it so we have to substitute a bunch of stuff
 	WallitIdx := wallet.Param.HDCoinType
+
+	// Have to do this because we deleted the lines actually creating the wallet, we already have it created.
+	server.ExchangeNode.SubWallet[WallitIdx] = wallet
 
 	// see if we've already attached a wallet for this coin type
 	if server.ExchangeNode.SubWallet[WallitIdx] != nil {
-		return fmt.Errorf("coin type %d already linked", WallitIdx)
+		err = fmt.Errorf("coin type %d already linked", WallitIdx)
+		return
 	}
 
 	// see if there are other wallets already linked
@@ -314,6 +321,7 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 		server.ExchangeNode.SubWallet[WallitIdx].WatchThis(qChan.PorTxo.Op)
 	}
 
+	logging.Infof("subwallet walletidx: %p", server.ExchangeNode.SubWallet[WallitIdx])
 	go server.ExchangeNode.OPEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnow())
 	go server.ExchangeNode.HeightEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnowHeight())
 

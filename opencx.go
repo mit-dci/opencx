@@ -64,6 +64,9 @@ func main() {
 		OpencxHomeDir: defaultOpencxHomeDirName,
 		Rpcport:       defaultRpcport,
 		Rpchost:       defaultRpchost,
+		Reghost:       "yup",
+		Litereghost:   "yup",
+		Rtvtchost:     "yup",
 	}
 
 	// Check and load config params
@@ -100,6 +103,13 @@ func main() {
 		logging.Fatalf("Error setting up server keys: \n%s", err)
 	}
 
+	// start the lit node for the exchange
+	if err = ocxServer.SetupLitNode(key, conf.OpencxHomeDir, "http://hubris.media.mit.edu:46580", "", ""); err != nil {
+		logging.Fatalf("Error starting lit node: \n%s", err)
+	}
+
+	logging.Infof("%p", ocxServer.ExchangeNode)
+
 	btcCoinTypeChan := make(chan int, 1)
 	ltcCoinTypeChan := make(chan int, 1)
 	vtcCoinTypeChan := make(chan int, 1)
@@ -123,7 +133,9 @@ func main() {
 	vtcCoinType := <-vtcCoinTypeChan
 
 	// Waited until the wallets are started, time to link them!
-	ocxServer.LinkAllWallets(btcCoinType, ltcCoinType, vtcCoinType)
+	if err = ocxServer.LinkAllWallets(btcCoinType, ltcCoinType, vtcCoinType); err != nil {
+		logging.Fatalf("Could not link wallets: \n%s", err)
+	}
 
 	// init the maps for the server
 	ocxServer.InitMatchingMaps()
