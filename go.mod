@@ -15,6 +15,7 @@ require (
 	github.com/deedlefake/crypto v0.0.0-20170910233742-2f50d39c528d // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/getlantern/deepcopy v0.0.0-20160317154340-7f45deb8130a // indirect
+	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c // indirect
 	github.com/jackpal/gateway v1.0.5 // indirect

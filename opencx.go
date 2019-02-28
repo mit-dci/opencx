@@ -100,11 +100,14 @@ func main() {
 		logging.Fatalf("Error setting up server keys: \n%s", err)
 	}
 
+	btcCoinTypeChan := make(chan int, 1)
+	ltcCoinTypeChan := make(chan int, 1)
+	vtcCoinTypeChan := make(chan int, 1)
 	hookErrorChannel := make(chan error, 3)
 	// Set up all chain hooks
-	go ocxServer.SetupBTCChainhook(hookErrorChannel, conf.Reghost)
-	go ocxServer.SetupLTCChainhook(hookErrorChannel, conf.Litereghost)
-	go ocxServer.SetupVTCChainhook(hookErrorChannel, conf.Rtvtchost)
+	go ocxServer.SetupBTCChainhook(hookErrorChannel, btcCoinTypeChan, conf.Reghost)
+	go ocxServer.SetupLTCChainhook(hookErrorChannel, ltcCoinTypeChan, conf.Litereghost)
+	go ocxServer.SetupVTCChainhook(hookErrorChannel, vtcCoinTypeChan, conf.Rtvtchost)
 
 	// Wait until all hooks are started to do the rest
 	for i := 0; i < 3; i++ {
@@ -114,6 +117,13 @@ func main() {
 		}
 		logging.Infof("Started hook #%d\n", i+1)
 	}
+
+	btcCoinType := <-btcCoinTypeChan
+	ltcCoinType := <-ltcCoinTypeChan
+	vtcCoinType := <-vtcCoinTypeChan
+
+	// Waited until the wallets are started, time to link them!
+	ocxServer.LinkAllWallets(btcCoinType, ltcCoinType, vtcCoinType)
 
 	// init the maps for the server
 	ocxServer.InitMatchingMaps()

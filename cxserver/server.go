@@ -122,8 +122,19 @@ func (server *OpencxServer) SetupLitNode(privkey *[32]byte, nodePath string, tra
 }
 
 // SetupBTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupBTCChainhook(errChan chan error, hostString string) {
+func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan chan int, hostString string) {
 	var btcParam *coinparam.Params
+	var err error
+	var coinType int
+
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("Error when starting btc wallet: \n%s", err)
+		}
+		errChan <- err
+		coinTypeChan <- coinType
+	}()
+
 	if lnutil.YupString(hostString) {
 		btcParam = &coinparam.TestNet3Params
 	} else {
@@ -136,9 +147,8 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, hostString str
 
 	logging.Infof("Starting BTC Wallet\n")
 
-	btcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, hostString, btcRoot, "", btcParam)
-	if err != nil {
-		errChan <- fmt.Errorf("Error when starting btc wallet")
+	var btcWallet *wallit.Wallit
+	if btcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, hostString, btcRoot, "", btcParam); err != nil {
 		return
 	}
 
@@ -150,7 +160,95 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, hostString str
 
 	go server.HeightHandler(btcHeightChan, blockChan, btcParam)
 
-	errChan <- nil
+	return
+}
+
+// SetupLTCChainhook will be used to watch for events on the chain.
+func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan chan int, hostString string) {
+	var ltcParam *coinparam.Params
+	var err error
+	var coinType int
+
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("Error when starting ltc wallet: \n%s", err)
+		}
+		errChan <- err
+		coinTypeChan <- coinType
+	}()
+
+	if lnutil.YupString(hostString) {
+		// TODO: move all this stuff up to be server parameters. Find a way to elegantly manage and add multiple chains while keeping track of parameters
+		// and nicely connecting to nodes, while handling unable to connect stuff
+		ltcParam = &coinparam.LiteCoinTestNet4Params
+		ltcParam.PoWFunction = dummyProofOfWork
+	} else {
+		ltcParam = &coinparam.LiteRegNetParams
+		ltcParam.StartHeight = 0
+	}
+
+	// difficulty in non bitcoin testnets has an air of mystery
+	ltcParam.DiffCalcFunction = dummyDifficulty
+	ltcRoot := server.OpencxRoot + ltcParam.Name
+
+	logging.Infof("Starting LTC Wallet\n")
+
+	var ltcWallet *wallit.Wallit
+	if ltcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, hostString, ltcRoot, "", ltcParam); err != nil {
+		return
+	}
+
+	logging.Infof("LTC Wallet started, coinType: %d\n", coinType)
+
+	blockChan := ltcWallet.Hook.RawBlocks()
+	ltcHeightChan := ltcWallet.LetMeKnowHeight()
+	server.OpencxLTCWallet = ltcWallet
+
+	go server.HeightHandler(ltcHeightChan, blockChan, ltcParam)
+
+	return
+}
+
+// SetupVTCChainhook will be used to watch for events on the chain.
+func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan chan int, hostString string) {
+	var vtcParam *coinparam.Params
+	var err error
+	var coinType int
+
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("Error when starting vtc wallet: \n%s", err)
+		}
+		errChan <- err
+		coinTypeChan <- coinType
+	}()
+
+	if lnutil.YupString(hostString) {
+		vtcParam = &coinparam.VertcoinTestNetParams
+		vtcParam.PoWFunction = dummyProofOfWork
+		vtcParam.DNSSeeds = []string{"jlovejoy.mit.edu", "gertjaap.ddns.net", "fr1.vtconline.org", "tvtc.vertcoin.org"}
+	} else {
+		vtcParam = &coinparam.VertcoinRegTestParams
+	}
+
+	vtcParam.DiffCalcFunction = dummyDifficulty
+	vtcRoot := server.OpencxRoot + vtcParam.Name
+
+	logging.Infof("Starting VTC Wallet\n")
+
+	var vtcWallet *wallit.Wallit
+	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, vtcRoot, "", vtcParam); err != nil {
+		return
+	}
+
+	logging.Infof("VTC Wallet started, coinType: %d\n", coinType)
+
+	blockChan := vtcWallet.Hook.RawBlocks()
+	vtcHeightChan := vtcWallet.LetMeKnowHeight()
+	server.OpencxVTCWallet = vtcWallet
+
+	go server.HeightHandler(vtcHeightChan, blockChan, vtcParam)
+
 	return
 }
 
@@ -219,6 +317,7 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 	go server.ExchangeNode.OPEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnow())
 	go server.ExchangeNode.HeightEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnowHeight())
 
+	// If this is the first coin we're linking then set that one to default.
 	if !server.ExchangeNode.MultiWallet {
 		server.ExchangeNode.DefaultCoin = wallet.Param.HDCoinType
 	}
@@ -235,77 +334,6 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 	}
 
 	return nil
-}
-
-// SetupLTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupLTCChainhook(errChan chan error, hostString string) {
-	var ltcParam *coinparam.Params
-	if lnutil.YupString(hostString) {
-		// TODO: move all this stuff up to be server parameters. Find a way to elegantly manage and add multiple chains while keeping track of parameters
-		// and nicely connecting to nodes, while handling unable to connect stuff
-		ltcParam = &coinparam.LiteCoinTestNet4Params
-		ltcParam.PoWFunction = dummyProofOfWork
-	} else {
-		ltcParam = &coinparam.LiteRegNetParams
-		ltcParam.StartHeight = 0
-	}
-
-	// difficulty in non bitcoin testnets has an air of mystery
-	ltcParam.DiffCalcFunction = dummyDifficulty
-	ltcRoot := server.OpencxRoot + ltcParam.Name
-
-	logging.Infof("Starting LTC Wallet\n")
-
-	ltcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, hostString, ltcRoot, "", ltcParam)
-	if err != nil {
-		errChan <- fmt.Errorf("Error when starting ltc wallet")
-		return
-	}
-
-	logging.Infof("LTC Wallet started, coinType: %d\n", coinType)
-
-	blockChan := ltcWallet.Hook.RawBlocks()
-	ltcHeightChan := ltcWallet.LetMeKnowHeight()
-	server.OpencxLTCWallet = ltcWallet
-
-	go server.HeightHandler(ltcHeightChan, blockChan, ltcParam)
-
-	errChan <- nil
-	return
-}
-
-// SetupVTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupVTCChainhook(errChan chan error, hostString string) {
-	var vtcParam *coinparam.Params
-	if lnutil.YupString(hostString) {
-		vtcParam = &coinparam.VertcoinTestNetParams
-		vtcParam.PoWFunction = dummyProofOfWork
-		vtcParam.DNSSeeds = []string{"jlovejoy.mit.edu", "gertjaap.ddns.net", "fr1.vtconline.org", "tvtc.vertcoin.org"}
-	} else {
-		vtcParam = &coinparam.VertcoinRegTestParams
-	}
-
-	vtcParam.DiffCalcFunction = dummyDifficulty
-	vtcRoot := server.OpencxRoot + vtcParam.Name
-
-	logging.Infof("Starting VTC Wallet\n")
-
-	vtcWallet, coinType, err := wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, vtcRoot, "", vtcParam)
-	if err != nil {
-		errChan <- fmt.Errorf("Error when starting vtc wallet")
-		return
-	}
-
-	logging.Infof("VTC Wallet started, coinType: %d\n", coinType)
-
-	blockChan := vtcWallet.Hook.RawBlocks()
-	vtcHeightChan := vtcWallet.LetMeKnowHeight()
-	server.OpencxVTCWallet = vtcWallet
-
-	go server.HeightHandler(vtcHeightChan, blockChan, vtcParam)
-
-	errChan <- nil
-	return
 }
 
 // HeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
