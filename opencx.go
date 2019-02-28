@@ -131,6 +131,7 @@ func main() {
 	btcCoinType := <-btcCoinTypeChan
 	ltcCoinType := <-ltcCoinTypeChan
 	vtcCoinType := <-vtcCoinTypeChan
+	logging.Infof("btc: %d, ltc: %d, vtc: %d", btcCoinType, ltcCoinType, vtcCoinType)
 
 	// Waited until the wallets are started, time to link them!
 	if err = ocxServer.LinkAllWallets(btcCoinType, ltcCoinType, vtcCoinType); err != nil {

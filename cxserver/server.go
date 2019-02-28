@@ -281,9 +281,6 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 	// we don't need param passed as a parameter to this function, the wallet already has it so we have to substitute a bunch of stuff
 	WallitIdx := wallet.Param.HDCoinType
 
-	// Have to do this because we deleted the lines actually creating the wallet, we already have it created.
-	server.ExchangeNode.SubWallet[WallitIdx] = wallet
-
 	// see if we've already attached a wallet for this coin type
 	if server.ExchangeNode.SubWallet[WallitIdx] != nil {
 		err = fmt.Errorf("coin type %d already linked", WallitIdx)
@@ -296,6 +293,9 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 		server.ExchangeNode.MultiWallet = true
 	}
 
+	// Have to do this because we deleted the lines actually creating the wallet, we already have it created.
+	server.ExchangeNode.SubWallet[WallitIdx] = wallet
+
 	// if there aren't, Multiwallet will still be false; set new wallit to
 	// be the first & default
 
@@ -303,7 +303,10 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 		server.ExchangeNode.ConnectedCoinTypes = make(map[uint32]bool)
 		server.ExchangeNode.ConnectedCoinTypes[uint32(coinType)] = true
 	}
+
+	// why is this needed in 2 places, can't this be the only time this is run?
 	server.ExchangeNode.ConnectedCoinTypes[uint32(coinType)] = true
+
 	// re-register channel addresses
 	qChans, err := server.ExchangeNode.GetAllQchans()
 	if err != nil {
@@ -321,7 +324,6 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 		server.ExchangeNode.SubWallet[WallitIdx].WatchThis(qChan.PorTxo.Op)
 	}
 
-	logging.Infof("subwallet walletidx: %p", server.ExchangeNode.SubWallet[WallitIdx])
 	go server.ExchangeNode.OPEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnow())
 	go server.ExchangeNode.HeightEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnowHeight())
 
