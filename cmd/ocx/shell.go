@@ -106,8 +106,8 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "getlitconnection" {
-		if len(args) != 1 {
-			return fmt.Errorf("Must specify one argument: asset")
+		if len(args) != 0 {
+			return fmt.Errorf("Don't specify arguments please")
 		}
 
 		if err := cl.GetLitConnection(args); err != nil {

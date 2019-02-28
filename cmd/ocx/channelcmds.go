@@ -6,8 +6,8 @@ import (
 )
 
 func (cl *openCxClient) GetLitConnection(args []string) (err error) {
+	getLitConnectionReply := new(cxrpc.GetLitConnectionReply)
 
-	var getLitConnectionReply *cxrpc.GetLitConnectionReply
 	if getLitConnectionReply, err = cl.RPCClient.GetLitConnection(); err != nil {
 		return
 	}

@@ -68,7 +68,7 @@ func main() {
 	}
 
 	if err = client.parseCommands(os.Args[1:]); err != nil {
-		logging.Fatalf("Error parsing commands: \n%s", err)
+		logging.Fatalf("%s", err)
 	}
 }
 
