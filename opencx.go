@@ -29,6 +29,9 @@ type opencxConfig struct {
 	// logging and debug parameters
 	LogLevel []bool `short:"v" description:"Set verbosity level to verbose (-v), very verbose (-vv) or very very verbose (-vvv)"`
 
+	// logging for lit nodes (find something better than w)
+	LitLogLevel []bool `short:"w" description:"Set verbosity level to verbose (-w), very verbose (-ww) or very very verbose (-www)"`
+
 	// networks that we can connect to
 	// Tn3host     string `long:"tn3" description:"Connect to bitcoin testnet3. Specify a socket address."`
 	// Lt4host     string `long:"lt4" description:"Connect to litecoin testnet4. Specify a socket address."`
@@ -36,6 +39,8 @@ type opencxConfig struct {
 	Reghost     string `long:"reg" description:"Connect to bitcoin regtest. Specify a socket address."`
 	Litereghost string `long:"litereg" description:"Connect to litecoin regtest. Specify a socket address."`
 	Rtvtchost   string `long:"rtvtc" description:"Connect to Vertcoin regtest node. Specify a socket address."`
+	MaxPeers    uint16 `long:"numpeers" description:"Maximum number of peers that you'd like to support"`
+	MinPeerPort uint16 `long:"minpeerport" description:"Port to start creating ports for peers at"`
 }
 
 var (
@@ -44,9 +49,15 @@ var (
 	defaultOpencxHomeDirName = os.Getenv("HOME") + "/.opencx/"
 	defaultKeyFileName       = "privkey.hex"
 	defaultLogLevel          = 0
+	defaultLitLogLevel       = 0
 	defaultHomeDir           = os.Getenv("HOME")
 	defaultRpcport           = uint16(12345)
 	defaultRpchost           = "localhost"
+	defaultMaxPeers          = uint16(64)
+	defaultMinPeerPort       = uint16(25565)
+	defaultReghost           = "yup"
+	defaultLitereghost       = "yup"
+	defaultRtvtchost         = "yup"
 )
 
 var orderBufferSize = 1
@@ -64,9 +75,11 @@ func main() {
 		OpencxHomeDir: defaultOpencxHomeDirName,
 		Rpcport:       defaultRpcport,
 		Rpchost:       defaultRpchost,
-		Reghost:       "yup",
-		Litereghost:   "yup",
-		Rtvtchost:     "yup",
+		Reghost:       defaultReghost,
+		Litereghost:   defaultLitereghost,
+		Rtvtchost:     defaultRtvtchost,
+		MaxPeers:      defaultMaxPeers,
+		MinPeerPort:   defaultMinPeerPort,
 	}
 
 	// Check and load config params
@@ -133,6 +146,16 @@ func main() {
 	// Waited until the wallets are started, time to link them!
 	if err = ocxServer.LinkAllWallets(btcCoinType, ltcCoinType, vtcCoinType); err != nil {
 		logging.Fatalf("Could not link wallets: \n%s", err)
+	}
+
+	// Listen on a bunch of ports according to the number of peers you want to support.
+	for portNum := conf.MinPeerPort; portNum < conf.MinPeerPort+conf.MaxPeers; portNum++ {
+		var addr string
+		if addr, err = ocxServer.ExchangeNode.TCPListener(int(portNum)); err != nil {
+			return
+		}
+
+		logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
 	}
 
 	// init the maps for the server

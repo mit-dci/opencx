@@ -20,12 +20,11 @@ import (
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
-	OpencxDB          cxdb.OpencxStore
-	OpencxRoot        string
-	OpencxPort        uint16
-	AssetArray        []match.Asset
-	PairsArray        []*match.Pair
-	PubKeyForChannels [33]byte
+	OpencxDB   cxdb.OpencxStore
+	OpencxRoot string
+	OpencxPort uint16
+	AssetArray []match.Asset
+	PairsArray []*match.Pair
 	// Hehe it's the vault, pls don't steal
 	OpencxBTCTestPrivKey *hdkeychain.ExtendedKey
 	OpencxVTCTestPrivKey *hdkeychain.ExtendedKey

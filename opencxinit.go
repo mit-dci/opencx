@@ -8,6 +8,7 @@ import (
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/lit/lnutil"
+	litLogging "github.com/mit-dci/lit/logging"
 	"github.com/mit-dci/opencx/logging"
 )
 
@@ -91,7 +92,7 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	defer logFile.Close()
 	logging.SetLogFile(logFile)
 
-	logLevel := 0
+	logLevel := defaultLogLevel
 	if len(conf.LogLevel) == 1 { // -v
 		logLevel = 1
 	} else if len(conf.LogLevel) == 2 { // -vv
@@ -99,7 +100,17 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	} else if len(conf.LogLevel) >= 3 { // -vvv
 		logLevel = 3
 	}
-	logging.SetLogLevel(logLevel) // defaults to zero
+	logging.SetLogLevel(logLevel) // defaults to defaultLogLevel
+
+	litLogLevel := defaultLitLogLevel
+	if len(conf.LitLogLevel) == 1 { // -w
+		litLogLevel = 1
+	} else if len(conf.LitLogLevel) == 2 { // -ww
+		litLogLevel = 2
+	} else if len(conf.LitLogLevel) >= 3 { // -www
+		litLogLevel = 3
+	}
+	litLogging.SetLogLevel(litLogLevel) // defaults to defaultLitLogLevel
 
 	keyPath := filepath.Join(conf.OpencxHomeDir, defaultKeyFileName)
 	privkey, err := lnutil.ReadKeyFile(keyPath)
