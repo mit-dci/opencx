@@ -145,12 +145,11 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan c
 	}
 
 	btcParam.DiffCalcFunction = dummyDifficulty
-	btcRoot := server.OpencxRoot + btcParam.Name
 
 	logging.Infof("Starting BTC Wallet\n")
 
 	var btcWallet *wallit.Wallit
-	if btcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, hostString, btcRoot, "", btcParam); err != nil {
+	if btcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, hostString, server.OpencxRoot, "", btcParam); err != nil {
 		return
 	}
 
@@ -191,12 +190,11 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan c
 
 	// difficulty in non bitcoin testnets has an air of mystery
 	ltcParam.DiffCalcFunction = dummyDifficulty
-	ltcRoot := server.OpencxRoot + ltcParam.Name
 
 	logging.Infof("Starting LTC Wallet\n")
 
 	var ltcWallet *wallit.Wallit
-	if ltcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, hostString, ltcRoot, "", ltcParam); err != nil {
+	if ltcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, hostString, server.OpencxRoot, "", ltcParam); err != nil {
 		return
 	}
 
@@ -234,12 +232,11 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 	}
 
 	vtcParam.DiffCalcFunction = dummyDifficulty
-	vtcRoot := server.OpencxRoot + vtcParam.Name
 
 	logging.Infof("Starting VTC Wallet\n")
 
 	var vtcWallet *wallit.Wallit
-	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, vtcRoot, "", vtcParam); err != nil {
+	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, server.OpencxRoot, "", vtcParam); err != nil {
 		return
 	}
 
