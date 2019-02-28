@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/mit-dci/lit/btcutil"
 	"github.com/mit-dci/lit/btcutil/chaincfg/chainhash"
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/lnutil"
+	"github.com/mit-dci/lit/qln"
 	"github.com/mit-dci/lit/wallit"
 	"github.com/mit-dci/lit/wire"
 
@@ -15,9 +17,6 @@ import (
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
-
-// put this here for now, eventually TODO: store stuff as blocks come in and check what height we're at, also deal with reorgs
-const runningLocally = false
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
@@ -30,11 +29,15 @@ type OpencxServer struct {
 	OpencxBTCTestPrivKey *hdkeychain.ExtendedKey
 	OpencxVTCTestPrivKey *hdkeychain.ExtendedKey
 	OpencxLTCTestPrivKey *hdkeychain.ExtendedKey
-	HeightEventChan      chan lnutil.HeightEvent
-	ingestMutex          sync.Mutex
-	OpencxBTCWallet      *wallit.Wallit
-	OpencxLTCWallet      *wallit.Wallit
-	OpencxVTCWallet      *wallit.Wallit
+
+	ExchangeNode *qln.LitNode
+
+	HeightEventChan chan lnutil.HeightEvent
+	ingestMutex     sync.Mutex
+
+	OpencxBTCWallet *wallit.Wallit
+	OpencxLTCWallet *wallit.Wallit
+	OpencxVTCWallet *wallit.Wallit
 
 	orderMutex *sync.Mutex
 	OrderMap   map[match.Pair][]*match.LimitOrder
@@ -109,6 +112,15 @@ func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) error {
 	return nil
 }
 
+// SetupLitNode sets up the lit node for use later, I wanna do this because this really shouldn't be in initialization code? should it be?
+// basically just run this after you unlock the key
+func (server *OpencxServer) SetupLitNode(privkey *[32]byte, nodePath string, trackerURL string, proxyURL string, nat string) (err error) {
+	if server.ExchangeNode, err = qln.NewLitNode(privkey, nodePath, trackerURL, proxyURL, nat); err != nil {
+		return
+	}
+	return
+}
+
 // SetupBTCChainhook will be used to watch for events on the chain.
 func (server *OpencxServer) SetupBTCChainhook(errChan chan error, hostString string) {
 	var btcParam *coinparam.Params
@@ -140,6 +152,89 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, hostString str
 
 	errChan <- nil
 	return
+}
+
+// LinkAllWallets will link the exchanges' wallets with the lit node running.
+func (server *OpencxServer) LinkAllWallets(btcCoinType int, ltcCoinType int, vtcCoinType int) (err error) {
+	// Idk if I should run a tower with these, probably. It's an exchange
+	if err = server.LinkOneWallet(server.OpencxBTCWallet, btcCoinType, false); err != nil {
+		err = fmt.Errorf("Error linking BTC Wallet to node: \n%s", err)
+		return
+	}
+
+	if err = server.LinkOneWallet(server.OpencxLTCWallet, ltcCoinType, false); err != nil {
+		err = fmt.Errorf("Error linking LTC Wallet to node: \n%s", err)
+		return
+	}
+
+	if err = server.LinkOneWallet(server.OpencxVTCWallet, vtcCoinType, false); err != nil {
+		err = fmt.Errorf("Error linking VTC Wallet to node: \n%s", err)
+		return
+	}
+
+	logging.Infof("Successfully linked all wallets!")
+	return
+}
+
+// LinkOneWallet is a modified version of linkwallet in lit that doesn't make the wallet but links it with an already running one. Your responsibility to pass the correct cointype and tower.
+func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, tower bool) (err error) {
+	WallitIdx := wallet.Param.HDCoinType
+
+	// see if we've already attached a wallet for this coin type
+	if server.ExchangeNode.SubWallet[WallitIdx] != nil {
+		return fmt.Errorf("coin type %d already linked", WallitIdx)
+	}
+
+	// see if there are other wallets already linked
+	if len(server.ExchangeNode.SubWallet) != 0 {
+		// there are; assert multiwallet (may already be asserted)
+		server.ExchangeNode.MultiWallet = true
+	}
+
+	// if there aren't, Multiwallet will still be false; set new wallit to
+	// be the first & default
+
+	if server.ExchangeNode.ConnectedCoinTypes == nil {
+		server.ExchangeNode.ConnectedCoinTypes = make(map[uint32]bool)
+		server.ExchangeNode.ConnectedCoinTypes[uint32(coinType)] = true
+	}
+	server.ExchangeNode.ConnectedCoinTypes[uint32(coinType)] = true
+	// re-register channel addresses
+	qChans, err := server.ExchangeNode.GetAllQchans()
+	if err != nil {
+		return err
+	}
+
+	for _, qChan := range qChans {
+		var pkh [20]byte
+		pkhSlice := btcutil.Hash160(qChan.MyRefundPub[:])
+		copy(pkh[:], pkhSlice)
+		server.ExchangeNode.SubWallet[WallitIdx].ExportHook().RegisterAddress(pkh)
+
+		logging.Infof("Registering outpoint %v", qChan.PorTxo.Op)
+
+		server.ExchangeNode.SubWallet[WallitIdx].WatchThis(qChan.PorTxo.Op)
+	}
+
+	go server.ExchangeNode.OPEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnow())
+	go server.ExchangeNode.HeightEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnowHeight())
+
+	if !server.ExchangeNode.MultiWallet {
+		server.ExchangeNode.DefaultCoin = wallet.Param.HDCoinType
+	}
+
+	// if this node is running a watchtower, link the watchtower to the
+	// new wallet block events
+
+	if tower {
+		err = server.ExchangeNode.Tower.HookLink(
+			server.ExchangeNode.LitFolder, wallet.Param, server.ExchangeNode.SubWallet[WallitIdx].ExportHook())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // SetupLTCChainhook will be used to watch for events on the chain.
