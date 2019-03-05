@@ -34,6 +34,7 @@ type OpencxServer struct {
 
 	ExchangeNode *qln.LitNode
 
+	BlockChanMap       map[int]chan *wire.MsgBlock
 	HeightEventChanMap map[int]chan lnutil.HeightEvent
 	ingestMutex        sync.Mutex
 
@@ -99,6 +100,7 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 		orderMutex:         new(sync.Mutex),
 		OrderMap:           make(map[match.Pair][]*match.LimitOrder),
 		ingestMutex:        *new(sync.Mutex),
+		BlockChanMap:       make(map[int]chan *wire.MsgBlock),
 		HeightEventChanMap: make(map[int]chan lnutil.HeightEvent),
 	}
 }

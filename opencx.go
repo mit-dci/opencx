@@ -51,7 +51,7 @@ var (
 	defaultOpencxHomeDirName = os.Getenv("HOME") + "/.opencx/"
 	defaultKeyFileName       = "privkey.hex"
 	defaultLogLevel          = 0
-	defaultLitLogLevel       = 0
+	defaultLitLogLevel       = 3
 	defaultHomeDir           = os.Getenv("HOME")
 	defaultRpcport           = uint16(12345)
 	defaultRpchost           = "localhost"
