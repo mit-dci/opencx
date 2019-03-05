@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/mit-dci/lit/uspv"
+	"github.com/Rjected/lit/uspv"
 
 	"github.com/mit-dci/lit/eventbus"
 
@@ -119,9 +119,6 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 	var err error
 	// create wallit root directory
 	_, err = os.Stat(server.WallitRoot)
-	if err != nil {
-		logging.Errorf("Error while getting a directory: \n%s", err)
-	}
 	if os.IsNotExist(err) {
 		err = os.Mkdir(server.WallitRoot, 0700)
 	}
@@ -131,9 +128,6 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 
 	// create chainhook root directory
 	_, err = os.Stat(server.ChainhookRoot)
-	if err != nil {
-		logging.Errorf("Error while creating a directory: \n%s", err)
-	}
 	if os.IsNotExist(err) {
 		err = os.Mkdir(server.ChainhookRoot, 0700)
 	}
@@ -143,9 +137,6 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 
 	// create lit root directory
 	_, err = os.Stat(server.LitRoot)
-	if err != nil {
-		logging.Errorf("Error while creating a directory: \n%s", err)
-	}
 	if os.IsNotExist(err) {
 		err = os.Mkdir(server.LitRoot, 0700)
 	}
