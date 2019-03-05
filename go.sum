@@ -1,9 +1,7 @@
 github.com/NebulousLabs/go-UpnP v0.0.0-20181203152547-b32978b8ccbf h1:W7P3bv/G1dqsdsc+L2iZZRKHLSA3akIJm14wwaLxETM=
 github.com/NebulousLabs/go-UpnP v0.0.0-20181203152547-b32978b8ccbf/go.mod h1:T0vQBt4b6iPDbP21SrsJ6e3E3gbPa9LAhWDZB6pFRcg=
-github.com/Rjected/lit v0.0.0-20190305203201-48e600788521 h1:So5erMJ3oyXUQxXqogrQcxZIPygB9G02lJaUtxDm4cg=
-github.com/Rjected/lit v0.0.0-20190305203201-48e600788521/go.mod h1:EfE2N8+RTSR3TcmSPmUdE0VKETvP5EG8hi+TCw22VuI=
-github.com/Rjected/lit v0.0.0-20190305203516-45d69bfa94ed h1:hmR4mnfe6QzKpHk4eYO0i8ikv+5i94QbxI/8VhOH0kY=
-github.com/Rjected/lit v0.0.0-20190305203516-45d69bfa94ed/go.mod h1:EfE2N8+RTSR3TcmSPmUdE0VKETvP5EG8hi+TCw22VuI=
+github.com/Rjected/lit v0.0.0-20190305212926-378ed5662313 h1:oqOHoYtrCzHSA/+TVcUAZIw87RIKUWEyb/+/BnaA/K8=
+github.com/Rjected/lit v0.0.0-20190305212926-378ed5662313/go.mod h1:EfE2N8+RTSR3TcmSPmUdE0VKETvP5EG8hi+TCw22VuI=
 github.com/aead/skein v0.0.0-20160722084837-9365ae6e95d2 h1:q5TSngwXJdajCyZPQR+eKyRRgI3/ZXC/Nq1ZxZ4Zxu8=
 github.com/aead/skein v0.0.0-20160722084837-9365ae6e95d2/go.mod h1:4JBZEId5BaLqvA2DGU53phvwkn2WpeLhNSF79/uKBPs=
 github.com/awalterschulze/gographviz v0.0.0-20190221210632-1e9ccb565bca h1:xwIXr1FpA2XBoohlpvgb11No/zbsh5Clm/98PWPcHVA=

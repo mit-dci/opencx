@@ -1,7 +1,7 @@
 module github.com/mit-dci/opencx
 
 require (
-	github.com/Rjected/lit v0.0.0-20190305203516-45d69bfa94ed
+	github.com/Rjected/lit v0.0.0-20190305212926-378ed5662313
 	github.com/btcsuite/fastsha256 v0.0.0-20160815193821-637e65642941 // indirect
 	github.com/btcsuite/golangcrypto v0.0.0-20150304025918-53f62d9b43e8 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

@@ -276,6 +276,7 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan c
 	server.OpencxLTCWallet = ltcWallet
 	hookBlockChan := ltcHook.RawBlocks()
 
+	// for some reason the currentHeightChan is better for ltc or smth
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, ltcParam)
 
 	return
@@ -307,15 +308,15 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 
 	logging.Infof("Starting VTC Wallet\n")
 
-	var vtcWallet *wallit.Wallit
-	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, server.WallitRoot, "", vtcParam); err != nil {
-		return
-	}
-
 	var vtcHook *uspv.SPVCon
 	var currentHeightChan chan int32
 	vtcHook = new(uspv.SPVCon)
 	if _, currentHeightChan, err = vtcHook.Start(vtcParam.StartHeight, hostString, server.ChainhookRoot, "", vtcParam); err != nil {
+		return
+	}
+
+	var vtcWallet *wallit.Wallit
+	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, server.WallitRoot, "", vtcParam); err != nil {
 		return
 	}
 
@@ -438,12 +439,9 @@ func (server *OpencxServer) GetFundHandler() (hFunc func(event eventbus.Event) e
 func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.HeightEvent, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
 	for {
 
-		logging.Infof("waiting for blockheight %s", coinType.Name)
 		h := <-incomingBlockHeight
-
-		logging.Infof("waiting for block %s", coinType.Name)
 		block := <-blockChan
-		go server.CallIngest(h.Height, block, coinType)
+		server.CallIngest(h.Height, block, coinType)
 	}
 }
 
@@ -451,18 +449,16 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.Height
 func (server *OpencxServer) ChainHookHeightHandler(incomingBlockHeight chan int32, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
 	for {
 
-		logging.Infof("waiting for blockheight %s", coinType.Name)
-		h := <-incomingBlockHeight
-
-		logging.Infof("waiting for block %s", coinType.Name)
+		// h := <-incomingBlockHeight
 		block := <-blockChan
-		go server.CallIngest(h, block, coinType)
+		logging.Infof("Block %s from %s", block.Header.BlockHash(), coinType.Name)
+		// server.CallIngest(h.Height, block, coinType)
 	}
 }
 
 // CallIngest calls the ingest function. This is so we can make a bunch of different handlers that call this depending on which way they use channels.
 func (server *OpencxServer) CallIngest(blockHeight int32, block *wire.MsgBlock, coinType *coinparam.Params) {
-	logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), blockHeight)
+	// logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), blockHeight)
 	if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(blockHeight), coinType); err != nil {
 		logging.Infof("something went horribly wrong with %s\n", coinType.Name)
 		logging.Errorf("Here's what went horribly wrong: %s\n", err)
