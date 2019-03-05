@@ -12,7 +12,6 @@ func (cl *openCxClient) GetLitConnection(args []string) (err error) {
 		return
 	}
 
-	logging.Infof("len ports: %d", len(getLitConnectionReply.Ports))
 	for _, port := range getLitConnectionReply.Ports {
 		logging.Infof("Exchange Listener: con %s@%s:%d", getLitConnectionReply.PubKeyHash, cl.RPCClient.GetHostname(), port)
 	}

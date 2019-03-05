@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/mit-dci/lit/eventbus"
+
 	"github.com/mit-dci/lit/btcutil"
 	"github.com/mit-dci/lit/btcutil/chaincfg/chainhash"
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
@@ -32,8 +34,8 @@ type OpencxServer struct {
 
 	ExchangeNode *qln.LitNode
 
-	HeightEventChan chan lnutil.HeightEvent
-	ingestMutex     sync.Mutex
+	HeightEventChanMap map[int]chan lnutil.HeightEvent
+	ingestMutex        sync.Mutex
 
 	OpencxBTCWallet *wallit.Wallit
 	OpencxLTCWallet *wallit.Wallit
@@ -84,6 +86,21 @@ func (server *OpencxServer) MatchingLoop(pair *match.Pair, bufferSize int) {
 		server.UnlockOrders()
 	}
 
+}
+
+// InitServer creates a new server
+func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray []*match.Pair, assets []match.Asset) *OpencxServer {
+	return &OpencxServer{
+		OpencxDB:           db,
+		OpencxRoot:         homedir,
+		OpencxPort:         rpcport,
+		PairsArray:         pairsArray,
+		AssetArray:         assets,
+		orderMutex:         new(sync.Mutex),
+		OrderMap:           make(map[match.Pair][]*match.LimitOrder),
+		ingestMutex:        *new(sync.Mutex),
+		HeightEventChanMap: make(map[int]chan lnutil.HeightEvent),
+	}
 }
 
 // TODO now that I know how to use this hdkeychain stuff, let's figure out how to create addresses to store
@@ -157,6 +174,7 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan c
 	blockChan := btcWallet.Hook.RawBlocks()
 	btcHeightChan := btcWallet.LetMeKnowHeight()
 	server.OpencxBTCWallet = btcWallet
+	// server.HeightEventChanMap[coinType] = btcHeightChan
 
 	go server.HeightHandler(btcHeightChan, blockChan, btcParam)
 
@@ -202,6 +220,7 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan c
 	blockChan := ltcWallet.Hook.RawBlocks()
 	ltcHeightChan := ltcWallet.LetMeKnowHeight()
 	server.OpencxLTCWallet = ltcWallet
+	// server.HeightEventChanMap[coinType] = ltcHeightChan
 
 	go server.HeightHandler(ltcHeightChan, blockChan, ltcParam)
 
@@ -244,6 +263,7 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 	blockChan := vtcWallet.Hook.RawBlocks()
 	vtcHeightChan := vtcWallet.LetMeKnowHeight()
 	server.OpencxVTCWallet = vtcWallet
+	// server.HeightEventChanMap[coinType] = vtcHeightChan
 
 	go server.HeightHandler(vtcHeightChan, blockChan, vtcParam)
 
@@ -321,7 +341,7 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 	}
 
 	go server.ExchangeNode.OPEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnow())
-	go server.ExchangeNode.HeightEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnowHeight())
+	go server.ExchangeNode.HeightEventHandler(server.HeightEventChanMap[coinType])
 
 	// If this is the first coin we're linking then set that one to default.
 	if !server.ExchangeNode.MultiWallet {
@@ -342,18 +362,38 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 	return nil
 }
 
+// GetFundHandler gets the handler func to pass in to the register function. Maybe just make this a normal function, but I think we need server stuff
+func (server *OpencxServer) GetFundHandler() (hFunc func(event eventbus.Event) eventbus.EventHandleResult) {
+	hFunc = func(event eventbus.Event) (res eventbus.EventHandleResult) {
+		// // We know this is a channel state update event
+		// chanStateEvent := event.(qln.ChannelStateUpdateEvent)
+
+		// amt := chanStateEvent.
+
+		return
+	}
+	return
+}
+
 // HeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
 func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.HeightEvent, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
 	for {
 
+		logging.Infof("waiting for blockheight %s", coinType.Name)
 		h := <-incomingBlockHeight
 
+		logging.Infof("waiting for block %s", coinType.Name)
 		block := <-blockChan
 		logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), h.Height)
 		if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(h.Height), coinType); err != nil {
 			logging.Infof("something went horribly wrong with %s\n", coinType.Name)
 			logging.Errorf("Here's what went horribly wrong: %s\n", err)
 		}
+		// logging.Infof("Passing heightevent to other chan")
+
+		// passing heightevent to other chan
+		server.HeightEventChanMap[int(coinType.HDCoinType)] <- h
+
 	}
 }
 

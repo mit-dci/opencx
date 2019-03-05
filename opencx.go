@@ -41,6 +41,8 @@ type opencxConfig struct {
 	Rtvtchost   string `long:"rtvtc" description:"Connect to Vertcoin regtest node. Specify a socket address."`
 	MaxPeers    uint16 `long:"numpeers" description:"Maximum number of peers that you'd like to support"`
 	MinPeerPort uint16 `long:"minpeerport" description:"Port to start creating ports for peers at"`
+	Lithost     string `long:"lithost" description:"Host for the lightning node on the exchange to run"`
+	Litport     uint16 `long:"litport" description:"Port for the lightning node on the exchange to run"`
 }
 
 var (
@@ -58,6 +60,8 @@ var (
 	defaultReghost           = "yup"
 	defaultLitereghost       = "yup"
 	defaultRtvtchost         = "yup"
+	defaultLithost           = "localhost"
+	defaultLitport           = uint16(12346)
 )
 
 var orderBufferSize = 1
@@ -80,6 +84,8 @@ func main() {
 		Rtvtchost:     defaultRtvtchost,
 		MaxPeers:      defaultMaxPeers,
 		MinPeerPort:   defaultMinPeerPort,
+		Lithost:       defaultLithost,
+		Litport:       defaultLitport,
 	}
 
 	// Check and load config params
@@ -103,13 +109,7 @@ func main() {
 	defer db.DBHandler.Close()
 
 	// Anyways, here's where we set the server
-	ocxServer := &cxserver.OpencxServer{
-		OpencxDB:   db,
-		OpencxRoot: conf.OpencxHomeDir,
-		OpencxPort: conf.Rpcport,
-		PairsArray: assetPairs,
-		AssetArray: assets,
-	}
+	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, assetPairs, assets)
 
 	// Check that the private key exists and if it does, load it
 	if err = ocxServer.SetupServerKeys(key); err != nil {
@@ -150,12 +150,12 @@ func main() {
 
 	// Listen on a bunch of ports according to the number of peers you want to support.
 	for portNum := conf.MinPeerPort; portNum < conf.MinPeerPort+conf.MaxPeers; portNum++ {
-		var addr string
-		if addr, err = ocxServer.ExchangeNode.TCPListener(int(portNum)); err != nil {
+		var _ string
+		if _, err = ocxServer.ExchangeNode.TCPListener(int(portNum)); err != nil {
 			return
 		}
 
-		logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
+		// logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
 	}
 
 	// init the maps for the server
@@ -181,6 +181,9 @@ func main() {
 		logging.Fatal("listen error:", err)
 	}
 	logging.Infof("Running RPC server on %s\n", listener.Addr().String())
+
+	// Setup lit node rpc
+	go ocxServer.SetupLitRPCConnect(conf.Lithost, conf.Litport)
 
 	defer listener.Close()
 	rpc.Accept(listener)
