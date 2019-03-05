@@ -2,7 +2,10 @@ package cxserver
 
 import (
 	"fmt"
+	"os"
 	"sync"
+
+	"github.com/mit-dci/lit/uspv"
 
 	"github.com/mit-dci/lit/eventbus"
 
@@ -22,11 +25,14 @@ import (
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
-	OpencxDB   cxdb.OpencxStore
-	OpencxRoot string
-	OpencxPort uint16
-	AssetArray []match.Asset
-	PairsArray []*match.Pair
+	OpencxDB      cxdb.OpencxStore
+	OpencxRoot    string
+	OpencxPort    uint16
+	WallitRoot    string
+	ChainhookRoot string
+	LitRoot       string
+	AssetArray    []match.Asset
+	PairsArray    []*match.Pair
 	// Hehe it's the vault, pls don't steal
 	OpencxBTCTestPrivKey *hdkeychain.ExtendedKey
 	OpencxVTCTestPrivKey *hdkeychain.ExtendedKey
@@ -41,6 +47,10 @@ type OpencxServer struct {
 	OpencxBTCWallet *wallit.Wallit
 	OpencxLTCWallet *wallit.Wallit
 	OpencxVTCWallet *wallit.Wallit
+
+	OpencxBTCHook *uspv.ChainHook
+	OpencxLTCHook *uspv.ChainHook
+	OpencxVTCHook *uspv.ChainHook
 
 	orderMutex *sync.Mutex
 	OrderMap   map[match.Pair][]*match.LimitOrder
@@ -91,7 +101,7 @@ func (server *OpencxServer) MatchingLoop(pair *match.Pair, bufferSize int) {
 
 // InitServer creates a new server
 func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray []*match.Pair, assets []match.Asset) *OpencxServer {
-	return &OpencxServer{
+	server := &OpencxServer{
 		OpencxDB:           db,
 		OpencxRoot:         homedir,
 		OpencxPort:         rpcport,
@@ -102,7 +112,48 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 		ingestMutex:        *new(sync.Mutex),
 		BlockChanMap:       make(map[int]chan *wire.MsgBlock),
 		HeightEventChanMap: make(map[int]chan lnutil.HeightEvent),
+		WallitRoot:         homedir + "wallit/",
+		ChainhookRoot:      homedir + "chainhook/",
+		LitRoot:            homedir + "lit/",
 	}
+	var err error
+	// create wallit root directory
+	_, err = os.Stat(server.WallitRoot)
+	if err != nil {
+		logging.Errorf("Error while getting a directory: \n%s", err)
+	}
+	if os.IsNotExist(err) {
+		err = os.Mkdir(server.WallitRoot, 0700)
+	}
+	if err != nil {
+		logging.Errorf("Error while creating a directory: \n%s", err)
+	}
+
+	// create chainhook root directory
+	_, err = os.Stat(server.ChainhookRoot)
+	if err != nil {
+		logging.Errorf("Error while creating a directory: \n%s", err)
+	}
+	if os.IsNotExist(err) {
+		err = os.Mkdir(server.ChainhookRoot, 0700)
+	}
+	if err != nil {
+		logging.Errorf("Error while creating a directory: \n%s", err)
+	}
+
+	// create lit root directory
+	_, err = os.Stat(server.LitRoot)
+	if err != nil {
+		logging.Errorf("Error while creating a directory: \n%s", err)
+	}
+	if os.IsNotExist(err) {
+		err = os.Mkdir(server.LitRoot, 0700)
+	}
+	if err != nil {
+		logging.Errorf("Error while creating a directory: \n%s", err)
+	}
+
+	return server
 }
 
 // TODO now that I know how to use this hdkeychain stuff, let's figure out how to create addresses to store
@@ -133,8 +184,8 @@ func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) error {
 
 // SetupLitNode sets up the lit node for use later, I wanna do this because this really shouldn't be in initialization code? should it be?
 // basically just run this after you unlock the key
-func (server *OpencxServer) SetupLitNode(privkey *[32]byte, nodePath string, trackerURL string, proxyURL string, nat string) (err error) {
-	if server.ExchangeNode, err = qln.NewLitNode(privkey, nodePath, trackerURL, proxyURL, nat); err != nil {
+func (server *OpencxServer) SetupLitNode(privkey *[32]byte, trackerURL string, proxyURL string, nat string) (err error) {
+	if server.ExchangeNode, err = qln.NewLitNode(privkey, server.LitRoot, trackerURL, proxyURL, nat); err != nil {
 		return
 	}
 
@@ -167,18 +218,23 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan c
 	logging.Infof("Starting BTC Wallet\n")
 
 	var btcWallet *wallit.Wallit
-	if btcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, hostString, server.OpencxRoot, "", btcParam); err != nil {
+	if btcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, hostString, server.WallitRoot, "", btcParam); err != nil {
+		return
+	}
+
+	var btcHook *uspv.SPVCon
+	var currentHeightChan chan int32
+	btcHook = new(uspv.SPVCon)
+	if _, currentHeightChan, err = btcHook.Start(btcParam.StartHeight, hostString, server.ChainhookRoot, "", btcParam); err != nil {
 		return
 	}
 
 	logging.Infof("BTC Wallet Started, cointype: %d\n", coinType)
 
-	blockChan := btcWallet.Hook.RawBlocks()
-	btcHeightChan := btcWallet.LetMeKnowHeight()
 	server.OpencxBTCWallet = btcWallet
-	// server.HeightEventChanMap[coinType] = btcHeightChan
+	hookBlockChan := btcHook.RawBlocks()
 
-	go server.HeightHandler(btcHeightChan, blockChan, btcParam)
+	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, btcParam)
 
 	return
 }
@@ -213,18 +269,23 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan c
 	logging.Infof("Starting LTC Wallet\n")
 
 	var ltcWallet *wallit.Wallit
-	if ltcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, hostString, server.OpencxRoot, "", ltcParam); err != nil {
+	if ltcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, hostString, server.WallitRoot, "", ltcParam); err != nil {
 		return
 	}
 
-	logging.Infof("LTC Wallet started, coinType: %d\n", coinType)
+	var ltcHook *uspv.SPVCon
+	var currentHeightChan chan int32
+	ltcHook = new(uspv.SPVCon)
+	if _, currentHeightChan, err = ltcHook.Start(ltcParam.StartHeight, hostString, server.ChainhookRoot, "", ltcParam); err != nil {
+		return
+	}
 
-	blockChan := ltcWallet.Hook.RawBlocks()
-	ltcHeightChan := ltcWallet.LetMeKnowHeight()
+	logging.Infof("LTC Wallet Started, cointype: %d\n", coinType)
+
 	server.OpencxLTCWallet = ltcWallet
-	// server.HeightEventChanMap[coinType] = ltcHeightChan
+	hookBlockChan := ltcHook.RawBlocks()
 
-	go server.HeightHandler(ltcHeightChan, blockChan, ltcParam)
+	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, ltcParam)
 
 	return
 }
@@ -256,18 +317,23 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 	logging.Infof("Starting VTC Wallet\n")
 
 	var vtcWallet *wallit.Wallit
-	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, server.OpencxRoot, "", vtcParam); err != nil {
+	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, server.WallitRoot, "", vtcParam); err != nil {
 		return
 	}
 
-	logging.Infof("VTC Wallet started, coinType: %d\n", coinType)
+	var vtcHook *uspv.SPVCon
+	var currentHeightChan chan int32
+	vtcHook = new(uspv.SPVCon)
+	if _, currentHeightChan, err = vtcHook.Start(vtcParam.StartHeight, hostString, server.ChainhookRoot, "", vtcParam); err != nil {
+		return
+	}
 
-	blockChan := vtcWallet.Hook.RawBlocks()
-	vtcHeightChan := vtcWallet.LetMeKnowHeight()
+	logging.Infof("VTC Wallet Started, cointype: %d\n", coinType)
+
 	server.OpencxVTCWallet = vtcWallet
-	// server.HeightEventChanMap[coinType] = vtcHeightChan
+	hookBlockChan := vtcHook.RawBlocks()
 
-	go server.HeightHandler(vtcHeightChan, blockChan, vtcParam)
+	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, vtcParam)
 
 	return
 }
@@ -377,7 +443,7 @@ func (server *OpencxServer) GetFundHandler() (hFunc func(event eventbus.Event) e
 	return
 }
 
-// HeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
+// HeightHandler is a handler for when there is a height and block event for the wallet. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
 func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.HeightEvent, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
 	for {
 
@@ -386,16 +452,29 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.Height
 
 		logging.Infof("waiting for block %s", coinType.Name)
 		block := <-blockChan
-		logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), h.Height)
-		if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(h.Height), coinType); err != nil {
-			logging.Infof("something went horribly wrong with %s\n", coinType.Name)
-			logging.Errorf("Here's what went horribly wrong: %s\n", err)
-		}
-		// logging.Infof("Passing heightevent to other chan")
+		go server.CallIngest(h.Height, block, coinType)
+	}
+}
 
-		// passing heightevent to other chan
-		server.HeightEventChanMap[int(coinType.HDCoinType)] <- h
+// ChainHookHeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
+func (server *OpencxServer) ChainHookHeightHandler(incomingBlockHeight chan int32, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
+	for {
 
+		logging.Infof("waiting for blockheight %s", coinType.Name)
+		h := <-incomingBlockHeight
+
+		logging.Infof("waiting for block %s", coinType.Name)
+		block := <-blockChan
+		go server.CallIngest(h, block, coinType)
+	}
+}
+
+// CallIngest calls the ingest function. This is so we can make a bunch of different handlers that call this depending on which way they use channels.
+func (server *OpencxServer) CallIngest(blockHeight int32, block *wire.MsgBlock, coinType *coinparam.Params) {
+	logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), blockHeight)
+	if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(blockHeight), coinType); err != nil {
+		logging.Infof("something went horribly wrong with %s\n", coinType.Name)
+		logging.Errorf("Here's what went horribly wrong: %s\n", err)
 	}
 }
 

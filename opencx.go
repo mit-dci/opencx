@@ -51,7 +51,7 @@ var (
 	defaultOpencxHomeDirName = os.Getenv("HOME") + "/.opencx/"
 	defaultKeyFileName       = "privkey.hex"
 	defaultLogLevel          = 0
-	defaultLitLogLevel       = 3
+	defaultLitLogLevel       = 0
 	defaultHomeDir           = os.Getenv("HOME")
 	defaultRpcport           = uint16(12345)
 	defaultRpchost           = "localhost"
@@ -117,7 +117,7 @@ func main() {
 	}
 
 	// start the lit node for the exchange
-	if err = ocxServer.SetupLitNode(key, conf.OpencxHomeDir, "http://hubris.media.mit.edu:46580", "", ""); err != nil {
+	if err = ocxServer.SetupLitNode(key, "http://hubris.media.mit.edu:46580", "", ""); err != nil {
 		logging.Fatalf("Error starting lit node: \n%s", err)
 	}
 
