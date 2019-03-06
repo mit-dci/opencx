@@ -5,17 +5,17 @@ import (
 	"os"
 	"sync"
 
-	"github.com/Rjected/lit/uspv"
+	"github.com/mit-dci/lit/uspv"
 
 	"github.com/mit-dci/lit/eventbus"
 
+	"github.com/mit-dci/lit/qln"
+	"github.com/mit-dci/lit/wallit"
 	"github.com/mit-dci/lit/btcutil"
 	"github.com/mit-dci/lit/btcutil/chaincfg/chainhash"
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/lnutil"
-	"github.com/mit-dci/lit/qln"
-	"github.com/mit-dci/lit/wallit"
 	"github.com/mit-dci/lit/wire"
 
 	"github.com/mit-dci/opencx/cxdb"
@@ -213,17 +213,13 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan c
 		return
 	}
 
-	var btcHook *uspv.SPVCon
-	var currentHeightChan chan int32
-	btcHook = new(uspv.SPVCon)
-	if _, currentHeightChan, err = btcHook.Start(btcParam.StartHeight, hostString, server.ChainhookRoot, "", btcParam); err != nil {
-		return
-	}
+	btcHook := btcWallet.ExportHook()
 
 	logging.Infof("BTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxBTCWallet = btcWallet
-	hookBlockChan := btcHook.RawBlocks()
+	hookBlockChan := btcHook.NewRawBlocksChannel()
+	currentHeightChan := btcHook.NewHeightChannel()
 
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, btcParam)
 
@@ -265,16 +261,16 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan c
 	}
 
 	var ltcHook *uspv.SPVCon
-	var currentHeightChan chan int32
 	ltcHook = new(uspv.SPVCon)
-	if _, currentHeightChan, err = ltcHook.Start(ltcParam.StartHeight, hostString, server.ChainhookRoot, "", ltcParam); err != nil {
+	if _, _, err = ltcHook.Start(ltcParam.StartHeight, hostString, server.ChainhookRoot, "", ltcParam); err != nil {
 		return
 	}
 
 	logging.Infof("LTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxLTCWallet = ltcWallet
-	hookBlockChan := ltcHook.RawBlocks()
+	hookBlockChan := ltcHook.NewRawBlocksChannel()
+	currentHeightChan := ltcHook.NewHeightChannel()
 
 	// for some reason the currentHeightChan is better for ltc or smth
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, ltcParam)
@@ -309,9 +305,8 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 	logging.Infof("Starting VTC Wallet\n")
 
 	var vtcHook *uspv.SPVCon
-	var currentHeightChan chan int32
 	vtcHook = new(uspv.SPVCon)
-	if _, currentHeightChan, err = vtcHook.Start(vtcParam.StartHeight, hostString, server.ChainhookRoot, "", vtcParam); err != nil {
+	if _, _, err = vtcHook.Start(vtcParam.StartHeight, hostString, server.ChainhookRoot, "", vtcParam); err != nil {
 		return
 	}
 
@@ -323,7 +318,8 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 	logging.Infof("VTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxVTCWallet = vtcWallet
-	hookBlockChan := vtcHook.RawBlocks()
+	hookBlockChan := vtcHook.NewRawBlocksChannel()
+	currentHeightChan := vtcHook.NewHeightChannel()
 
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, vtcParam)
 
