@@ -108,7 +108,7 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err erro
 		return
 	}
 
-	if args.Withdrawal.Asset.String() == match.ByteToAssetString(match.VTCTest) {
+	if args.Withdrawal.Asset.String() == match.VTCTest.String() {
 		cl.Server.LockIngests()
 		if reply.Txid, err = cl.Server.VTCWithdraw(args.Withdrawal.Address, pubkey, args.Withdrawal.Amount); err != nil {
 			// gotta put these here cause if it errors out then oops just locked everything
@@ -120,7 +120,7 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err erro
 
 		return
 	}
-	if args.Withdrawal.Asset.String() == match.ByteToAssetString(match.BTCTest) {
+	if args.Withdrawal.Asset.String() == match.BTCTest.String() {
 		cl.Server.LockIngests()
 		if reply.Txid, err = cl.Server.BTCWithdraw(args.Withdrawal.Address, pubkey, args.Withdrawal.Amount); err != nil {
 			// gotta put these here cause if it errors out then oops just locked everything
@@ -132,7 +132,7 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err erro
 
 		return
 	}
-	if args.Withdrawal.Asset.String() == match.ByteToAssetString(match.LTCTest) {
+	if args.Withdrawal.Asset.String() == match.LTCTest.String() {
 		cl.Server.LockIngests()
 		if reply.Txid, err = cl.Server.LTCWithdraw(args.Withdrawal.Address, pubkey, args.Withdrawal.Amount); err != nil {
 			// gotta put these here cause if it errors out then oops just locked everything

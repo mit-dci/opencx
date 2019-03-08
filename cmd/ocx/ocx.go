@@ -1,8 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/crypto/sha3"
+
+	"github.com/mit-dci/lit/crypto/koblitz"
 
 	"github.com/mit-dci/opencx/cmd/benchclient"
 
@@ -79,6 +84,42 @@ func (cl *openCxClient) Call(serviceMethod string, args interface{}, reply inter
 func (cl *openCxClient) UnlockKey() (err error) {
 	if cl.RPCClient.PrivKey, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
 		logging.Errorf("Error reading key from file: \n%s", err)
+		return
+	}
+	return
+}
+
+// SignBytes is used in the register method because that's an interactive process.
+// BenchClient shouldn't be responsible for interactive stuff, just providing a good
+// Go API for the RPC methods the exchange offers.
+func (cl *openCxClient) SignBytes(bytes []byte) (signature []byte, err error) {
+	var privkeyBytes *[32]byte
+	if privkeyBytes, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
+		logging.Errorf("Error reading key from file: \n%s", err)
+		return
+	}
+
+	privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), privkeyBytes[:])
+
+	sha := sha3.New256()
+	sha.Write(bytes)
+	e := sha.Sum(nil)
+
+	if signature, err = koblitz.SignCompact(koblitz.S256(), privkey, e, false); err != nil {
+		logging.Errorf("Failed to sign bytes.")
+		return
+	}
+
+	return
+}
+
+// RetreivePublicKey returns the public key if it's been unlocked.
+func (cl *openCxClient) RetreivePublicKey() (pubkey *koblitz.PublicKey, err error) {
+	_, pubkey = koblitz.PrivKeyFromBytes(koblitz.S256(), cl.RPCClient.PrivKey[:])
+
+	if pubkey == nil {
+		err = fmt.Errorf("Private key not unlocked, cannot retreive public key")
+		return
 	}
 	return
 }

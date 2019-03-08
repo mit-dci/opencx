@@ -4,16 +4,20 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/mit-dci/opencx/match"
+
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"
 )
 
 func (cl *openCxClient) GetBalance(args []string) (err error) {
-	username := args[0]
-	asset := args[1]
+	if err = cl.UnlockKey(); err != nil {
+		logging.Fatalf("Could not unlock key! Fatal!")
+	}
+	asset := args[0]
 
 	var balanceReply *cxrpc.GetBalanceReply
-	if balanceReply, err = cl.RPCClient.GetBalance(username, asset); err != nil {
+	if balanceReply, err = cl.RPCClient.GetBalance(asset); err != nil {
 		return
 	}
 
@@ -36,10 +40,11 @@ func (cl *openCxClient) GetDepositAddress(args []string) (err error) {
 
 // GetAllBalances get the balance for every token
 func (cl *openCxClient) GetAllBalances(args []string) (err error) {
-	username := args[0]
-
+	if err = cl.UnlockKey(); err != nil {
+		logging.Fatalf("Could not unlock key! Fatal!")
+	}
 	var getAllBalancesReply map[string]uint64
-	if getAllBalancesReply, err = cl.RPCClient.GetAllBalances(username); err != nil {
+	if getAllBalancesReply, err = cl.RPCClient.GetAllBalances(); err != nil {
 		return
 	}
 
@@ -51,18 +56,16 @@ func (cl *openCxClient) GetAllBalances(args []string) (err error) {
 }
 
 func (cl *openCxClient) Withdraw(args []string) (err error) {
-	username := args[0]
-
 	var amount uint64
-	if amount, err = strconv.ParseUint(args[1], 10, 64); err != nil {
+	if amount, err = strconv.ParseUint(args[0], 10, 64); err != nil {
 		return
 	}
 
-	asset := args[2]
-	address := args[3]
+	asset := match.AssetFromString(args[1])
+	address := args[2]
 
 	var withdrawReply *cxrpc.WithdrawReply
-	if withdrawReply, err = cl.RPCClient.Withdraw(username, amount, asset, address); err != nil {
+	if withdrawReply, err = cl.RPCClient.Withdraw(amount, asset, address); err != nil {
 		return
 	}
 

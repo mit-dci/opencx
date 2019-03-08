@@ -22,27 +22,9 @@ type Pair struct {
 // Asset is a type which represents an asset
 type Asset byte
 
-// AssetCast makes sure that we don't instantiate
-func assetCast(attemptedAsset byte) Asset {
-	switch attemptedAsset {
-	case LTCTest:
-		return LTCTest
-	case BTCTest:
-		return BTCTest
-	case VTCTest:
-		return VTCTest
-	}
-
-	return NullAsset
-}
-
 // PrettyString is used to do asset1/asset2 rather than the database-safe asset1_asset2
 func (p *Pair) PrettyString() string {
 	return p.AssetWant.String() + "/" + p.AssetHave.String()
-}
-
-func (a Asset) String() string {
-	return ByteToAssetString(byte(a))
 }
 
 // generateUniquePairs generates unique asset pairs based on the assets available
@@ -101,22 +83,22 @@ func (p *Pair) FromString(pairString string) error {
 	strSplit := strings.Split(pairString, "/")
 
 	switch strSplit[0] {
-	case assetCast(BTCTest).String():
+	case BTCTest.String():
 		p.AssetWant = BTCTest
-	case assetCast(LTCTest).String():
+	case LTCTest.String():
 		p.AssetWant = LTCTest
-	case assetCast(VTCTest).String():
+	case VTCTest.String():
 		p.AssetWant = VTCTest
 	default:
 		return fmt.Errorf("Unsupported Asset")
 	}
 
 	switch strSplit[1] {
-	case assetCast(BTCTest).String():
+	case BTCTest.String():
 		p.AssetHave = BTCTest
-	case assetCast(LTCTest).String():
+	case LTCTest.String():
 		p.AssetHave = LTCTest
-	case assetCast(VTCTest).String():
+	case VTCTest.String():
 		p.AssetHave = VTCTest
 	default:
 		return fmt.Errorf("Unsupported Asset")
@@ -135,7 +117,7 @@ func (p Pair) Deserialize(buf []byte) (err error) {
 	if len(buf) != 2 {
 		err = fmt.Errorf("Tried to deserialize ")
 	}
-	p.AssetWant = assetCast(buf[0])
-	p.AssetHave = assetCast(buf[1])
+	p.AssetWant = Asset(buf[0])
+	p.AssetHave = Asset(buf[1])
 	return
 }

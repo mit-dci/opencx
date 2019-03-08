@@ -57,6 +57,7 @@ func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side string, pair s
 		sha3 := sha3.New256()
 		sha3.Write(newOrder.Serialize())
 		e := sha3.Sum(nil)
+
 		// Sign order
 		compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
 

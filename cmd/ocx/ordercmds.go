@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/logging"
 
 	"github.com/mit-dci/opencx/cxrpc"
@@ -18,22 +19,26 @@ func (cl *openCxClient) OrderCommand(args []string) (err error) {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
 
-	client := args[0]
-	side := args[1]
-	pair := args[2]
+	side := args[0]
+	pair := args[1]
 
-	amountHave, err := strconv.ParseUint(args[3], 10, 64)
+	amountHave, err := strconv.ParseUint(args[2], 10, 64)
 	if err != nil {
 		return fmt.Errorf("Error parsing amountHave, please enter something valid:\n%s", err)
 	}
 
-	price, err := strconv.ParseFloat(args[4], 64)
+	price, err := strconv.ParseFloat(args[3], 64)
 	if err != nil {
 		return fmt.Errorf("Error parsing price: \n%s", err)
 	}
 
+	var pubkey *koblitz.PublicKey
+	if pubkey, err = cl.RetreivePublicKey(); err != nil {
+		return
+	}
+
 	var reply *cxrpc.SubmitOrderReply
-	if reply, err = cl.RPCClient.OrderCommand(client, side, pair, amountHave, price); err != nil {
+	if reply, err = cl.RPCClient.OrderCommand(pubkey, side, pair, amountHave, price); err != nil {
 		return
 	}
 
@@ -108,6 +113,9 @@ func (cl *openCxClient) ViewOrderbook(args []string) (err error) {
 
 // CancelOrder calls the cancel order rpc command
 func (cl *openCxClient) CancelOrder(args []string) (err error) {
+	if err = cl.UnlockKey(); err != nil {
+		logging.Fatalf("Could not unlock key! Fatal!")
+	}
 	orderID := args[0]
 
 	// remove this and _ when cancel order has returns
