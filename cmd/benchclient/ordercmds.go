@@ -11,10 +11,10 @@ import (
 )
 
 // OrderCommand submits an order synchronously. Uses asynchronous order function
-func (cl *BenchClient) OrderCommand(client string, side string, pair string, amountHave uint64, price float64) (reply *cxrpc.SubmitOrderReply, err error) {
+func (cl *BenchClient) OrderCommand(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64) (reply *cxrpc.SubmitOrderReply, err error) {
 	errorChannel := make(chan error, 1)
 	replyChannel := make(chan *cxrpc.SubmitOrderReply, 1)
-	cl.OrderAsync(client, side, pair, amountHave, price, replyChannel, errorChannel)
+	cl.OrderAsync(pubkey, side, pair, amountHave, price, replyChannel, errorChannel)
 	err = <-errorChannel
 	if err != nil {
 		return
@@ -24,7 +24,7 @@ func (cl *BenchClient) OrderCommand(client string, side string, pair string, amo
 }
 
 // OrderAsync is supposed to be run in a separate goroutine, OrderCommand makes this synchronous however
-func (cl *BenchClient) OrderAsync(client string, side string, pair string, amountHave uint64, price float64, replyChan chan *cxrpc.SubmitOrderReply, errChan chan error) {
+func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64, replyChan chan *cxrpc.SubmitOrderReply, errChan chan error) {
 
 	errChan <- func() error {
 		// TODO: this can be refactored to look more like the rest of the code, it's just using channels and works really well so I don't want to mess with it rn
@@ -32,10 +32,13 @@ func (cl *BenchClient) OrderAsync(client string, side string, pair string, amoun
 		orderReply := new(cxrpc.SubmitOrderReply)
 
 		var newOrder match.LimitOrder
-		newOrder.Client = client
+		newOrder.Pubkey = pubkey
 		newOrder.Side = side
 
+		// get privkey for signing
 		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
+
+		// check that the sides are correct
 		if newOrder.Side != "buy" && newOrder.Side != "sell" {
 			return fmt.Errorf("Order's side isn't buy or sell, try again")
 		}
