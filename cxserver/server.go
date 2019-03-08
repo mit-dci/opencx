@@ -5,17 +5,21 @@ import (
 	"os"
 	"sync"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+
+	"golang.org/x/crypto/sha3"
+
 	"github.com/mit-dci/lit/uspv"
 
 	"github.com/mit-dci/lit/eventbus"
 
-	"github.com/mit-dci/lit/qln"
-	"github.com/mit-dci/lit/wallit"
 	"github.com/mit-dci/lit/btcutil"
 	"github.com/mit-dci/lit/btcutil/chaincfg/chainhash"
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/lnutil"
+	"github.com/mit-dci/lit/qln"
+	"github.com/mit-dci/lit/wallit"
 	"github.com/mit-dci/lit/wire"
 
 	"github.com/mit-dci/opencx/cxdb"
@@ -33,6 +37,9 @@ type OpencxServer struct {
 	LitRoot       string
 	AssetArray    []match.Asset
 	PairsArray    []*match.Pair
+
+	registrationString string
+
 	// Hehe it's the vault, pls don't steal
 	OpencxBTCTestPrivKey *hdkeychain.ExtendedKey
 	OpencxVTCTestPrivKey *hdkeychain.ExtendedKey
@@ -65,12 +72,6 @@ func (server *OpencxServer) LockOrders() {
 // UnlockOrders unlocks the order mutex
 func (server *OpencxServer) UnlockOrders() {
 	server.orderMutex.Unlock()
-}
-
-// InitMatchingMaps creates the maps so we don't get nil map errors
-func (server *OpencxServer) InitMatchingMaps() {
-	server.orderMutex = new(sync.Mutex)
-	server.OrderMap = make(map[match.Pair][]*match.LimitOrder)
 }
 
 // MatchingLoop is supposed to be run as a goroutine. This will always match stuff, and creates the server mutex map and order map
@@ -107,6 +108,7 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 		OpencxPort:         rpcport,
 		PairsArray:         pairsArray,
 		AssetArray:         assets,
+		registrationString: "opencx-register",
 		orderMutex:         new(sync.Mutex),
 		OrderMap:           make(map[match.Pair][]*match.LimitOrder),
 		ingestMutex:        *new(sync.Mutex),
@@ -213,13 +215,24 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan c
 		return
 	}
 
-	btcHook := btcWallet.ExportHook()
+	var btcHook *uspv.SPVCon
+	btcHook = new(uspv.SPVCon)
+	if _, _, err = btcHook.Start(btcParam.StartHeight, hostString, server.ChainhookRoot, "", btcParam); err != nil {
+		return
+	}
+
+	// figure out whether or not to do this if merged
+	// btcHook := btcWallet.ExportHook()
 
 	logging.Infof("BTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxBTCWallet = btcWallet
-	hookBlockChan := btcHook.NewRawBlocksChannel()
-	currentHeightChan := btcHook.NewHeightChannel()
+	// remove these when merged
+	hookBlockChan := btcHook.RawBlocks()
+	currentHeightChan := btcHook.CurrentHeightChan
+	// uncomment these when merged
+	// hookBlockChan := btcHook.NewRawBlocksChannel()
+	// currentHeightChan := btcHook.NewHeightChannel()
 
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, btcParam)
 
@@ -266,11 +279,19 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan c
 		return
 	}
 
+	// figure out whether or not to do this if merged
+	// ltcHook := ltcWallet.ExportHook()
+
 	logging.Infof("LTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxLTCWallet = ltcWallet
-	hookBlockChan := ltcHook.NewRawBlocksChannel()
-	currentHeightChan := ltcHook.NewHeightChannel()
+
+	// remove these when merged
+	hookBlockChan := ltcHook.RawBlocks()
+	currentHeightChan := ltcHook.CurrentHeightChan
+	// uncomment these when merged
+	// hookBlockChan := ltcHook.NewRawBlocksChannel()
+	// currentHeightChan := ltcHook.NewHeightChannel()
 
 	// for some reason the currentHeightChan is better for ltc or smth
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, ltcParam)
@@ -304,22 +325,29 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 
 	logging.Infof("Starting VTC Wallet\n")
 
+	var vtcWallet *wallit.Wallit
+	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, server.WallitRoot, "", vtcParam); err != nil {
+		return
+	}
+
 	var vtcHook *uspv.SPVCon
 	vtcHook = new(uspv.SPVCon)
 	if _, _, err = vtcHook.Start(vtcParam.StartHeight, hostString, server.ChainhookRoot, "", vtcParam); err != nil {
 		return
 	}
 
-	var vtcWallet *wallit.Wallit
-	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, server.WallitRoot, "", vtcParam); err != nil {
-		return
-	}
+	// figure out whether or not to do this if merged
+	// vtcHook := vtcWallet.ExportHook()
 
 	logging.Infof("VTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxVTCWallet = vtcWallet
-	hookBlockChan := vtcHook.NewRawBlocksChannel()
-	currentHeightChan := vtcHook.NewHeightChannel()
+	// remove these when merged
+	hookBlockChan := vtcHook.RawBlocks()
+	currentHeightChan := vtcHook.CurrentHeightChan
+	// uncomment these when merged
+	// hookBlockChan := vtcHook.NewRawBlocksChannel()
+	// currentHeightChan := vtcHook.NewHeightChannel()
 
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, vtcParam)
 
@@ -418,15 +446,26 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 	return nil
 }
 
-// GetFundHandler gets the handler func to pass in to the register function. Maybe just make this a normal function, but I think we need server stuff
-func (server *OpencxServer) GetFundHandler() (hFunc func(event eventbus.Event) eventbus.EventHandleResult) {
+// GetSigProofHandler gets the handler func to pass in to the register function. Maybe just make this a normal function, but I think we need server stuff
+func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Event) eventbus.EventHandleResult) {
 	hFunc = func(event eventbus.Event) (res eventbus.EventHandleResult) {
-		// // We know this is a channel state update event
-		// chanStateEvent := event.(qln.ChannelStateUpdateEvent)
+		// We know this is a channel state update event
+		ee, ok := event.(qln.ChannelStateUpdateEvent)
+		if !ok {
+			logging.Errorf("Wrong type of event, why are you making this the handler for that?")
+			// Still don't know if this is the right thing to return
+			return eventbus.EHANDLE_CANCEL
+		}
+		// wait till merged
+		// MyAmt := ee.State.MyAmt
 
-		// amt := chanStateEvent.
+		// if !ee.State.Failed {
+		//   server.OpencxDB
+		// }
 
-		return
+		logging.Infof("We got a sig proof handler! Name of event: %s", ee.Name())
+
+		return eventbus.EHANDLE_OK
 	}
 	return
 }
@@ -484,4 +523,24 @@ func dummyProofOfWork(b []byte, height int32) chainhash.Hash {
 		logging.Errorf("Error setting hash to a bunch of bytes of zeros")
 	}
 	return *smolhash
+}
+
+// GetRegistrationString gets a string that should be signed in order for a client to be registered
+func (server *OpencxServer) GetRegistrationString() (regStr string) {
+	return
+}
+
+// RegistrationStringVerify verifies a signature for a registration string and checks if it's in the server's list of valid registration strings.
+func (server *OpencxServer) RegistrationStringVerify(sig []byte) (pubkey *koblitz.PublicKey, err error) {
+	// e = h(registrationstring)
+	sha3 := sha3.New256()
+	sha3.Write([]byte(server.GetRegistrationString()))
+	e := sha3.Sum(nil)
+
+	if pubkey, _, err = koblitz.RecoverCompact(koblitz.S256(), sig, e); err != nil {
+		err = fmt.Errorf("Error verifying registration string, invalid signature: \n%s", err)
+		return
+	}
+
+	return
 }

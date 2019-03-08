@@ -7,11 +7,9 @@ import (
 	"math"
 	"math/rand"
 	"time"
+
+	"github.com/mit-dci/lit/crypto/koblitz"
 )
-
-// TODO: Next thing to do is to have order signing
-
-// Now this is a good struct, I need hashes & signatures and stuff. The opposite of the dumb asset struct.
 
 // Order is a struct that represents a stored side of a trade
 type Order interface {
@@ -21,9 +19,9 @@ type Order interface {
 
 // LimitOrder represents a limit order, implementing the order interface
 type LimitOrder struct {
-	Client      string `json:"username"`
-	Side        string `json:"side"`
-	TradingPair Pair   `json:"pair"`
+	Pubkey      *koblitz.PublicKey `json:"pubkey"`
+	Side        string             `json:"side"`
+	TradingPair Pair               `json:"pair"`
 	// amount of assetHave the user would like to trade
 	AmountHave uint64 `json:"amounthave"`
 	// amount of assetWant the user wants for their assetHave
@@ -91,10 +89,12 @@ func (l *LimitOrder) SetID() error {
 // but anyways this is the order: pair amountHave amountWant <length side> side
 func (l *LimitOrder) Serialize() (buf []byte) {
 	// serializable fields:
-	// trading pair (2 bytes)
-	// amounthave (8 bytes)
-	// amountwant (8 bytes)
-	buf = make([]byte, 26+len(l.Side))
+	// public key (compressed) [33 bytes]
+	// trading pair [2 bytes]
+	// amounthave [8 bytes
+	// amountwant [8 bytes]
+	buf = make([]byte, 33+26+len(l.Side))
+	buf = append(buf, l.Pubkey.SerializeCompressed()...)
 	buf = append(buf, l.TradingPair.Serialize()...)
 	binary.LittleEndian.PutUint64(buf, l.AmountHave)
 	binary.LittleEndian.PutUint64(buf, l.AmountWant)

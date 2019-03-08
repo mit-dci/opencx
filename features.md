@@ -195,6 +195,15 @@ One thing to think about - Exchanges like Binance have a native asset, BNB, wher
  - [ ] Fix SQL Injection vulnerability lol
  - [ ] Lightning payment is market order
 
+##
+Idea: No registration. The exchange has a single address (or multiple). 
+You send to that address, you are depositing. 
+Since everything is done through public keys, your public key is extracted from the signatures in the transaction.
+Use that public key to sign all orders, etc.
+Basically the public key associated with the address you deposited from is now your "account" on the exchange.
+You will withdraw to that address as well.
+This is also proof of reserves, proof of solvency.
+
 #### Decentralization notes
 
 One note for decentralization: This is a really good reason why orderbooks shouldn't be kept on blockchains (like some people would want). The occasional 1 or 2 block reorg would screw everything up even if you got everything else solved & right.

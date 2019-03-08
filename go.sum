@@ -1,5 +1,7 @@
 github.com/NebulousLabs/go-UpnP v0.0.0-20181203152547-b32978b8ccbf h1:W7P3bv/G1dqsdsc+L2iZZRKHLSA3akIJm14wwaLxETM=
 github.com/NebulousLabs/go-UpnP v0.0.0-20181203152547-b32978b8ccbf/go.mod h1:T0vQBt4b6iPDbP21SrsJ6e3E3gbPa9LAhWDZB6pFRcg=
+github.com/Rjected/lit v0.0.0-20190206212915-7a22842c6316 h1:KAwT8zedQXm+1wiZ4uAv4IRJKkYNtSSI3OIhmUNlzx0=
+github.com/Rjected/lit v0.0.0-20190206212915-7a22842c6316/go.mod h1:htRd20qyCAik/cJXkyAaacI4p0x8O/GsTqj2K3p6RXY=
 github.com/aead/skein v0.0.0-20160722084837-9365ae6e95d2 h1:q5TSngwXJdajCyZPQR+eKyRRgI3/ZXC/Nq1ZxZ4Zxu8=
 github.com/aead/skein v0.0.0-20160722084837-9365ae6e95d2/go.mod h1:4JBZEId5BaLqvA2DGU53phvwkn2WpeLhNSF79/uKBPs=
 github.com/awalterschulze/gographviz v0.0.0-20190221210632-1e9ccb565bca h1:xwIXr1FpA2XBoohlpvgb11No/zbsh5Clm/98PWPcHVA=
@@ -19,6 +21,7 @@ github.com/fatih/color v1.7.0 h1:DkWD4oS2D8LGGgTQ6IvwJJXSL5Vp2ffcQg58nFV38Ys=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/getlantern/deepcopy v0.0.0-20160317154340-7f45deb8130a h1:yU/FENpkHYISWsQrbr3pcZOBj0EuRjPzNc1+dTCLu44=
 github.com/getlantern/deepcopy v0.0.0-20160317154340-7f45deb8130a/go.mod h1:AEugkNu3BjBxyz958nJ5holD9PRjta6iprcoUauDbU4=
+github.com/go-redis/redis v6.15.2+incompatible h1:9SpNVG76gr6InJGxoZ6IuuxaCOQwDAhzyXg+Bs+0Sb4=
 github.com/go-redis/redis v6.15.2+incompatible/go.mod h1:NAIEuMOZ/fxfXJIrKDQDz8wamY7mA7PouImQ2Jvg6kA=
 github.com/go-sql-driver/mysql v1.4.1 h1:g24URVg0OFbNUTx9qqY1IRZ9D9z3iPyi5zKhQZpNwpA=
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
@@ -37,9 +40,11 @@ github.com/mattn/go-colorable v0.1.1/go.mod h1:FuOcm+DKB9mbwrcAfNl7/TZVBZ6rcncea
 github.com/mattn/go-isatty v0.0.5/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.6 h1:SrwhHcpV4nWrMGdNcC2kXpMfcBVYGDuTArqyhocJgvA=
 github.com/mattn/go-isatty v0.0.6/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
+github.com/mattn/go-runewidth v0.0.4 h1:2BvfKmzob6Bmd4YsL0zygOqfdFnK7GR4QL06Do4/p7Y=
 github.com/mattn/go-runewidth v0.0.4/go.mod h1:LwmH8dsx7+W8Uxz3IHJYH5QSwggIsqBzpuz5H//U1FU=
 github.com/mit-dci/lit v0.0.0-20190206212915-7a22842c6316 h1:L87r0cDfpXMUfxzHplFtRW9X3uduKO9N9q6NeRGe/vc=
 github.com/mit-dci/lit v0.0.0-20190206212915-7a22842c6316/go.mod h1:rc4TdU788+TZDGLPK7wvWZ3jGtoLHdtaMPNUmumnUMY=
+github.com/olekukonko/tablewriter v0.0.1 h1:b3iUnf1v+ppJiOfNX4yxxqfWKMQPZR5yoh8urCTFX88=
 github.com/olekukonko/tablewriter v0.0.1/go.mod h1:vsDQFd/mU46D+Z4whnwzcISnGGzXWMclvtLoiIKAKIo=
 github.com/vertcoin/lyra2re v0.0.0-20170910033546-8bfa142041c2 h1:xf2HNsfB8pLNxjeWq3/LSPel2FiBhzF+ouaoquGPpvc=
 github.com/vertcoin/lyra2re v0.0.0-20170910033546-8bfa142041c2/go.mod h1:nzsIXJSsbS8epdXKijPDv2EmN40Vp0KzIwniHMnygHY=

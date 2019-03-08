@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+
 	"github.com/mit-dci/lit/wallit"
 
 	"github.com/mit-dci/lit/wire"
@@ -20,33 +22,33 @@ import (
 // I'm having fun with closures here to remove all the copy paste that I usually have to do
 
 // VTCWithdraw will be used to watch for events on the chain.
-func (server *OpencxServer) VTCWithdraw(address string, username string, amount uint64) (string, error) {
+func (server *OpencxServer) VTCWithdraw(address string, pubkey *koblitz.PublicKey, amount uint64) (string, error) {
 	// Plug in all the specifics -- which wallet to use to send out tx, which testnet, which asset string because I haven't gotten it dependent on params yet
-	return server.withdrawFromChain(server.OpencxVTCWallet, &chaincfg.VertcoinTestNetParams, "vtc")(address, username, amount)
+	return server.withdrawFromChain(server.OpencxVTCWallet, &chaincfg.VertcoinTestNetParams, "vtc")(address, pubkey, amount)
 }
 
 // BTCWithdraw will be used to watch for events on the chain.
-func (server *OpencxServer) BTCWithdraw(address string, username string, amount uint64) (string, error) {
+func (server *OpencxServer) BTCWithdraw(address string, pubkey *koblitz.PublicKey, amount uint64) (string, error) {
 	// Plug in all the specifics -- which wallet to use to send out tx, which testnet, which asset string because I haven't gotten it dependent on params yet
-	return server.withdrawFromChain(server.OpencxBTCWallet, &chaincfg.TestNet3Params, "btc")(address, username, amount)
+	return server.withdrawFromChain(server.OpencxBTCWallet, &chaincfg.TestNet3Params, "btc")(address, pubkey, amount)
 }
 
 // LTCWithdraw will be used to watch for events on the chain.
-func (server *OpencxServer) LTCWithdraw(address string, username string, amount uint64) (string, error) {
+func (server *OpencxServer) LTCWithdraw(address string, pubkey *koblitz.PublicKey, amount uint64) (string, error) {
 	// Plug in all the specifics -- which wallet to use to send out tx, which testnet, which asset string because I haven't gotten it dependent on params yet
-	return server.withdrawFromChain(server.OpencxLTCWallet, &chaincfg.LiteCoinTestNet4Params, "ltc")(address, username, amount)
+	return server.withdrawFromChain(server.OpencxLTCWallet, &chaincfg.LiteCoinTestNet4Params, "ltc")(address, pubkey, amount)
 }
 
 // withdrawFromChain returns a function that we'll then call from the vtc stuff -- this is a closure that's also a method for server, don't worry about it lol
-func (server *OpencxServer) withdrawFromChain(wallet *wallit.Wallit, params *chaincfg.Params, assetString string) func(string, string, uint64) (string, error) {
+func (server *OpencxServer) withdrawFromChain(wallet *wallit.Wallit, params *chaincfg.Params, assetString string) func(string, *koblitz.PublicKey, uint64) (string, error) {
 	var err error
-	return func(address string, username string, amount uint64) (string, error) {
+	return func(address string, pubkey *koblitz.PublicKey, amount uint64) (string, error) {
 		if amount == 0 {
 			return "", fmt.Errorf("You can't withdraw 0 %s", assetString)
 		}
 
 		server.LockIngests()
-		if err = server.OpencxDB.Withdraw(username, assetString, amount); err != nil {
+		if err = server.OpencxDB.Withdraw(pubkey, assetString, amount); err != nil {
 			// if errors out, unlock
 			server.UnlockIngests()
 			return "", err

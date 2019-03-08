@@ -3,11 +3,9 @@ package ocxsql
 import (
 	"database/sql"
 	"fmt"
-	"sync"
 
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -39,10 +37,6 @@ type DB struct {
 	orderSchema          string
 	assetArray           []match.Asset
 	pairsArray           []*match.Pair
-	globalReads          int64
-	globalWrites         int64
-	gReadsMutex          sync.Mutex
-	gWritesMutex         sync.Mutex
 	gPriceMap            map[string]float64
 }
 
@@ -58,26 +52,6 @@ func (db *DB) GetPrice(pairString string) (price float64) {
 		return float64(0)
 	}
 	return price
-}
-
-// IncrementReads increments the read variable and might print it out, this is just for debugging / making sure we're not overloading the DB
-func (db *DB) IncrementReads() {
-	db.gReadsMutex.Lock()
-	db.globalReads++
-	if db.globalReads%100 == 0 {
-		logging.Infof("Global reads: %d\n", db.globalReads)
-	}
-	db.gReadsMutex.Unlock()
-}
-
-// IncrementWrites increments the write variable and might print it out, this is just for debugging / making sure we're not overloading the DB
-func (db *DB) IncrementWrites() {
-	db.gWritesMutex.Lock()
-	db.globalWrites++
-	if db.globalWrites%100 == 0 {
-		logging.Infof("Global writes: %d\n", db.globalWrites)
-	}
-	db.gWritesMutex.Unlock()
 }
 
 // SetupClient sets up the mysql client and driver
@@ -112,32 +86,26 @@ func (db *DB) SetupClient(assets []match.Asset, pairs []*match.Pair) error {
 
 	// Initialize Balance tables
 	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
-	err = db.InitializeNewTables(db.balanceSchema, "name TEXT, balance BIGINT(64)")
+	err = db.InitializeNewTables(db.balanceSchema, "pubkey TEXT, balance BIGINT(64)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize balance tables: \n%s", err)
 	}
 
 	// Initialize Deposit tables
-	// names can be up to 128 characters long
-	err = db.InitializeTables(db.depositSchema, "name VARCHAR(128), address VARCHAR(34), CONSTRAINT unique_usernames UNIQUE (name, address)")
+	err = db.InitializeTables(db.depositSchema, "pubkey VARBINARY(33), address VARCHAR(34), CONSTRAINT unique_pubkeys UNIQUE (pubkey, address)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize deposit tables: \n%s", err)
 	}
 
-	// Take names
-	if err = db.InitializeBalancesFromNames(); err != nil {
-		return err
-	}
-
 	// Initialize pending_deposits table
-	err = db.InitializeNewTables(db.pendingDepositSchema, "name TEXT, expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
+	err = db.InitializeNewTables(db.pendingDepositSchema, "pubkey VARBINARY(33), expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
 	if err != nil {
 		return fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
 	}
 
 	// Initialize order table
 	// You can have a price up to 30 digits total, and 10 decimal places.
-	err = db.InitializePairTables(db.orderSchema, "name TEXT, orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
+	err = db.InitializePairTables(db.orderSchema, "pubkey VARBINARY(33), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
 	if err != nil {
 		return fmt.Errorf("Could not initialize order tables: \n%s", err)
 	}
@@ -206,54 +174,6 @@ func (db *DB) InitializePairTables(schemaName string, schemaSpec string) error {
 	return nil
 }
 
-// InitializeBalancesFromNames makes balance stuff from names in deposits
-func (db *DB) InitializeBalancesFromNames() error {
-
-	// use the deposit schema for names
-
-	if _, err := db.DBHandler.Exec("USE " + db.depositSchema + ";"); err != nil {
-		return fmt.Errorf("Could not use %s schema: \n%s", db.depositSchema, err)
-	}
-
-	var nameArray []string
-	if len(db.assetArray) > 0 {
-		takeNamesQuery := fmt.Sprintf("SELECT name FROM %s;", db.assetArray[0])
-		nameRows, err := db.DBHandler.Query(takeNamesQuery)
-		if err != nil {
-			return fmt.Errorf("An error occurred while trying to take names: \n%s", err)
-		}
-
-		for nameRows.Next() {
-			var name string
-			if err = nameRows.Scan(&name); err != nil {
-				return err
-			}
-
-			logging.Infof("name: %s\n", name)
-
-			nameArray = append(nameArray, name)
-		}
-		if err = nameRows.Close(); err != nil {
-			return err
-		}
-	}
-
-	if _, err := db.DBHandler.Exec("USE " + db.balanceSchema + ";"); err != nil {
-		return fmt.Errorf("Could not use %s schema: \n%s", db.balanceSchema, err)
-	}
-
-	for _, name := range nameArray {
-		for _, coinSchema := range db.assetArray {
-			// Create the balance
-			insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinSchema, name, 0)
-			if _, err := db.DBHandler.Exec(insertBalanceQuery); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // RootInitSchemas initalizes the schemas, creates users, and grants permissions to those users
 func (db *DB) RootInitSchemas() error {
 	var err error
@@ -305,14 +225,6 @@ func rootCreateSchemaForUser(rootHandler *sql.DB, username string, schemaString 
 	if err != nil {
 		return fmt.Errorf("Could not create %s schema: \n%s", schemaString, err)
 	}
-
-	// these should already exist
-	// // grant permissions to default user
-	// schemaQuery := fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DELETE, DROP ON %s.* TO '%s'@'localhost';", schemaString, username)
-	// _, err = rootHandler.Exec(schemaQuery)
-	// if err != nil {
-	// 	return fmt.Errorf("Could not grant permissions to %s while creating %s schema: \n%s", schemaString, username, err)
-	// }
 
 	return nil
 }

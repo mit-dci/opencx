@@ -3,18 +3,20 @@ package ocxsql
 import (
 	"fmt"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+
 	"github.com/mit-dci/opencx/match"
 )
 
 // RegisterUser registers a user
-func (db *DB) RegisterUser(username string, addresses map[match.Asset]string) (err error) {
+func (db *DB) RegisterUser(pubkey *koblitz.PublicKey, addresses map[match.Asset]string) (err error) {
 	// Do all this locking just cause
 	// Insert them into the DB
-	if err = db.InsertDepositAddresses(username, addresses); err != nil {
+	if err = db.InsertDepositAddresses(pubkey, addresses); err != nil {
 		return
 	}
 
-	if err = db.InitializeAccountBalances(username); err != nil {
+	if err = db.InitializeAccountBalances(pubkey); err != nil {
 		return
 	}
 
@@ -22,7 +24,7 @@ func (db *DB) RegisterUser(username string, addresses map[match.Asset]string) (e
 }
 
 // InitializeAccountBalances initializes all database values for an account with username 'username'
-func (db *DB) InitializeAccountBalances(username string) (err error) {
+func (db *DB) InitializeAccountBalances(pubkey *koblitz.PublicKey) (err error) {
 
 	// begin the transaction
 	tx, err := db.DBHandler.Begin()
@@ -47,7 +49,7 @@ func (db *DB) InitializeAccountBalances(username string) (err error) {
 
 	for _, assetString := range db.assetArray {
 		// Insert 0 balance into balance table
-		insertBalanceQueries := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", assetString, username, 0)
+		insertBalanceQueries := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d);", assetString, pubkey.SerializeCompressed(), 0)
 		if _, err = tx.Exec(insertBalanceQueries); err != nil {
 			return
 		}
@@ -57,7 +59,7 @@ func (db *DB) InitializeAccountBalances(username string) (err error) {
 }
 
 // InsertDepositAddresses inserts deposit addresses based on the addressmap you give it
-func (db *DB) InsertDepositAddresses(username string, addressMap map[match.Asset]string) (err error) {
+func (db *DB) InsertDepositAddresses(pubkey *koblitz.PublicKey, addressMap map[match.Asset]string) (err error) {
 	// begin the transaction
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
@@ -84,7 +86,7 @@ func (db *DB) InsertDepositAddresses(username string, addressMap map[match.Asset
 		// if you found an address in the map
 		if addr, found := addressMap[asset]; found {
 			// insert into db
-			insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s') ON DUPLICATE KEY UPDATE address='%s';", asset, username, addr, addr)
+			insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s') ON DUPLICATE KEY UPDATE address='%s';", asset, pubkey.SerializeCompressed(), addr, addr)
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
 			}
@@ -98,7 +100,7 @@ func (db *DB) InsertDepositAddresses(username string, addressMap map[match.Asset
 }
 
 // UpdateDepositAddresses updates deposit addresses based on the usernames in the table. Doing function stuff so it looks weird
-func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), btcAddrFunc func(string) (string, error), vtcAddrFunc func(string) (string, error)) (err error) {
+func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(*koblitz.PublicKey) (string, error), btcAddrFunc func(*koblitz.PublicKey) (string, error), vtcAddrFunc func(*koblitz.PublicKey) (string, error)) (err error) {
 	// begin the transaction
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
@@ -123,32 +125,37 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 	// Go through assets (btc, ltc, vtc...)
 	for _, asset := range db.assetArray {
 		// Find all distinct usernames
-		getUsernamesQuery := fmt.Sprintf("SELECT DISTINCT name FROM %s;", asset)
-		rows, usernameErr := tx.Query(getUsernamesQuery)
-		if err = usernameErr; err != nil {
+		getPubKeysQuery := fmt.Sprintf("SELECT DISTINCT pubkey FROM %s;", asset)
+		rows, pubkeyQueryErr := tx.Query(getPubKeysQuery)
+		if err = pubkeyQueryErr; err != nil {
 			return
 		}
 
-		addrPairs := make(map[string]string)
+		addrPairs := make(map[*koblitz.PublicKey]string)
 		// Go through usernames already in db
 		for rows.Next() {
 			var addr string
-			var username string
-			if err = rows.Scan(&username); err != nil {
+			var pubkeyBytes []byte
+			if err = rows.Scan(&pubkeyBytes); err != nil {
+				return
+			}
+
+			var pubkey *koblitz.PublicKey
+			if pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
 				return
 			}
 
 			// generate addresses according to chain
 			if asset == match.BTCTest {
-				if addr, err = btcAddrFunc(username); err != nil {
+				if addr, err = btcAddrFunc(pubkey); err != nil {
 					return
 				}
 			} else if asset == match.LTCTest {
-				if addr, err = ltcAddrFunc(username); err != nil {
+				if addr, err = ltcAddrFunc(pubkey); err != nil {
 					return
 				}
 			} else if asset == match.VTCTest {
-				if addr, err = vtcAddrFunc(username); err != nil {
+				if addr, err = vtcAddrFunc(pubkey); err != nil {
 					return
 				}
 			} else {
@@ -157,7 +164,7 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 			}
 
 			// Add usernames and addresses to map
-			addrPairs[username] = addr
+			addrPairs[pubkey] = addr
 		}
 
 		// Close the rows so we don't get issues
@@ -166,9 +173,9 @@ func (db *DB) UpdateDepositAddresses(ltcAddrFunc func(string) (string, error), b
 		}
 
 		// go through all the usernames and addresses obtained and update them
-		for username, addr := range addrPairs {
+		for pubkey, addr := range addrPairs {
 			// Actually update the table -- doing this outside the scan so we don't get busy buffer issues
-			insertDepositAddrQuery := fmt.Sprintf("UPDATE %s SET address='%s' WHERE name='%s';", asset, addr, username)
+			insertDepositAddrQuery := fmt.Sprintf("UPDATE %s SET address='%s' WHERE pubkey='%x';", asset, addr, pubkey.SerializeCompressed())
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
 			}

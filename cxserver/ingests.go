@@ -41,8 +41,10 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	for _, tx := range txList {
 		for _, output := range tx.TxOut {
 
+			// figure out if it's the right script type
 			scriptType, data := util.ScriptType(output.PkScript)
 			if scriptType == "P2PKH" {
+				// It's P2PKH, let's get the address
 				var addr *btcutil.AddressPubKeyHash
 
 				coinTypeChaincfgWrap := new(chaincfg.Params)
@@ -51,9 +53,9 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 					return err
 				}
 
-				if name, found := addressesWeOwn[addr.String()]; found {
+				if pubkey, found := addressesWeOwn[addr.String()]; found {
 					newDeposit := match.Deposit{
-						Name:                name,
+						Pubkey:              pubkey,
 						Address:             addr.String(),
 						Amount:              uint64(output.Value),
 						Txid:                tx.TxHash().String(),

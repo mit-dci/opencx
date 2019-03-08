@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
@@ -207,7 +209,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 	}
 
 	// this will select all sell side, ordered by time ascending so the earliest one will be at the front
-	getSellSideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price>%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
+	getSellSideQuery := fmt.Sprintf("SELECT pubkey, orderID, amountHave, amountWant FROM %s WHERE price>%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
 	sellRows, sellQueryErr := tx.Query(getSellSideQuery)
 	if err = sellQueryErr; err != nil {
 		return
@@ -216,7 +218,12 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 	var sellOrders []*match.LimitOrder
 	for sellRows.Next() {
 		sellOrder := new(match.LimitOrder)
-		if err = sellRows.Scan(&sellOrder.Client, &sellOrder.OrderID, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
+		var pubkeyBytes []byte
+		if err = sellRows.Scan(&pubkeyBytes, &sellOrder.OrderID, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
+			return
+		}
+
+		if sellOrder.Pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
 			return
 		}
 
@@ -227,7 +234,7 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 	}
 
 	// logging.Infof("Sell orders length: %d", len(sellOrders))
-	getBuySideQuery := fmt.Sprintf("SELECT name, orderID, amountHave, amountWant FROM %s WHERE price<%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
+	getBuySideQuery := fmt.Sprintf("SELECT pubkey, orderID, amountHave, amountWant FROM %s WHERE price<%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
 	buyRows, buyQueryErr := tx.Query(getBuySideQuery)
 	if err = buyQueryErr; err != nil {
 		return
@@ -235,8 +242,13 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 
 	var buyOrders []*match.LimitOrder
 	for buyRows.Next() {
+		var pubkeyBytes []byte
 		buyOrder := new(match.LimitOrder)
-		if err = buyRows.Scan(&buyOrder.Client, &buyOrder.OrderID, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
+		if err = buyRows.Scan(&pubkeyBytes, &buyOrder.OrderID, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
+			return
+		}
+
+		if buyOrder.Pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
 			return
 		}
 
@@ -266,14 +278,6 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 			}
 			currBuyOrder.AmountHave -= currSellOrder.AmountWant
 
-			// logging.Infof("greater")
-			// logging.Infof("buy id: %s", currBuyOrder.OrderID)
-			// logging.Infof("sell id: %s", currSellOrder.OrderID)
-
-			// logging.Infof("buy order amounthave: %d", currBuyOrder.AmountHave)
-			// logging.Infof("buy order amountwant: %d", currBuyOrder.AmountWant)
-			// logging.Infof("sell order amounthave: %d", currSellOrder.AmountHave)
-			// logging.Infof("sell order amountwant: %d", currSellOrder.AmountWant)
 			// update order with new amounts
 			if err = db.UpdateOrderAmountsWithinTransaction(currBuyOrder, pair, tx); err != nil {
 				return
@@ -292,11 +296,11 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 
 			// logging.Infof("done delete")
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Client, prevAmountHave, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountHave, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Client, prevAmountWant, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountWant, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
 				return
 			}
 
@@ -337,11 +341,11 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 			}
 
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Client, prevAmountWant, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountWant, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Client, prevAmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
 				return
 			}
 
@@ -374,11 +378,11 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 			}
 
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Client, currBuyOrder.AmountWant, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, currBuyOrder.AmountWant, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Client, currBuyOrder.AmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, currBuyOrder.AmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
 				return
 			}
 

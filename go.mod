@@ -2,6 +2,7 @@ module github.com/mit-dci/opencx
 
 require (
 	github.com/NebulousLabs/go-UpnP v0.0.0-20181203152547-b32978b8ccbf // indirect
+	github.com/Rjected/lit v0.0.0-20190206212915-7a22842c6316
 	github.com/aead/skein v0.0.0-20160722084837-9365ae6e95d2 // indirect
 	github.com/awalterschulze/gographviz v0.0.0-20190221210632-1e9ccb565bca // indirect
 	github.com/bitgoin/lyra2rev2 v0.0.0-20161212102046-bae9ad2043bb // indirect

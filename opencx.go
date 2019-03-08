@@ -158,9 +158,6 @@ func main() {
 		// logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
 	}
 
-	// init the maps for the server
-	ocxServer.InitMatchingMaps()
-
 	// Get all the asset pairs then start the matching loop
 	for i, pair := range assetPairs {
 		go ocxServer.MatchingLoop(pair, orderBufferSize)

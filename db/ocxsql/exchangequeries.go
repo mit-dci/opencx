@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
@@ -54,7 +56,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 		balCheckAsset = order.TradingPair.AssetWant.String()
 	}
 
-	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", balCheckAsset, order.Client)
+	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", balCheckAsset, order.Pubkey.SerializeCompressed())
 	rows, getBalErr := tx.Query(getBalanceQuery)
 	if err = getBalErr; err != nil {
 		return
@@ -73,7 +75,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 		if balance > order.AmountHave {
 
 			newBal := balance - order.AmountHave
-			subtractBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE name='%s';", balCheckAsset, newBal, order.Client)
+			subtractBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE pubkey='%x';", balCheckAsset, newBal, order.Pubkey.SerializeCompressed())
 			if _, err = tx.Query(subtractBalanceQuery); err != nil {
 				return
 			}
@@ -90,7 +92,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 			//debug
 			// logging.Infof("Price for %s side: %f\n", order.Side, realPrice)
 
-			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Client, order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
+			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Pubkey.SerializeCompressed(), order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
 			if _, err = tx.Exec(placeOrderQuery); err != nil {
 				return
 			}
@@ -100,7 +102,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 			return
 		}
 	} else {
-		err = fmt.Errorf("Could not find balance for user %s, so cannot place order", order.Client)
+		err = fmt.Errorf("Could not find balance for user with pubkey %x, so cannot place order", order.Pubkey.SerializeCompressed())
 		return
 	}
 
@@ -169,14 +171,14 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 	didOrderExist := false
 	for _, pair := range db.pairsArray {
 		// figure out if there is even an order
-		getCurrentOrderQuery := fmt.Sprintf("SELECT name, amountHave, amountWant, side FROM %s WHERE orderID='%s';", pair.String(), orderID)
+		getCurrentOrderQuery := fmt.Sprintf("SELECT pubkey, amountHave, amountWant, side FROM %s WHERE orderID='%s';", pair.String(), orderID)
 		rows, currOrderErr := tx.Query(getCurrentOrderQuery)
 		if err = currOrderErr; err != nil {
 			return
 		}
 
 		if rows.Next() {
-			var client string
+			var pubkeyBytes []byte
 			var amtHave uint64
 			var amtWant uint64
 			var side string
@@ -184,8 +186,13 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 			didOrderExist = true
 
 			// get current values in case of partially filled order
-			err = rows.Scan(&client, &amtHave, &amtWant, &side)
-			if err != nil {
+
+			if err = rows.Scan(&pubkeyBytes, &amtHave, &amtWant, &side); err != nil {
+				return
+			}
+
+			var pubkey *koblitz.PublicKey
+			if pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
 				return
 			}
 
@@ -213,7 +220,7 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 			}
 
 			// update the balance of the client
-			if err = db.UpdateBalanceWithinTransaction(client, amtHave, tx, correctAssetHave); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(pubkey, amtHave, tx, correctAssetHave); err != nil {
 				return
 			}
 		}
@@ -281,7 +288,7 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 		}
 
 		// this will select all sell side, ordered by time ascending so the earliest one will be at the front
-		getSellSideQuery := fmt.Sprintf("SELECT name, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
+		getSellSideQuery := fmt.Sprintf("SELECT pubkey, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
 		sellRows, sellQueryErr := tx.Query(getSellSideQuery)
 		if err = sellQueryErr; err != nil {
 			return
@@ -289,12 +296,21 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 
 		var sellOrders []*match.LimitOrder
 		for sellRows.Next() {
+
 			sellOrder := new(match.LimitOrder)
-			if err = sellRows.Scan(&sellOrder.Client, &sellOrder.OrderID, &sellOrder.Side, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
+			var pubkeyBytes []byte
+
+			if err = sellRows.Scan(&pubkeyBytes, &sellOrder.OrderID, &sellOrder.Side, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
 				return
 			}
+
 			// set price to return to clients
 			sellOrder.OrderbookPrice = price
+
+			// Make sure pubkey bytes actually parse into koblitz
+			if sellOrder.Pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
+				return
+			}
 
 			sellOrders = append(sellOrders, sellOrder)
 		}
@@ -303,7 +319,7 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 		}
 
 		sellOrderBook = append(sellOrderBook, sellOrders[:]...)
-		getBuySideQuery := fmt.Sprintf("SELECT name, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
+		getBuySideQuery := fmt.Sprintf("SELECT pubkey, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
 		buyRows, buyQueryErr := tx.Query(getBuySideQuery)
 		if err = buyQueryErr; err != nil {
 			return
@@ -311,12 +327,21 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 
 		var buyOrders []*match.LimitOrder
 		for buyRows.Next() {
+
 			buyOrder := new(match.LimitOrder)
-			if err = buyRows.Scan(&buyOrder.Client, &buyOrder.OrderID, &buyOrder.Side, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
+			var pubkeyBytes []byte
+
+			if err = buyRows.Scan(&pubkeyBytes, &buyOrder.OrderID, &buyOrder.Side, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
 				return
 			}
+
 			// set price to return to clients
 			buyOrder.OrderbookPrice = price
+
+			// Make sure pubkey bytes actually parse into koblitz
+			if buyOrder.Pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
+				return
+			}
 
 			buyOrders = append(buyOrders, buyOrder)
 		}

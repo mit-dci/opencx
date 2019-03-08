@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
@@ -11,7 +13,7 @@ import (
 )
 
 // GetBalance gets the balance of an account
-func (db *DB) GetBalance(username string, asset string) (uint64, error) {
+func (db *DB) GetBalance(pubkey *koblitz.PublicKey, asset string) (uint64, error) {
 	var err error
 
 	// Use the balance schema
@@ -20,7 +22,7 @@ func (db *DB) GetBalance(username string, asset string) (uint64, error) {
 		return 0, fmt.Errorf("Could not use balance schema: \n%s", err)
 	}
 
-	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", asset, username)
+	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", asset, pubkey.SerializeCompressed())
 	res, err := db.DBHandler.Query(getBalanceQuery)
 	// db.IncrementReads()
 	if err != nil {
@@ -30,7 +32,7 @@ func (db *DB) GetBalance(username string, asset string) (uint64, error) {
 	amount := new(uint64)
 	success := res.Next()
 	if !success {
-		return 0, fmt.Errorf("Database error: username doesn't exist")
+		return 0, fmt.Errorf("Database error: pubkey doesn't exist")
 	}
 	err = res.Scan(amount)
 	if err != nil {
@@ -75,33 +77,39 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 
 		// Insert the deposit
 		// TODO: replace this name stuff, check that the txid doesn't already exist in deposits. IMPORTANT!!
-		insertDepositQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d, %d, %d, '%s');", coinSchema, deposit.Name, deposit.BlockHeightReceived+deposit.Confirmations, deposit.BlockHeightReceived, deposit.Amount, deposit.Txid)
+		insertDepositQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d, %d, %d, '%s');", coinSchema, deposit.Pubkey.SerializeCompressed(), deposit.BlockHeightReceived+deposit.Confirmations, deposit.BlockHeightReceived, deposit.Amount, deposit.Txid)
 		if _, err = tx.Exec(insertDepositQuery); err != nil {
 			return
 		}
 	}
 
-	areDepositsValidQuery := fmt.Sprintf("SELECT name, amount, txid FROM %s WHERE expectedConfirmHeight=%d;", coinSchema, currentBlockHeight)
+	areDepositsValidQuery := fmt.Sprintf("SELECT pubkey, amount, txid FROM %s WHERE expectedConfirmHeight=%d;", coinSchema, currentBlockHeight)
 	rows, err := tx.Query(areDepositsValidQuery)
 	if err != nil {
 		return
 	}
 
 	// Now we start reflecting the changes for users whose deposits can be filled
-	var usernames []string
+	var pubkeys []*koblitz.PublicKey
 	var amounts []uint64
 	var txids []string
 
 	for rows.Next() {
-		var username string
+		var pubkeyBytes []byte
 		var amount uint64
 		var txid string
 
-		if err = rows.Scan(&username, &amount, &txid); err != nil {
+		if err = rows.Scan(&pubkeyBytes, &amount, &txid); err != nil {
 			return
 		}
 
-		usernames = append(usernames, username)
+		var pubkey *koblitz.PublicKey
+		pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256())
+		if err != nil {
+			return
+		}
+
+		pubkeys = append(pubkeys, pubkey)
 		amounts = append(amounts, amount)
 		txids = append(txids, txid)
 	}
@@ -110,7 +118,7 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 	}
 
 	if len(amounts) > 0 {
-		if err = db.UpdateBalancesWithinTransaction(usernames, amounts, tx, coinType); err != nil {
+		if err = db.UpdateBalancesWithinTransaction(pubkeys, amounts, tx, coinType); err != nil {
 			return
 		}
 	}
@@ -131,7 +139,7 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 }
 
 // UpdateBalance updates a single balance
-func (db *DB) UpdateBalance(username string, amount uint64) (err error) {
+func (db *DB) UpdateBalance(pubkey *koblitz.PublicKey, amount uint64) (err error) {
 
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
@@ -150,7 +158,7 @@ func (db *DB) UpdateBalance(username string, amount uint64) (err error) {
 		return
 	}
 
-	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM btc WHERE name='%s';", username)
+	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM btc WHERE pubkey='%x';", pubkey.SerializeCompressed())
 	rows, err := tx.Query(currentBalanceQuery)
 	if err != nil {
 		return
@@ -170,7 +178,7 @@ func (db *DB) UpdateBalance(username string, amount uint64) (err error) {
 
 	// Update the balance
 	// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-	insertBalanceQuery := fmt.Sprintf("UPDATE btc SET balance='%d' WHERE name='%s';", *balance+amount, username)
+	insertBalanceQuery := fmt.Sprintf("UPDATE btc SET balance='%d' WHERE pubkey='%x';", *balance+amount, pubkey.SerializeCompressed())
 
 	if _, err = tx.Exec(insertBalanceQuery); err != nil {
 		return
@@ -179,8 +187,8 @@ func (db *DB) UpdateBalance(username string, amount uint64) (err error) {
 	return nil
 }
 
-// UpdateBalanceWithinTransaction increases the balance of username by amount
-func (db *DB) UpdateBalanceWithinTransaction(username string, amount uint64, tx *sql.Tx, coinType *coinparam.Params) (err error) {
+// UpdateBalanceWithinTransaction increases the balance of pubkey by amount
+func (db *DB) UpdateBalanceWithinTransaction(pubkey *koblitz.PublicKey, amount uint64, tx *sql.Tx, coinType *coinparam.Params) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("Error updating balances within transaction: \n%s", err)
@@ -195,7 +203,7 @@ func (db *DB) UpdateBalanceWithinTransaction(username string, amount uint64, tx 
 	}
 
 	// logging.Infof("Adding %d %s to %s's balance\n", amount, coinSchema, username)
-	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", coinSchema, username)
+	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", coinSchema, pubkey.SerializeCompressed())
 	res, queryErr := tx.Query(currentBalanceQuery)
 	if queryErr != nil {
 		err = queryErr
@@ -215,14 +223,14 @@ func (db *DB) UpdateBalanceWithinTransaction(username string, amount uint64, tx 
 
 		// Update the balance
 		// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-		insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE name='%s';", coinSchema, balance+amount, username)
+		insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE pubkey='%x';", coinSchema, balance+amount, pubkey.SerializeCompressed())
 		if _, err = tx.Exec(insertBalanceQuery); err != nil {
 			return
 		}
 	} else {
 		// Create the balance
 		// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-		insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinSchema, username, amount)
+		insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d);", coinSchema, pubkey.SerializeCompressed(), amount)
 		if _, err = tx.Exec(insertBalanceQuery); err != nil {
 			return
 		}
@@ -232,7 +240,7 @@ func (db *DB) UpdateBalanceWithinTransaction(username string, amount uint64, tx 
 }
 
 // UpdateBalancesWithinTransaction updates many balances, uses a transaction for all db stuff.
-func (db *DB) UpdateBalancesWithinTransaction(usernames []string, amounts []uint64, tx *sql.Tx, coinType *coinparam.Params) (err error) {
+func (db *DB) UpdateBalancesWithinTransaction(pubkeys []*koblitz.PublicKey, amounts []uint64, tx *sql.Tx, coinType *coinparam.Params) (err error) {
 
 	defer func() {
 		if err != nil {
@@ -252,9 +260,8 @@ func (db *DB) UpdateBalancesWithinTransaction(usernames []string, amounts []uint
 
 	for i := range amounts {
 		amount := amounts[i]
-		username := usernames[i]
-		// logging.Infof("Deposit confirmed; Adding %d %s to %s's balance\n", amount, coinSchema, username)
-		currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", coinSchema, username)
+		pubkey := pubkeys[i]
+		currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", coinSchema, pubkey.SerializeCompressed())
 		res, queryErr := tx.Query(currentBalanceQuery)
 		if queryErr != nil {
 			err = queryErr
@@ -275,14 +282,14 @@ func (db *DB) UpdateBalancesWithinTransaction(usernames []string, amounts []uint
 
 			// Update the balance
 			// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-			insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE name='%s';", coinSchema, balance+amount, username)
+			insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE pubkey='%x';", coinSchema, balance+amount, pubkey.SerializeCompressed())
 			if _, err = tx.Exec(insertBalanceQuery); err != nil {
 				return
 			}
 		} else {
 			// Create the balance
 			// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-			insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinSchema, username, amount)
+			insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinSchema, pubkey.SerializeCompressed(), amount)
 			if _, err = tx.Exec(insertBalanceQuery); err != nil {
 				return
 			}
@@ -293,7 +300,7 @@ func (db *DB) UpdateBalancesWithinTransaction(usernames []string, amounts []uint
 }
 
 // GetDepositAddress gets the deposit address of an account
-func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
+func (db *DB) GetDepositAddress(pubkey *koblitz.PublicKey, asset string) (string, error) {
 	var err error
 
 	// Use the deposit schema
@@ -302,9 +309,8 @@ func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
 		return "", fmt.Errorf("Could not use deposit schema: \n%s", err)
 	}
 
-	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE name='%s';", asset, username)
+	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE pubkey='%x';", asset, pubkey.SerializeCompressed())
 	res, err := db.DBHandler.Query(getBalanceQuery)
-	db.IncrementReads()
 	if err != nil {
 		return "", fmt.Errorf("Error when getting deposit: \n%s", err)
 	}
@@ -318,7 +324,7 @@ func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Error scanning for amount: \n%s", err)
 	}
-	logging.Debugf("Username %s's deposit address for %s: %s\n", username, asset, *depositAddr)
+	logging.Debugf("Pubkey %x's deposit address for %s: %s\n", pubkey.SerializeCompressed(), asset, *depositAddr)
 
 	err = res.Close()
 	if err != nil {
@@ -329,73 +335,11 @@ func (db *DB) GetDepositAddress(username string, asset string) (string, error) {
 
 }
 
-// GetDepositName gets the deposit address of an account
-func (db *DB) GetDepositName(address string, coinType *coinparam.Params) (string, error) {
-	var err error
-
-	asset, err := util.GetSchemaNameFromCoinType(coinType)
-	if err != nil {
-		return "", fmt.Errorf("Tried to get deposit addresses for %s which isn't a valid asset", asset)
-	}
-	// Use the deposit schema
-	_, err = db.DBHandler.Exec("USE " + db.depositSchema + ";")
-	db.IncrementWrites()
-	if err != nil {
-		return "", fmt.Errorf("Could not use deposit schema: \n%s", err)
-	}
-
-	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE address='%s';", asset, address)
-	res, err := db.DBHandler.Query(getBalanceQuery)
-	db.IncrementReads()
-	if err != nil {
-		fmt.Printf("1")
-		// return "", fmt.Errorf("Error when getting deposit: \n%s", err)
-	}
-	getBalanceQuery = fmt.Sprintf("SELECT address FROM %s WHERE address='%s';", asset, address)
-	res, err = db.DBHandler.Query(getBalanceQuery)
-	db.IncrementReads()
-	if err != nil {
-		fmt.Printf("2")
-		// return "", fmt.Errorf("Error when getting deposit: \n%s", err)
-	}
-	getBalanceQuery = fmt.Sprintf("SELECT address FROM %s WHERE address='%s';", asset, address)
-	res, err = db.DBHandler.Query(getBalanceQuery)
-	db.IncrementReads()
-	if err != nil {
-		fmt.Printf("3\n")
-		// return "", fmt.Errorf("Error when getting deposit: \n%s", err)
-	}
-
-	if err != nil {
-		return "", fmt.Errorf("Error when getting deposit: \n%s", err)
-	}
-
-	depositUsername := new(string)
-	if res.Next() {
-		err = res.Scan(depositUsername)
-		if err != nil {
-			return "", fmt.Errorf("Error scanning for amount: \n%s", err)
-		}
-		logging.Debugf("Addr %s's username for %s: %s\n", address, asset, *depositUsername)
-
-	} else {
-		return "", nil
-	}
-
-	err = res.Close()
-	if err != nil {
-		return "", fmt.Errorf("Error closing deposit result: \n%s", err)
-	}
-	return *depositUsername, nil
-
-}
-
-// GetDepositAddressMap returns a map from deposit addresses to names, essentially a set and only to get O(1) access time.
-func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (map[string]string, error) {
+// GetDepositAddressMap returns a map from deposit addresses to pubkeys, essentially a set and only to get O(1) access time.
+func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses map[string]*koblitz.PublicKey, err error) {
 
 	// Use the deposit schema
-	_, err := db.DBHandler.Exec("USE " + db.depositSchema + ";")
-	if err != nil {
+	if _, err = db.DBHandler.Exec("USE " + db.depositSchema + ";"); err != nil {
 		return nil, fmt.Errorf("Could not use deposit address schema: \n%s", err)
 	}
 
@@ -403,27 +347,31 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (map[string]strin
 	if err != nil {
 		return nil, fmt.Errorf("Tried to get deposit addresses for %s which isn't a valid asset", asset)
 	}
-	getBalanceQuery := fmt.Sprintf("SELECT address, name FROM %s;", asset)
+	getBalanceQuery := fmt.Sprintf("SELECT address, pubkey FROM %s;", asset)
 	res, err := db.DBHandler.Query(getBalanceQuery)
 	if err != nil {
 		return nil, fmt.Errorf("Error when getting deposit address: \n%s", err)
 	}
 
-	depositAddresses := make(map[string]string)
+	depositAddresses = make(map[string]*koblitz.PublicKey)
 
 	for res.Next() {
 		var depositAddr string
-		var name string
-		err = res.Scan(&depositAddr, &name)
+		var pubkeyBytes []byte
+		err = res.Scan(&depositAddr, &pubkeyBytes)
 		if err != nil {
 			return nil, fmt.Errorf("Error scanning for depositAddress: \n%s", err)
 		}
 
-		depositAddresses[depositAddr] = name
+		var pubkey *koblitz.PublicKey
+		if pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
+			return
+		}
+
+		depositAddresses[depositAddr] = pubkey
 	}
 
-	err = res.Close()
-	if err != nil {
+	if err = res.Close(); err != nil {
 		return nil, fmt.Errorf("Error closing deposit result: \n%s", err)
 	}
 
@@ -431,7 +379,7 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (map[string]strin
 }
 
 // Withdraw checks that the user has a certain amount of money and removes it if they do
-func (db *DB) Withdraw(username string, asset string, amount uint64) (err error) {
+func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (err error) {
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
 		return
@@ -451,7 +399,7 @@ func (db *DB) Withdraw(username string, asset string, amount uint64) (err error)
 		return
 	}
 
-	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE name='%s';", asset, username)
+	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", asset, pubkey.SerializeCompressed())
 	rows, err := db.DBHandler.Query(getBalanceQuery)
 	if err != nil {
 		return
@@ -477,7 +425,7 @@ func (db *DB) Withdraw(username string, asset string, amount uint64) (err error)
 	}
 
 	updatedBalance := bal - amount
-	reduceBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE name='%s'", asset, updatedBalance, username)
+	reduceBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE pubkey='%x'", asset, updatedBalance, pubkey.SerializeCompressed())
 	if _, err = tx.Exec(reduceBalanceQuery); err != nil {
 		return
 	}
