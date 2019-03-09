@@ -121,7 +121,8 @@ func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) (err erro
 
 // CancelOrderArgs holds the args for the CancelOrder command
 type CancelOrderArgs struct {
-	OrderID string
+	OrderID   string
+	Signature []byte
 }
 
 // CancelOrderReply holds the args for the CancelOrder command
@@ -131,6 +132,27 @@ type CancelOrderReply struct {
 
 // CancelOrder cancels the order
 func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) (err error) {
+
+	// hash order.
+	sha3 := sha3.New256()
+	sha3.Write([]byte(args.OrderID))
+	e := sha3.Sum(nil)
+
+	pubkey, _, err := koblitz.RecoverCompact(koblitz.S256(), args.Signature, e)
+	if err != nil {
+		return fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
+	}
+
+	var order *match.LimitOrder
+	if order, err = cl.Server.OpencxDB.GetOrder(args.OrderID); err != nil {
+		return
+	}
+
+	if order.Pubkey != pubkey {
+		err = fmt.Errorf("Invalid cancel, unauthorized to delete this order")
+		return
+	}
+
 	cl.Server.LockIngests()
 	if err = cl.Server.OpencxDB.CancelOrder(args.OrderID); err != nil {
 		cl.Server.UnlockIngests()

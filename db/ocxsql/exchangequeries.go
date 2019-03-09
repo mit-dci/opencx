@@ -355,3 +355,112 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 
 	return
 }
+
+// GetOrder gets an order for a specific order ID
+func (db *DB) GetOrder(orderID string) (order *match.LimitOrder, err error) {
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		err = fmt.Errorf("Error getting order: \n%s", err)
+		return
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while getting order: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+		return
+	}
+
+	for _, pair := range db.pairsArray {
+		// figure out if there is even an order
+		getCurrentOrderQuery := fmt.Sprintf("SELECT pubkey, amountHave, amountWant, side, timestamp, price FROM %s WHERE orderID='%s';", pair.String(), orderID)
+		rows, currOrderErr := tx.Query(getCurrentOrderQuery)
+		if err = currOrderErr; err != nil {
+			return
+		}
+
+		if rows.Next() {
+			var pubkeyBytes []byte
+
+			if err = rows.Scan(&pubkeyBytes, &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp, &order.OrderbookPrice); err != nil {
+				return
+			}
+
+			var pubkey *koblitz.PublicKey
+			if pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
+				return
+			}
+
+			order.Pubkey = pubkey
+			order.TradingPair = *pair
+			order.OrderID = orderID
+
+		}
+		// do this so we don't get bad connection / busy buffer issues
+		if err = rows.Close(); err != nil {
+			return
+		}
+	}
+
+	if order != nil {
+		err = fmt.Errorf("Order does not exist in any orderbook")
+		return
+	}
+
+	return
+}
+
+// GetOrdersForPubkey gets orders for a specific pubkey
+func (db *DB) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders []*match.LimitOrder, err error) {
+	tx, err := db.DBHandler.Begin()
+	if err != nil {
+		err = fmt.Errorf("Error cancelling order: \n%s", err)
+		return
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while cancelling order: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+		return
+	}
+
+	for _, pair := range db.pairsArray {
+		// figure out if there is even an order
+		getCurrentOrderQuery := fmt.Sprintf("SELECT orderID, amountHave, amountWant, side, timestamp, price FROM %s WHERE pubkey='%x';", pair.String(), pubkey.SerializeCompressed())
+		rows, currOrderErr := tx.Query(getCurrentOrderQuery)
+		if err = currOrderErr; err != nil {
+			return
+		}
+
+		for rows.Next() {
+			var order *match.LimitOrder
+
+			if err = rows.Scan(&order.OrderID, &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp, &order.OrderbookPrice); err != nil {
+				return
+			}
+
+			order.Pubkey = pubkey
+			order.TradingPair = *pair
+
+			orders = append(orders, order)
+
+		}
+		// do this so we don't get bad connection / busy buffer issues
+		if err = rows.Close(); err != nil {
+			return
+		}
+	}
+
+	return
+}

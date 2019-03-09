@@ -41,6 +41,10 @@ type OpencxStore interface {
 	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
 	// GetDepositAddressMap gets a map of the deposit addresses we own to pubkeys
 	GetDepositAddressMap(*coinparam.Params) (map[string]*koblitz.PublicKey, error)
+	// GetOrder gets an order from an OrderID
+	GetOrder(string) (*match.LimitOrder, error)
+	// GetOrdersForPubkey gets orders for a specific pubkey
+	GetOrdersForPubkey(*koblitz.PublicKey) ([]*match.LimitOrder, error)
 	// CancelOrder cancels an order with order id
 	CancelOrder(string) error
 }

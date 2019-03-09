@@ -53,7 +53,7 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 	}
 	if cmd == "placeorder" {
 		if len(args) != 4 {
-			return fmt.Errorf("Must specify 4 arguments: side, pair, amountHave, and Price")
+			return fmt.Errorf("Must specify 4 arguments: side, pair, amountHave, and price")
 		}
 
 		if err := cl.OrderCommand(args); err != nil {
