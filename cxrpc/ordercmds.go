@@ -119,6 +119,8 @@ func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) (err erro
 	return
 }
 
+// TODO: any man in the middle of a GetOrder communication can replay the same thing as a Cancel communication.
+
 // CancelOrderArgs holds the args for the CancelOrder command
 type CancelOrderArgs struct {
 	OrderID   string
@@ -143,10 +145,12 @@ func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) 
 		return fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
 	}
 
+	cl.Server.LockIngests()
 	var order *match.LimitOrder
 	if order, err = cl.Server.OpencxDB.GetOrder(args.OrderID); err != nil {
 		return
 	}
+	cl.Server.LockIngests()
 
 	if order.Pubkey != pubkey {
 		err = fmt.Errorf("Invalid cancel, unauthorized to delete this order")
@@ -178,6 +182,70 @@ func (cl *OpencxRPC) GetPairs(args GetPairsArgs, reply *GetPairsReply) (err erro
 	for _, pair := range cl.Server.PairsArray {
 		reply.PairList = append(reply.PairList, pair.PrettyString())
 	}
+
+	return
+}
+
+// GetOrderArgs holds the args for the GetOrder command
+type GetOrderArgs struct {
+	OrderID   string
+	Signature []byte
+}
+
+// GetOrderReply holds the reply for the GetOrder command
+type GetOrderReply struct {
+	Order *match.LimitOrder
+}
+
+// GetOrder gets an order based on orderID
+func (cl *OpencxRPC) GetOrder(args GetOrderArgs, reply *GetOrderReply) (err error) {
+	// hash order id.
+	sha3 := sha3.New256()
+	sha3.Write([]byte(args.OrderID))
+	e := sha3.Sum(nil)
+
+	pubkey, _, err := koblitz.RecoverCompact(koblitz.S256(), args.Signature, e)
+	if err != nil {
+		err = fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
+		return
+	}
+
+	cl.Server.LockIngests()
+	if reply.Order, err = cl.Server.OpencxDB.GetOrder(args.OrderID); err != nil {
+		return
+	}
+	cl.Server.UnlockIngests()
+
+	if reply.Order.Pubkey != pubkey {
+		err = fmt.Errorf("Invalid cancel, unauthorized to delete this order")
+		return
+	}
+
+	return
+}
+
+// GetOrdersForPubkeyArgs holds the args for the GetOrdersForPubkey command
+type GetOrdersForPubkeyArgs struct {
+	Signature []byte
+}
+
+// GetOrdersForPubkeyReply holds the reply for the GetOrdersForPubkey command
+type GetOrdersForPubkeyReply struct {
+	Orders []*match.LimitOrder
+}
+
+// GetOrdersForPubkey gets the orders for the pubkey which has signed the getOrdersString
+func (cl *OpencxRPC) GetOrdersForPubkey(args GetOrdersForPubkeyArgs, reply *GetOrdersForPubkeyReply) (err error) {
+	var pubkey *koblitz.PublicKey
+	if pubkey, err = cl.Server.GetOrdersStringVerify(args.Signature); err != nil {
+		return
+	}
+
+	cl.Server.LockIngests()
+	if reply.Orders, err = cl.Server.OpencxDB.GetOrdersForPubkey(pubkey); err != nil {
+		return
+	}
+	cl.Server.UnlockIngests()
 
 	return
 }

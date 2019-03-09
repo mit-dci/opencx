@@ -39,6 +39,7 @@ type OpencxServer struct {
 	PairsArray    []*match.Pair
 
 	registrationString string
+	getOrdersString    string
 
 	// Hehe it's the vault, pls don't steal
 	OpencxBTCTestPrivKey *hdkeychain.ExtendedKey
@@ -109,6 +110,7 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 		PairsArray:         pairsArray,
 		AssetArray:         assets,
 		registrationString: "opencx-register",
+		getOrdersString:    "opencx-getorders",
 		orderMutex:         new(sync.Mutex),
 		OrderMap:           make(map[match.Pair][]*match.LimitOrder),
 		ingestMutex:        *new(sync.Mutex),
@@ -527,10 +529,11 @@ func dummyProofOfWork(b []byte, height int32) chainhash.Hash {
 
 // GetRegistrationString gets a string that should be signed in order for a client to be registered
 func (server *OpencxServer) GetRegistrationString() (regStr string) {
+	regStr = server.registrationString
 	return
 }
 
-// RegistrationStringVerify verifies a signature for a registration string and checks if it's in the server's list of valid registration strings.
+// RegistrationStringVerify verifies a signature for a registration string and returns a pubkey
 func (server *OpencxServer) RegistrationStringVerify(sig []byte) (pubkey *koblitz.PublicKey, err error) {
 	// e = h(registrationstring)
 	sha3 := sha3.New256()
@@ -539,6 +542,27 @@ func (server *OpencxServer) RegistrationStringVerify(sig []byte) (pubkey *koblit
 
 	if pubkey, _, err = koblitz.RecoverCompact(koblitz.S256(), sig, e); err != nil {
 		err = fmt.Errorf("Error verifying registration string, invalid signature: \n%s", err)
+		return
+	}
+
+	return
+}
+
+// GetOrdersString gets a string that should be signed in order for a client to be registered
+func (server *OpencxServer) GetOrdersString() (getOrderStr string) {
+	getOrderStr = server.getOrdersString
+	return
+}
+
+// GetOrdersStringVerify verifies a signature for the getOrdersString
+func (server *OpencxServer) GetOrdersStringVerify(sig []byte) (pubkey *koblitz.PublicKey, err error) {
+	// e = h(getOrders)
+	sha3 := sha3.New256()
+	sha3.Write([]byte(server.GetOrdersString()))
+	e := sha3.Sum(nil)
+
+	if pubkey, _, err = koblitz.RecoverCompact(koblitz.S256(), sig, e); err != nil {
+		err = fmt.Errorf("Error verifying getOrders string, invalid signature: \n%s", err)
 		return
 	}
 
