@@ -72,7 +72,9 @@ func main() {
 		ConfigFile:  defaultConfigFilename,
 	}
 
-	ocxSetup(conf)
+	if didWriteHelp := ocxSetup(conf); didWriteHelp {
+		return
+	}
 	client.KeyPath = filepath.Join(conf.OcxHomeDir, conf.KeyFileName)
 	client.RPCClient = new(benchclient.BenchClient)
 	if err = client.RPCClient.SetupBenchClient(conf.Rpchost, conf.Rpcport); err != nil {

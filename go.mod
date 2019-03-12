@@ -18,8 +18,8 @@ require (
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c // indirect
 	github.com/jackpal/gateway v1.0.5 // indirect
-	github.com/jackpal/go-nat-pmp v0.0.0-20181021122511-d89d09f6f332 // latest release has issue, but go doesn't let you do head if there are releases
-	github.com/jessevdk/go-flags v1.4.0
+	github.com/jackpal/go-nat-pmp v1.0.2-0.20181021192511-d89d09f6f332 // latest release has issue, but go doesn't let you do head if there are releases
+	github.com/jessevdk/go-flags v1.4.1-0.20181221193153-c0795c8afcf4
 	github.com/mattn/go-colorable v0.1.1 // indirect
 	github.com/mattn/go-isatty v0.0.6 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect

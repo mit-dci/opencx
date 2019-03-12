@@ -31,7 +31,7 @@ func createDefaultConfigFile(destinationPath string) error {
 	return nil
 }
 
-func ocxSetup(conf *ocxConfig) {
+func ocxSetup(conf *ocxConfig) (help bool) {
 	// Pre-parse the command line options to see if an alternative config
 	// file or the version flag was specified. Config file will be read later
 	// and cli options would be parsed again below
@@ -42,7 +42,10 @@ func ocxSetup(conf *ocxConfig) {
 		// catch all cli argument errors
 		// logging.Fatal(err)
 		// this just prints it out twice
-		logging.Fatal("Error parsing args")
+		if help = flags.WroteHelp(err); help {
+			return
+		}
+		logging.Fatalf("Error parsing args: \n%s", err)
 	}
 
 	// create home directory

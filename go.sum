@@ -33,8 +33,12 @@ github.com/jackpal/go-nat-pmp v0.0.0-20181021122511-d89d09f6f332 h1:taVnlVCxVFm9
 github.com/jackpal/go-nat-pmp v0.0.0-20181021122511-d89d09f6f332/go.mod h1:QPH045xvCAeXUZOxsnwmrtiCoxIr9eob+4orBN1SBKc=
 github.com/jackpal/go-nat-pmp v1.0.1 h1:i0LektDkO1QlrTm/cSuP+PyBCDnYvjPLGl4LdWEMiaA=
 github.com/jackpal/go-nat-pmp v1.0.1/go.mod h1:QPH045xvCAeXUZOxsnwmrtiCoxIr9eob+4orBN1SBKc=
+github.com/jackpal/go-nat-pmp v1.0.2-0.20181021192511-d89d09f6f332 h1:0EiB3MguGRBsOOluCA/4k855IMB+oheEjWeVEtWPSXg=
+github.com/jackpal/go-nat-pmp v1.0.2-0.20181021192511-d89d09f6f332/go.mod h1:QPH045xvCAeXUZOxsnwmrtiCoxIr9eob+4orBN1SBKc=
 github.com/jessevdk/go-flags v1.4.0 h1:4IU2WS7AumrZ/40jfhf4QVDMsQwqA7VEHozFRrGARJA=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
+github.com/jessevdk/go-flags v1.4.1-0.20181221193153-c0795c8afcf4 h1:xKkUL6QBojwguhKKetf1SocCAKqc6W7S/mGm9xEGllo=
+github.com/jessevdk/go-flags v1.4.1-0.20181221193153-c0795c8afcf4/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/mattn/go-colorable v0.1.1 h1:G1f5SKeVxmagw/IyvzvtZE4Gybcc4Tr1tf7I8z0XgOg=
 github.com/mattn/go-colorable v0.1.1/go.mod h1:FuOcm+DKB9mbwrcAfNl7/TZVBZ6rcnceauSikq3lYCQ=
 github.com/mattn/go-isatty v0.0.5/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
