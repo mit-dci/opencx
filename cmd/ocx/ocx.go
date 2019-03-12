@@ -22,15 +22,19 @@ type openCxClient struct {
 }
 
 type ocxConfig struct {
+	// Filename of config file where this stuff can be set as well
 	ConfigFile string
 
 	// stuff for files and directories
-	LogFilename string `long:"logFilename" description:"Filename for output log file"`
-	OcxHomeDir  string `long:"dir" description:"Location of the root directory relative to home directory"`
+	LogFilename string `long:"logFilename" short:"l" description:"Filename for output log file"`
+	OcxHomeDir  string `long:"dir" short:"d" description:"Location of the root directory relative to home directory"`
 
 	// stuff for ports
-	Rpchost string `long:"rpchost" description:"Hostname of OpenCX Server you'd like to connect to"`
-	Rpcport uint16 `long:"rpcport" description:"Port of the OpenCX Port you'd like to connect to"`
+	Rpchost string `long:"rpchost" short:"h" description:"Hostname of OpenCX Server you'd like to connect to"`
+	Rpcport uint16 `long:"rpcport" short:"p" description:"Port of the OpenCX Port you'd like to connect to"`
+
+	// filename for key
+	KeyFileName string `long:"keyfilename" short:"k" description:"Filename for private key within root opencx directory used to send transactions"`
 
 	// logging and debug parameters
 	LogLevel []bool `short:"v" description:"Set verbosity level to verbose (-v), very verbose (-vv) or very very verbose (-vvv)"`
@@ -60,13 +64,16 @@ func main() {
 	var client openCxClient
 
 	conf := &ocxConfig{
-		OcxHomeDir: defaultOcxHomeDirName,
-		Rpchost:    defaultRpchost,
-		Rpcport:    defaultRpcport,
+		OcxHomeDir:  defaultOcxHomeDirName,
+		Rpchost:     defaultRpchost,
+		Rpcport:     defaultRpcport,
+		LogFilename: defaultLogFilename,
+		KeyFileName: defaultKeyFileName,
+		ConfigFile:  defaultConfigFilename,
 	}
 
 	ocxSetup(conf)
-	client.KeyPath = filepath.Join(conf.OcxHomeDir, defaultKeyFileName)
+	client.KeyPath = filepath.Join(conf.OcxHomeDir, conf.KeyFileName)
 	client.RPCClient = new(benchclient.BenchClient)
 	if err = client.RPCClient.SetupBenchClient(conf.Rpchost, conf.Rpcport); err != nil {
 		logging.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)

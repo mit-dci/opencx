@@ -86,26 +86,27 @@ func (db *DB) SetupClient(assets []match.Asset, pairs []*match.Pair) error {
 
 	// Initialize Balance tables
 	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
-	err = db.InitializeNewTables(db.balanceSchema, "pubkey TEXT, balance BIGINT(64)")
+	// 66 bytes because we use big bytes and they use small bytes for varbinary
+	err = db.InitializeNewTables(db.balanceSchema, "pubkey VARBINARY(66), balance BIGINT(64)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize balance tables: \n%s", err)
 	}
 
 	// Initialize Deposit tables
-	err = db.InitializeTables(db.depositSchema, "pubkey VARBINARY(33), address VARCHAR(34), CONSTRAINT unique_pubkeys UNIQUE (pubkey, address)")
+	err = db.InitializeTables(db.depositSchema, "pubkey VARBINARY(66), address VARCHAR(34), CONSTRAINT unique_pubkeys UNIQUE (pubkey, address)")
 	if err != nil {
 		return fmt.Errorf("Could not initialize deposit tables: \n%s", err)
 	}
 
 	// Initialize pending_deposits table
-	err = db.InitializeNewTables(db.pendingDepositSchema, "pubkey VARBINARY(33), expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
+	err = db.InitializeNewTables(db.pendingDepositSchema, "pubkey VARBINARY(66), expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
 	if err != nil {
 		return fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
 	}
 
 	// Initialize order table
 	// You can have a price up to 30 digits total, and 10 decimal places.
-	err = db.InitializePairTables(db.orderSchema, "pubkey VARBINARY(33), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
+	err = db.InitializePairTables(db.orderSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
 	if err != nil {
 		return fmt.Errorf("Could not initialize order tables: \n%s", err)
 	}
@@ -122,7 +123,7 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
 	}
 	for _, assetString := range db.assetArray {
-		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
+		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", assetString, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
@@ -141,7 +142,7 @@ func (db *DB) InitializeNewTables(schemaName string, schemaSpec string) error {
 		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
 	}
 	for _, assetString := range db.assetArray {
-		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", assetString, schemaSpec)
+		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", assetString, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
 			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)

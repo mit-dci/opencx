@@ -1,9 +1,21 @@
 package main
 
 import (
+	"fmt"
+
+	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"
 )
+
+var registerCommand = &Command{
+	Format: fmt.Sprintf("%s\n", lnutil.White("register")),
+	Description: fmt.Sprintf("%s\n%s\n",
+		"Register the public key associated with your private key as an identity on the exchange.",
+		"You will use your private key to sign commands that require authorization.",
+	),
+	ShortDescription: fmt.Sprintf("%s\n", "Register yourself on the exchange"),
+}
 
 // Register registers the user for an account with a username and password
 func (cl *openCxClient) Register(args []string) (err error) {

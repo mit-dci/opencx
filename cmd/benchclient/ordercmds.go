@@ -119,6 +119,9 @@ func (cl *BenchClient) CancelOrder(orderID string) (cancelOrderReply *cxrpc.Canc
 		OrderID: orderID,
 	}
 
+	// get privkey for signing
+	privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
+
 	// create e = hash(m)
 	sha3 := sha3.New256()
 	sha3.Write([]byte(cancelOrderArgs.OrderID))
@@ -126,6 +129,8 @@ func (cl *BenchClient) CancelOrder(orderID string) (cancelOrderReply *cxrpc.Canc
 
 	// Sign order
 	compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
+
+	cancelOrderArgs.Signature = compactSig
 
 	// Actually use the RPC Client to call the method
 	if err = cl.Call("OpencxRPC.CancelOrder", cancelOrderArgs, cancelOrderReply); err != nil {

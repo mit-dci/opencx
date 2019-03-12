@@ -40,7 +40,9 @@ func ocxSetup(conf *ocxConfig) {
 
 	if _, err := parser.ParseArgs(os.Args); err != nil {
 		// catch all cli argument errors
-		logging.Fatal(err)
+		// logging.Fatal(err)
+		// this just prints it out twice
+		logging.Fatal("Error parsing args")
 	}
 
 	// create home directory
@@ -79,7 +81,9 @@ func ocxSetup(conf *ocxConfig) {
 	// Parse command line options again to ensure they take precedence.
 	_, err = parser.ParseArgs(os.Args) // returns invalid flags
 	if err != nil {
-		logging.Fatal(err)
+		// logging.Fatal(err)
+		// This just prints it out again.
+		return
 	}
 
 	logFilePath := filepath.Join(conf.OcxHomeDir, conf.LogFilename)

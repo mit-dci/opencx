@@ -1,8 +1,24 @@
 package main
 
 import (
+	"github.com/fatih/color"
+	"github.com/mit-dci/lit/lnutil"
+
 	"fmt"
 )
+
+// Command holds information about commands so we can show all the stuff you can do
+type Command struct {
+	Format           string
+	Description      string
+	ShortDescription string
+}
+
+var helpCommand = &Command{
+	Format:           fmt.Sprintf("%s%s\n", lnutil.White("help"), lnutil.OptColor("command")),
+	Description:      "Show information about a given command\n",
+	ShortDescription: "Show information about a given command\n",
+}
 
 func (cl *openCxClient) parseCommands(commands []string) error {
 	var args []string
@@ -14,6 +30,11 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 
 	if len(commands) > 1 {
 		args = commands[1:]
+	}
+	// help gives you really terse help.  Just a list of commands.
+	if cmd == "help" {
+		err := cl.Help(args)
+		return err
 	}
 	if cmd == "register" {
 		if len(args) != 0 {
@@ -115,4 +136,30 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	return nil
+}
+
+func printHelp(commands []*Command) {
+	for _, command := range commands {
+		fmt.Fprintf(color.Output, "%s\t%s", command.Format, command.ShortDescription)
+	}
+}
+
+func (cl *openCxClient) Help(textArgs []string) error {
+	if len(textArgs) == 0 {
+
+		fmt.Fprintf(color.Output, lnutil.Header("Commands:\n"))
+		listofCommands := []*Command{}
+		printHelp(listofCommands)
+		return nil
+	}
+
+	if textArgs[0] == "help" || textArgs[0] == "-h" {
+		fmt.Fprintf(color.Output, helpCommand.Format)
+		fmt.Fprintf(color.Output, helpCommand.Description)
+		return nil
+	}
+	res := make([]string, 0)
+	res = append(res, textArgs[0])
+	res = append(res, "-h")
+	return cl.parseCommands(res)
 }

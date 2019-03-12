@@ -12,7 +12,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/blake256 v1.0.0 // indirect
 	github.com/deedlefake/crypto v0.0.0-20170910233742-2f50d39c528d // indirect
-	github.com/fatih/color v1.7.0 // indirect
+	github.com/fatih/color v1.7.0
 	github.com/getlantern/deepcopy v0.0.0-20160317154340-7f45deb8130a // indirect
 	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/go-sql-driver/mysql v1.4.1

@@ -5,6 +5,7 @@ import (
 
 	"github.com/mit-dci/lit/crypto/koblitz"
 
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -76,6 +77,8 @@ func (db *DB) InsertDepositAddresses(pubkey *koblitz.PublicKey, addressMap map[m
 		err = tx.Commit()
 	}()
 
+	logging.Infof("pubkey length (serialized, compressed): %d", len(pubkey.SerializeCompressed()))
+
 	// use deposit schema
 	if _, err = tx.Exec("USE " + db.depositSchema + ";"); err != nil {
 		return
@@ -85,8 +88,11 @@ func (db *DB) InsertDepositAddresses(pubkey *koblitz.PublicKey, addressMap map[m
 	for _, asset := range db.assetArray {
 		// if you found an address in the map
 		if addr, found := addressMap[asset]; found {
+
+			logging.Infof("Addr: %s, len: %d", addr, len(addr))
 			// insert into db
 			insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s') ON DUPLICATE KEY UPDATE address='%s';", asset, pubkey.SerializeCompressed(), addr, addr)
+			logging.Infof("%s", insertDepositAddrQuery)
 			if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 				return
 			}

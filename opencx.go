@@ -43,6 +43,9 @@ type opencxConfig struct {
 	MinPeerPort uint16 `long:"minpeerport" description:"Port to start creating ports for peers at"`
 	Lithost     string `long:"lithost" description:"Host for the lightning node on the exchange to run"`
 	Litport     uint16 `long:"litport" description:"Port for the lightning node on the exchange to run"`
+
+	// filename for key
+	KeyFileName string `long:"keyfilename" short:"k" description:"Filename for private key within root opencx directory used to send transactions"`
 }
 
 var (
