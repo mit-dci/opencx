@@ -75,6 +75,13 @@ func main() {
 	if didWriteHelp := ocxSetup(conf); didWriteHelp {
 		return
 	}
+
+	if os.Args[1] == "help" {
+		if err = client.parseCommands(os.Args[1:]); err != nil {
+			logging.Fatalf("%s", err)
+		}
+		return
+	}
 	client.KeyPath = filepath.Join(conf.OcxHomeDir, conf.KeyFileName)
 	client.RPCClient = new(benchclient.BenchClient)
 	if err = client.RPCClient.SetupBenchClient(conf.Rpchost, conf.Rpcport); err != nil {

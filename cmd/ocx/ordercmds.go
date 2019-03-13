@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/opencx/logging"
 
 	"github.com/mit-dci/opencx/cxrpc"
@@ -13,7 +14,16 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-// OrderCommand submits an order (for now) TODO
+var placeOrderCommand = &Command{
+	Format: fmt.Sprintf("%s%s%s%s%s\n", lnutil.Red("placeorder"), lnutil.ReqColor("side"), lnutil.ReqColor("pair"), lnutil.ReqColor("amounthave"), lnutil.ReqColor("price")),
+	Description: fmt.Sprintf("%s\n%s\n",
+		"Submit a order with side \"buy\" or side \"sell\", for pair \"asset1\"/\"asset2\", where you give up amounthave of \"asset1\" (if on buy side) or \"asset2\" if on sell side, for the other token at a specific price.",
+		"This will return an order ID which can be used as input to cancelorder, or getorder.",
+	),
+	ShortDescription: fmt.Sprintf("%s\n", "Place an order on the exchange."),
+}
+
+// OrderCommand submits an order (for now)
 func (cl *openCxClient) OrderCommand(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
@@ -46,6 +56,14 @@ func (cl *openCxClient) OrderCommand(args []string) (err error) {
 	return nil
 }
 
+var getPriceCommand = &Command{
+	Format: fmt.Sprintf("%s%s\n", lnutil.Red("getprice"), lnutil.ReqColor("pair")),
+	Description: fmt.Sprintf("%s\n",
+		"Get the price of the input asset pair.",
+	),
+	ShortDescription: fmt.Sprintf("%s\n", "Get the price of the input asset pair."),
+}
+
 // GetPrice prints the price for the asset
 func (cl *openCxClient) GetPrice(args []string) (err error) {
 	assetString := args[0]
@@ -57,6 +75,14 @@ func (cl *openCxClient) GetPrice(args []string) (err error) {
 
 	logging.Infof("Price: %f %s\n", getPriceReply.Price, assetString)
 	return nil
+}
+
+var viewOrderbookCommand = &Command{
+	Format: fmt.Sprintf("%s%s%s\n", lnutil.Red("vieworderbook"), lnutil.ReqColor("pair"), lnutil.OptColor("side")),
+	Description: fmt.Sprintf("%s\n",
+		"View orderbook for pair, with optional side.",
+	),
+	ShortDescription: fmt.Sprintf("%s\n", "View orderbook for pair, with optional side."),
 }
 
 // ViewOrderbook prints the orderbook
@@ -111,6 +137,14 @@ func (cl *openCxClient) ViewOrderbook(args []string) (err error) {
 	return
 }
 
+var cancelOrderCommand = &Command{
+	Format: fmt.Sprintf("%s%s\n", lnutil.Red("cancelorder"), lnutil.ReqColor("orderID")),
+	Description: fmt.Sprintf("%s\n",
+		"Cancel order with orderID.",
+	),
+	ShortDescription: fmt.Sprintf("%s\n", "Cancel order with orderID."),
+}
+
 // CancelOrder calls the cancel order rpc command
 func (cl *openCxClient) CancelOrder(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
@@ -126,6 +160,14 @@ func (cl *openCxClient) CancelOrder(args []string) (err error) {
 
 	logging.Infof("Cancelled order successfully")
 	return
+}
+
+var getPairsCommand = &Command{
+	Format: fmt.Sprintf("%s\n", lnutil.Red("getpairs")),
+	Description: fmt.Sprintf("%s\n",
+		"Get all available trading pairs.",
+	),
+	ShortDescription: fmt.Sprintf("%s\n", "Get all available trading pairs."),
 }
 
 // GetPairs gets the available trading pairs

@@ -56,6 +56,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "getbalance" {
+		if getHelpForCommand(getBalanceCommand, args) {
+			return nil
+		}
 		if len(args) != 1 {
 			return fmt.Errorf("Must specify token to get balance for token")
 		}
@@ -65,6 +68,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "getallbalances" {
+		if getHelpForCommand(getAllBalancesCommand, args) {
+			return nil
+		}
 		if len(args) != 0 {
 			return fmt.Errorf("Please do not specify any arguments")
 		}
@@ -74,6 +80,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "getdepositaddress" {
+		if getHelpForCommand(getDepositAddressCommand, args) {
+			return nil
+		}
 		if len(args) != 1 {
 			return fmt.Errorf("Must specify asset to get deposit address for asset")
 		}
@@ -83,6 +92,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "placeorder" {
+		if getHelpForCommand(placeOrderCommand, args) {
+			return nil
+		}
 		if len(args) != 4 {
 			return fmt.Errorf("Must specify 4 arguments: side, pair, amountHave, and price")
 		}
@@ -92,6 +104,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "vieworderbook" {
+		if getHelpForCommand(viewOrderbookCommand, args) {
+			return nil
+		}
 		if len(args) != 1 || len(args) != 2 {
 			return fmt.Errorf("Must specify from 1 to 2 arguments: pair [buy|sell]")
 		}
@@ -101,6 +116,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "getprice" {
+		if getHelpForCommand(getPriceCommand, args) {
+			return nil
+		}
 		if len(args) != 1 {
 			return fmt.Errorf("Must specify 1 argument: pair")
 		}
@@ -110,6 +128,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "withdraw" {
+		if getHelpForCommand(withdrawCommand, args) {
+			return nil
+		}
 		if len(args) != 3 {
 			return fmt.Errorf("Must specify 3 arguments: amount coin address")
 		}
@@ -119,6 +140,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "cancelorder" {
+		if getHelpForCommand(cancelOrderCommand, args) {
+			return nil
+		}
 		if len(args) != 1 {
 			return fmt.Errorf("Must specify 1 argument: orderID")
 		}
@@ -128,6 +152,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "getpairs" {
+		if getHelpForCommand(getPairsCommand, args) {
+			return nil
+		}
 		if len(args) != 0 {
 			return fmt.Errorf("Don't specify arguments please")
 		}
@@ -137,6 +164,9 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		}
 	}
 	if cmd == "getlitconnection" {
+		if getHelpForCommand(getLitConnectionCommand, args) {
+			return nil
+		}
 		if len(args) != 0 {
 			return fmt.Errorf("Don't specify arguments please")
 		}
@@ -158,7 +188,7 @@ func (cl *openCxClient) Help(textArgs []string) error {
 	if len(textArgs) == 0 {
 
 		fmt.Fprintf(color.Output, lnutil.Header("Commands:\n"))
-		listofCommands := []*Command{helpCommand, registerCommand}
+		listofCommands := []*Command{helpCommand, registerCommand, getBalanceCommand, getDepositAddressCommand, getAllBalancesCommand, withdrawCommand, getLitConnectionCommand, placeOrderCommand, getPriceCommand, viewOrderbookCommand, cancelOrderCommand, getPairsCommand}
 		printHelp(listofCommands)
 		return nil
 	}
