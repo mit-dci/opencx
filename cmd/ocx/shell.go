@@ -7,7 +7,11 @@ import (
 	"fmt"
 )
 
-// Command holds information about commands so we can show all the stuff you can do
+// Command holds information about commands so we can show all the stuff you can do. Maybe an upgrade woud be adding
+// a range of arguments and if you're not within the argument range it will show you the help. Then you could just
+// make a function where you pass in the *Command and the function that's supposed to be run, and it will just
+// do everything for you. I could even make an array of a struct which is a command name, the resulting function,
+// and the *Command. Or that would all be *Command, and after the array is made you just parse the whole thing.
 type Command struct {
 	Format           string
 	Description      string
@@ -33,10 +37,16 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 	}
 	// help gives you really terse help.  Just a list of commands.
 	if cmd == "help" {
+		if getHelpForCommand(helpCommand, args) {
+			return nil
+		}
 		err := cl.Help(args)
 		return err
 	}
 	if cmd == "register" {
+		if getHelpForCommand(registerCommand, args) {
+			return nil
+		}
 		if len(args) != 0 {
 			return fmt.Errorf("Please do not specify any arguments. You do not need a username, you will be registered by public key")
 		}
@@ -148,7 +158,7 @@ func (cl *openCxClient) Help(textArgs []string) error {
 	if len(textArgs) == 0 {
 
 		fmt.Fprintf(color.Output, lnutil.Header("Commands:\n"))
-		listofCommands := []*Command{}
+		listofCommands := []*Command{helpCommand, registerCommand}
 		printHelp(listofCommands)
 		return nil
 	}
@@ -162,4 +172,14 @@ func (cl *openCxClient) Help(textArgs []string) error {
 	res = append(res, textArgs[0])
 	res = append(res, "-h")
 	return cl.parseCommands(res)
+}
+
+func getHelpForCommand(cmd *Command, textArgs []string) (wasHelp bool) {
+	if wasHelp = len(textArgs) > 0 && textArgs[0] == "-h"; wasHelp {
+		fmt.Fprintf(color.Output, "%s\n", cmd.Format)
+		fmt.Fprintf(color.Output, cmd.Description)
+		return
+	}
+
+	return
 }
