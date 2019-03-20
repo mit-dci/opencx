@@ -46,6 +46,9 @@ These topics are for me to review and asses what the benefits of each are and ho
  - [x] [Deconstructing Decentralized Exchanges](https://stanford-jblp.pubpub.org/pub/deconstructing-dex)
    - Essay by Lindsay X. Lin from Interstellar, published in the Stanford Journal of Blockchain Law and Policy
  - [x] [Provisions: Privacy-preserving Proofs of Solvency for Bitcoin Exchanges](https://users.encs.concordia.ca/~clark/papers/2015_ccs.pdf)
+   - Stanford and friends
+ - [ ] [TEX - A Securely Scalable Trustless Exchange](https://eprint.iacr.org/2019/265)
+   - By Rami Khalil, Arthur Gervais, Guillaume Felley at Imperial College London and Liquidity Network
 
 ## People that seem to have lots of experience with securities exchanges and cryptographic protocols
  - [**Cristopher Thorpe**](http://www.eecs.harvard.edu/~cat/)
@@ -255,7 +258,6 @@ Some, like Nash, choose to settle trades by having the matching engine simultane
 
 ## Cryptographic Securities Exchanges
 
-
 ## Deconstructing Decentralized Exchanges
 TODO: summary of essay and general opinion
 
@@ -392,6 +394,10 @@ Provisions also does not provide dispute resolution, and "If a user finds their 
 The goal for efficiency is to be able to produce a privacy-preserving proof of solvency for Coinbase, with roughly 2 million users.
 
 P2PKH and P2SH addresses can also not be used, only public keys that are on the blockchain.
+
+## TEX - A Securely Scalable Trustless Exchange
+
+The TEX the 
 
 # Centralized Exchanges
 

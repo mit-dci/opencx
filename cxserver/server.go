@@ -217,24 +217,15 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan c
 		return
 	}
 
-	var btcHook *uspv.SPVCon
-	btcHook = new(uspv.SPVCon)
-	if _, _, err = btcHook.Start(btcParam.StartHeight, hostString, server.ChainhookRoot, "", btcParam); err != nil {
-		return
-	}
-
 	// figure out whether or not to do this if merged
-	// btcHook := btcWallet.ExportHook()
+	btcHook := btcWallet.ExportHook()
 
 	logging.Infof("BTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxBTCWallet = btcWallet
-	// remove these when merged
-	hookBlockChan := btcHook.RawBlocks()
-	currentHeightChan := btcHook.CurrentHeightChan
-	// uncomment these when merged
-	// hookBlockChan := btcHook.NewRawBlocksChannel()
-	// currentHeightChan := btcHook.NewHeightChannel()
+
+	hookBlockChan := btcHook.NewRawBlocksChannel()
+	currentHeightChan := btcHook.NewHeightChannel()
 
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, btcParam)
 
@@ -275,25 +266,15 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan c
 		return
 	}
 
-	var ltcHook *uspv.SPVCon
-	ltcHook = new(uspv.SPVCon)
-	if _, _, err = ltcHook.Start(ltcParam.StartHeight, hostString, server.ChainhookRoot, "", ltcParam); err != nil {
-		return
-	}
-
 	// figure out whether or not to do this if merged
-	// ltcHook := ltcWallet.ExportHook()
+	ltcHook := ltcWallet.ExportHook()
 
 	logging.Infof("LTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxLTCWallet = ltcWallet
 
-	// remove these when merged
-	hookBlockChan := ltcHook.RawBlocks()
-	currentHeightChan := ltcHook.CurrentHeightChan
-	// uncomment these when merged
-	// hookBlockChan := ltcHook.NewRawBlocksChannel()
-	// currentHeightChan := ltcHook.NewHeightChannel()
+	hookBlockChan := ltcHook.NewRawBlocksChannel()
+	currentHeightChan := ltcHook.NewHeightChannel()
 
 	// for some reason the currentHeightChan is better for ltc or smth
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, ltcParam)
@@ -332,24 +313,14 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 		return
 	}
 
-	var vtcHook *uspv.SPVCon
-	vtcHook = new(uspv.SPVCon)
-	if _, _, err = vtcHook.Start(vtcParam.StartHeight, hostString, server.ChainhookRoot, "", vtcParam); err != nil {
-		return
-	}
-
-	// figure out whether or not to do this if merged
-	// vtcHook := vtcWallet.ExportHook()
+	vtcHook := vtcWallet.ExportHook()
 
 	logging.Infof("VTC Wallet Started, cointype: %d\n", coinType)
 
 	server.OpencxVTCWallet = vtcWallet
-	// remove these when merged
-	hookBlockChan := vtcHook.RawBlocks()
-	currentHeightChan := vtcHook.CurrentHeightChan
-	// uncomment these when merged
-	// hookBlockChan := vtcHook.NewRawBlocksChannel()
-	// currentHeightChan := vtcHook.NewHeightChannel()
+
+	hookBlockChan := vtcHook.NewRawBlocksChannel()
+	currentHeightChan := vtcHook.NewHeightChannel()
 
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, vtcParam)
 

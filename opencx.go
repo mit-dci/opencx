@@ -124,6 +124,10 @@ func main() {
 		logging.Fatalf("Error starting lit node: \n%s", err)
 	}
 
+	logging.Infof("registering sigproof handler")
+	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.sigproof", ocxServer.GetSigProofHandler())
+	logging.Infof("done registering sigproof handler")
+
 	btcCoinTypeChan := make(chan int, 1)
 	ltcCoinTypeChan := make(chan int, 1)
 	vtcCoinTypeChan := make(chan int, 1)

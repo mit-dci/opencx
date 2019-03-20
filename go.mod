@@ -23,7 +23,7 @@ require (
 	github.com/mattn/go-colorable v0.1.1 // indirect
 	github.com/mattn/go-isatty v0.0.6 // indirect
 	github.com/mattn/go-runewidth v0.0.4 // indirect
-	github.com/mit-dci/lit v0.0.0-20190206212915-7a22842c6316
+	github.com/mit-dci/lit v0.0.0-20190308194132-7afe724e9581
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/vertcoin/lyra2re v0.0.0-20170910033546-8bfa142041c2 // indirect
 	gitlab.com/NebulousLabs/fastrand v0.0.0-20181126182046-603482d69e40 // indirect

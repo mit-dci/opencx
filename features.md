@@ -215,24 +215,10 @@ Arwen is actually pretty simple. First you create a user escrow (basically a lig
 
 The exchange needs a lot of funds to work correctly, since someone with a similar amount of money to the exchange can just open up a very large, or very many exchange escrows and user escrows.
 
-This would restrict the exchange from opening any more exchange escrows, locking the rest of the users out. This would require a lot of money but if operated in a trustless fashion, would make the exchange completely useless. A competing exchange could pull off this kind of attack, or many arwen-style exchanges could just trade with each other and nobody would be able to trade with the group of exchanges, since they're all locking each other out. The exchanges would probably know that they're all just trading with each other, but if they didn't that would be pretty interesting. The trades *look* like normal people but they aren't. Arwen has a sort of bandwidth based on the funds that it has, due to all settlement happening with the exchange rather than person to person. 
 
+### Architecture notes
+I've realized that the wallet should probably be decoupled. As the exchange, we just rely on something that takes in transactions and tells us if we've received the money yet, so basically a wallet. We should be able to just connect to that thing, ask it about what addresses it has and has been sent to.
 
-While this definitely gives arwen an advantage since they can be the market maker, you could pull off an attack like this if you don't KYC or have permissioned stuff to make sure 100 medium sized accounts aren't just one gigantic whale trying to sponge out all of your funds into exchange escrows. Arwen tries to solve this with escrow fees, but if you actually did have ~2x the money that the exchange did, you could lock up the exchange for a week. This is why there's still room for improvement for arwen, it can't be completely trustless in order to prevent this kind of attack (correct me if I'm wrong). As far as Arwen is concerned, they should make sure that if they are close to capacity, the fees increase.
+Key management has always been an issue but I'd like to just keep one thing synced up and connect to that, and lit is the most compatible with the chainhook and stuff. I'm sure I'm storing like 3 copies of everything. 
 
-If I make an instance of miniArwen, and I only have $5 worth of litecoin, $10 worth of bitcoin, and $8 worth of vertcoin, if Bob creates a channel with like $20 worth of litecoin, and asked for the exchange to collateralize $10 worth of bitcoin, that's all the exchanges bitcoin funds. If you take into account the fact that even with exchange fees, the exchange can't use the fees (since they need to make sure if this is an actual trade they can give rebats) until the user closes the channel, this looks pretty bad for small exchanges. 
-Bob with $20 has just ensured, even if they pay tons of money in fees, that my exchange will not be able to trade bitcoin (unless it's with Bob). This still works even if the exchange has a per-address cap, since Bob can just spread his money out accross addresses. 
-I think this would be avoided if the fees increased based on how much of the exchanges' funds are not locked in escrows. This is like econimic denial of service. 
-
-
-However, this depends on how much the exchange owner actually cares about the exchange being up, since my $23 net worth exchange would annoy users who aren't malicious if it costed an exorbitant amount to make a $23 exchange. 
-While fees based on reserve capacity could be designed as a deterrent for malicious whales, they also deter users, and stop regular traders from using most of the exchanges' capacity (which is the thing that makes you money after all).
-This also doesn't really stop the attacker, since maybe their goal is to stop when the fees get so high that nobody trades on it.
-
-Maybe it's just me, but an exchange that doesn't take custody of your tokens and doesn't match peer to peer seems like a bad business plan because of this. The fee model would have to be really good. It's not that any normal person can screw with this, but the point of bitcoin is that you trust no one, and you especially don't trust your wealthy competitors, even when not in the adversarial bitcoin world.
-
-
-I mean I'm not sure what you would gain from attacking arwen though, considering it connects to normal exchanges.
-
-
-Also if I'm wrong then I wrote a lot for no reason? Sucks but it's my fault if I'm wrong so `¯\_(ツ)_/¯`.
+Soo much engineering work that could be done to make this like a robust way of setting up and exchange. Lots of moving parts.
