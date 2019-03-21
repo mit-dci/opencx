@@ -213,7 +213,7 @@ func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan c
 	logging.Infof("Starting BTC Wallet\n")
 
 	var btcWallet *wallit.Wallit
-	if btcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, true, hostString, server.WallitRoot, "", btcParam); err != nil {
+	if btcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, false, hostString, server.WallitRoot, "", btcParam); err != nil {
 		return
 	}
 
@@ -262,7 +262,7 @@ func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan c
 	logging.Infof("Starting LTC Wallet\n")
 
 	var ltcWallet *wallit.Wallit
-	if ltcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, true, hostString, server.WallitRoot, "", ltcParam); err != nil {
+	if ltcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, false, hostString, server.WallitRoot, "", ltcParam); err != nil {
 		return
 	}
 
@@ -309,7 +309,7 @@ func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan c
 	logging.Infof("Starting VTC Wallet\n")
 
 	var vtcWallet *wallit.Wallit
-	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, true, hostString, server.WallitRoot, "", vtcParam); err != nil {
+	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, false, hostString, server.WallitRoot, "", vtcParam); err != nil {
 		return
 	}
 
