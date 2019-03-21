@@ -13,6 +13,7 @@ import (
 	"github.com/mit-dci/opencx/db/ocxsql"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
+	"github.com/mit-dci/opencx/util"
 )
 
 type opencxConfig struct {
@@ -32,13 +33,21 @@ type opencxConfig struct {
 	// logging for lit nodes (find something better than w)
 	LitLogLevel []bool `short:"w" description:"Set verbosity level to verbose (-w), very verbose (-ww) or very very verbose (-www)"`
 
+	// Resync?
+	Resync bool `short:"r" long:"resync" description:"Do you want to resync all chains?"`
+
 	// networks that we can connect to
-	// Tn3host     string `long:"tn3" description:"Connect to bitcoin testnet3. Specify a socket address."`
-	// Lt4host     string `long:"lt4" description:"Connect to litecoin testnet4. Specify a socket address."`
-	// Tvtchost    string `long:"tvtc" description:"Connect to Vertcoin test node. Specify a socket address."`
+	Vtchost     string `long:"vtc" description:"Connect to Vertcoin full node. Specify a socket address."`
+	Btchost     string `long:"btc" description:"Connect to bitcoin full node. Specify a socket address."`
+	Ltchost     string `long:"ltc" description:"Connect to a litecoin full node. Specify a socket address."`
+	Tn3host     string `long:"tn3" description:"Connect to bitcoin testnet3. Specify a socket address."`
+	Lt4host     string `long:"lt4" description:"Connect to litecoin testnet4. Specify a socket address."`
+	Tvtchost    string `long:"tvtc" description:"Connect to Vertcoin test node. Specify a socket address."`
 	Reghost     string `long:"reg" description:"Connect to bitcoin regtest. Specify a socket address."`
 	Litereghost string `long:"litereg" description:"Connect to litecoin regtest. Specify a socket address."`
 	Rtvtchost   string `long:"rtvtc" description:"Connect to Vertcoin regtest node. Specify a socket address."`
+
+	// Configuration for concurrent RPC users.
 	MaxPeers    uint16 `long:"numpeers" description:"Maximum number of peers that you'd like to support"`
 	MinPeerPort uint16 `long:"minpeerport" description:"Port to start creating ports for peers at"`
 	Lithost     string `long:"lithost" description:"Host for the lightning node on the exchange to run"`
@@ -49,22 +58,23 @@ type opencxConfig struct {
 }
 
 var (
-	defaultConfigFilename    = "opencx.conf"
-	defaultLogFilename       = "dblog.txt"
-	defaultOpencxHomeDirName = os.Getenv("HOME") + "/.opencx/"
-	defaultKeyFileName       = "privkey.hex"
-	defaultLogLevel          = 0
-	defaultLitLogLevel       = 0
-	defaultHomeDir           = os.Getenv("HOME")
+	defaultHomeDir = os.Getenv("HOME")
+
+	// used as defaults before putting into parser
+	defaultOpencxHomeDirName = defaultHomeDir + "/.opencx/"
 	defaultRpcport           = uint16(12345)
 	defaultRpchost           = "localhost"
 	defaultMaxPeers          = uint16(64)
 	defaultMinPeerPort       = uint16(25565)
-	defaultReghost           = "yup"
-	defaultLitereghost       = "yup"
-	defaultRtvtchost         = "yup"
 	defaultLithost           = "localhost"
 	defaultLitport           = uint16(12346)
+
+	// used in init file, so separate
+	defaultLogLevel       = 0
+	defaultLitLogLevel    = 0
+	defaultConfigFilename = "opencx.conf"
+	defaultLogFilename    = "dblog.txt"
+	defaultKeyFileName    = "privkey.hex"
 )
 
 var orderBufferSize = 1
@@ -82,9 +92,6 @@ func main() {
 		OpencxHomeDir: defaultOpencxHomeDirName,
 		Rpcport:       defaultRpcport,
 		Rpchost:       defaultRpchost,
-		Reghost:       defaultReghost,
-		Litereghost:   defaultLitereghost,
-		Rtvtchost:     defaultRtvtchost,
 		MaxPeers:      defaultMaxPeers,
 		MinPeerPort:   defaultMinPeerPort,
 		Lithost:       defaultLithost,
@@ -111,8 +118,11 @@ func main() {
 	// defer the db closing to when we stop
 	defer db.DBHandler.Close()
 
+	// Generate the coin list based on the parameters we know
+	coinList := generateCoinList(&conf)
+
 	// Anyways, here's where we set the server
-	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, assetPairs, assets)
+	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, assetPairs, assets, coinList)
 
 	// Check that the private key exists and if it does, load it
 	if err = ocxServer.SetupServerKeys(key); err != nil {
@@ -128,30 +138,17 @@ func main() {
 	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.sigproof", ocxServer.GetSigProofHandler())
 	logging.Infof("done registering sigproof handler")
 
-	btcCoinTypeChan := make(chan int, 1)
-	ltcCoinTypeChan := make(chan int, 1)
-	vtcCoinTypeChan := make(chan int, 1)
-	hookErrorChannel := make(chan error, 3)
-	// Set up all chain hooks
-	go ocxServer.SetupBTCChainhook(hookErrorChannel, btcCoinTypeChan, conf.Reghost)
-	go ocxServer.SetupLTCChainhook(hookErrorChannel, ltcCoinTypeChan, conf.Litereghost)
-	go ocxServer.SetupVTCChainhook(hookErrorChannel, vtcCoinTypeChan, conf.Rtvtchost)
+	// Generate the host param list
+	hpList := util.HostParamList(generateHostParams(&conf))
 
-	// Wait until all hooks are started to do the rest
-	for i := 0; i < 3; i++ {
-		firstError := <-hookErrorChannel
-		if firstError != nil {
-			logging.Fatalf("Error when starting hook: \n%s", firstError)
-		}
-		logging.Infof("Started hook #%d\n", i+1)
+	// Set up all chain hooks and wallets
+	if err = ocxServer.SetupAllWallets(hpList, conf.Resync); err != nil {
+		logging.Fatalf("Error setting up wallets: \n%s", err)
+		return
 	}
 
-	btcCoinType := <-btcCoinTypeChan
-	ltcCoinType := <-ltcCoinTypeChan
-	vtcCoinType := <-vtcCoinTypeChan
-
 	// Waited until the wallets are started, time to link them!
-	if err = ocxServer.LinkAllWallets(btcCoinType, ltcCoinType, vtcCoinType); err != nil {
+	if err = ocxServer.LinkAllWallets(); err != nil {
 		logging.Fatalf("Could not link wallets: \n%s", err)
 	}
 

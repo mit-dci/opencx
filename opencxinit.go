@@ -6,6 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mit-dci/opencx/util"
+
+	"github.com/mit-dci/lit/coinparam"
+
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/lit/lnutil"
 	litLogging "github.com/mit-dci/lit/logging"
@@ -119,4 +123,39 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	}
 
 	return privkey
+}
+
+func generateCoinList(conf *opencxConfig) []*coinparam.Params {
+	return util.HostParamList(generateHostParams(conf)).CoinListFromHostParams()
+}
+
+func generateHostParams(conf *opencxConfig) (hostParamList []*util.HostParams) {
+	// Regular networks (Just like don't use any of these, I support them though)
+	evalHostParams(hostParamList, conf.Btchost, &coinparam.BitcoinParams)
+	evalHostParams(hostParamList, conf.Vtchost, &coinparam.VertcoinParams)
+	// Wait until supported by lit
+	// evalHostParams(hostParamList, conf.Ltchost, &coinparam.LitecoinParams)
+
+	// Test nets
+	evalHostParams(hostParamList, conf.Tn3host, &coinparam.TestNet3Params)
+	evalHostParams(hostParamList, conf.Tvtchost, &coinparam.VertcoinTestNetParams)
+	evalHostParams(hostParamList, conf.Lt4host, &coinparam.LiteCoinTestNet4Params)
+
+	// Regression nets
+	evalHostParams(hostParamList, conf.Reghost, &coinparam.RegressionNetParams)
+	evalHostParams(hostParamList, conf.Rtvtchost, &coinparam.VertcoinRegTestParams)
+	evalHostParams(hostParamList, conf.Litereghost, &coinparam.LiteRegNetParams)
+	return
+}
+
+func evalHostAppendItem(list []interface{}, hostString string, item interface{}) {
+	if hostString != "" {
+		list = append(list, item)
+	}
+}
+
+func evalHostParams(hostParamList []*util.HostParams, hostString string, associatedParam *coinparam.Params) {
+	if hostString != "" {
+		hostParamList = append(hostParamList, util.NewHostParams(associatedParam, hostString))
+	}
 }

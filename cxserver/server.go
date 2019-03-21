@@ -25,6 +25,7 @@ import (
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
+	"github.com/mit-dci/opencx/util"
 )
 
 // OpencxServer is how rpc can query the database and whatnot
@@ -59,6 +60,16 @@ type OpencxServer struct {
 	OpencxBTCHook *uspv.ChainHook
 	OpencxLTCHook *uspv.ChainHook
 	OpencxVTCHook *uspv.ChainHook
+
+	// These are supposed to replace the various BTC/LTC/VTC chainhooks above.
+	// All you should need to add a new coin to the exchange is the correct coin params to connect
+	// to nodes and (if it works), do proof of work and such.
+	HookMap    map[*coinparam.Params]*uspv.ChainHook
+	WalletMap  map[*coinparam.Params]*wallit.Wallit
+	PrivKeyMap map[*coinparam.Params]*hdkeychain.ExtendedKey
+
+	// This is how we're going to easily add multiple coins
+	CoinList []*coinparam.Params
 
 	orderMutex *sync.Mutex
 	OrderMap   map[match.Pair][]*match.LimitOrder
@@ -102,7 +113,7 @@ func (server *OpencxServer) MatchingLoop(pair *match.Pair, bufferSize int) {
 }
 
 // InitServer creates a new server
-func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray []*match.Pair, assets []match.Asset) *OpencxServer {
+func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray []*match.Pair, assets []match.Asset, coinList []*coinparam.Params) *OpencxServer {
 	server := &OpencxServer{
 		OpencxDB:           db,
 		OpencxRoot:         homedir,
@@ -119,6 +130,12 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 		WallitRoot:         homedir + "wallit/",
 		ChainhookRoot:      homedir + "chainhook/",
 		LitRoot:            homedir + "lit/",
+
+		HookMap:    make(map[*coinparam.Params]*uspv.ChainHook),
+		WalletMap:  make(map[*coinparam.Params]*wallit.Wallit),
+		PrivKeyMap: make(map[*coinparam.Params]*hdkeychain.ExtendedKey),
+
+		CoinList: coinList,
 	}
 	var err error
 	// create wallit root directory
@@ -154,27 +171,35 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray 
 // TODO now that I know how to use this hdkeychain stuff, let's figure out how to create addresses to store
 
 // SetupServerKeys just loads a private key from a file wallet
-func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) error {
+func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) (err error) {
 
-	rootBTCKey, err := hdkeychain.NewMaster(privkey[:], &coinparam.TestNet3Params)
-	if err != nil {
-		return fmt.Errorf("Error creating master BTC Test key from private key: \n%s", err)
+	if err = server.SetupManyKeys(privkey, server.CoinList); err != nil {
+		return
 	}
-	server.OpencxBTCTestPrivKey = rootBTCKey
-
-	rootVTCKey, err := hdkeychain.NewMaster(privkey[:], &coinparam.VertcoinRegTestParams)
-	if err != nil {
-		return fmt.Errorf("Error creating master VTC Test key from private key: \n%s", err)
-	}
-	server.OpencxVTCTestPrivKey = rootVTCKey
-
-	rootLTCKey, err := hdkeychain.NewMaster(privkey[:], &coinparam.LiteCoinTestNet4Params)
-	if err != nil {
-		return fmt.Errorf("Error creating master LTC Test key from private key: \n%s", err)
-	}
-	server.OpencxLTCTestPrivKey = rootLTCKey
 
 	return nil
+}
+
+// SetupManyKeys sets up many keys for the server based on an array of coinparams.
+func (server *OpencxServer) SetupManyKeys(privkey *[32]byte, paramList []*coinparam.Params) (err error) {
+	for _, param := range paramList {
+		if err = server.SetupSingleKey(privkey, param); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// SetupSingleKey sets up a single key based on a single param for the server.
+func (server *OpencxServer) SetupSingleKey(privkey *[32]byte, param *coinparam.Params) (err error) {
+	var rootKey *hdkeychain.ExtendedKey
+	if rootKey, err = hdkeychain.NewMaster(privkey[:], param); err != nil {
+		err = fmt.Errorf("Error creating master %s key from private key: \n%s", param.Name, err)
+		return
+	}
+	server.PrivKeyMap[param] = rootKey
+
+	return
 }
 
 // SetupLitNode sets up the lit node for use later, I wanna do this because this really shouldn't be in initialization code? should it be?
@@ -187,170 +212,109 @@ func (server *OpencxServer) SetupLitNode(privkey *[32]byte, trackerURL string, p
 	return
 }
 
-// SetupBTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupBTCChainhook(errChan chan error, coinTypeChan chan int, hostString string) {
-	var btcParam *coinparam.Params
+// SetupWallet sets up a wallet for a specific coin, based on params.
+func (server *OpencxServer) SetupWallet(errChan chan error, param *coinparam.Params, resync bool, hostString string) {
 	var err error
 	var coinType int
-
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("Error when starting btc wallet: \n%s", err)
+			err = fmt.Errorf("Error when starting wallet: \n%s", err)
 		}
 		errChan <- err
-		coinTypeChan <- coinType
 	}()
 
-	if lnutil.YupString(hostString) {
-		btcParam = &coinparam.TestNet3Params
-	} else {
-		btcParam = &coinparam.RegressionNetParams
-		btcParam.StartHeight = 0
-	}
+	logging.Infof("Starting %s wallet\n", param.Name)
 
-	btcParam.DiffCalcFunction = dummyDifficulty
-
-	logging.Infof("Starting BTC Wallet\n")
-
-	var btcWallet *wallit.Wallit
-	if btcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, btcParam.StartHeight, false, hostString, server.WallitRoot, "", btcParam); err != nil {
+	key, found := server.PrivKeyMap[param]
+	if !found {
+		err = fmt.Errorf("Could not find key for wallet. Aborting wallet setup")
 		return
 	}
 
+	var wallet *wallit.Wallit
+	if wallet, coinType, err = wallit.NewWallit(key, param.StartHeight, resync, hostString, server.WallitRoot, "", param); err != nil {
+		return
+	}
+
+	server.WalletMap[param] = wallet
+
+	logging.Infof("%s wallet Started, cointype: %d\n", param.Name, coinType)
 	// figure out whether or not to do this if merged
-	btcHook := btcWallet.ExportHook()
 
-	logging.Infof("BTC Wallet Started, cointype: %d\n", coinType)
-
-	server.OpencxBTCWallet = btcWallet
-
-	hookBlockChan := btcHook.NewRawBlocksChannel()
-	currentHeightChan := btcHook.NewHeightChannel()
-
-	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, btcParam)
+	server.StartChainhookHandlers(wallet)
 
 	return
 }
 
-// SetupLTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupLTCChainhook(errChan chan error, coinTypeChan chan int, hostString string) {
-	var ltcParam *coinparam.Params
-	var err error
-	var coinType int
+// SetupAllWallets sets up all wallets with parameters as specified in the hostParamList
+func (server *OpencxServer) SetupAllWallets(hostParamList util.HostParamList, resync bool) (err error) {
+	hpLen := len(hostParamList)
+	errChan := make(chan error, hpLen)
+	for _, hostParam := range hostParamList {
+		go server.SetupWallet(errChan, hostParam.Param, resync, hostParam.Host)
+	}
 
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("Error when starting ltc wallet: \n%s", err)
+	for i := 0; i < hpLen; i++ {
+		if err = <-errChan; err != nil {
+			return
 		}
-		errChan <- err
-		coinTypeChan <- coinType
-	}()
-
-	if lnutil.YupString(hostString) {
-		// TODO: move all this stuff up to be server parameters. Find a way to elegantly manage and add multiple chains while keeping track of parameters
-		// and nicely connecting to nodes, while handling unable to connect stuff
-		ltcParam = &coinparam.LiteCoinTestNet4Params
-		ltcParam.PoWFunction = dummyProofOfWork
-	} else {
-		ltcParam = &coinparam.LiteRegNetParams
-		ltcParam.StartHeight = 0
 	}
-
-	// difficulty in non bitcoin testnets has an air of mystery
-	ltcParam.DiffCalcFunction = dummyDifficulty
-
-	logging.Infof("Starting LTC Wallet\n")
-
-	var ltcWallet *wallit.Wallit
-	if ltcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, ltcParam.StartHeight, false, hostString, server.WallitRoot, "", ltcParam); err != nil {
-		return
-	}
-
-	// figure out whether or not to do this if merged
-	ltcHook := ltcWallet.ExportHook()
-
-	logging.Infof("LTC Wallet Started, cointype: %d\n", coinType)
-
-	server.OpencxLTCWallet = ltcWallet
-
-	hookBlockChan := ltcHook.NewRawBlocksChannel()
-	currentHeightChan := ltcHook.NewHeightChannel()
-
-	// for some reason the currentHeightChan is better for ltc or smth
-	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, ltcParam)
-
 	return
 }
 
-// SetupVTCChainhook will be used to watch for events on the chain.
-func (server *OpencxServer) SetupVTCChainhook(errChan chan error, coinTypeChan chan int, hostString string) {
-	var vtcParam *coinparam.Params
-	var err error
-	var coinType int
+// StartChainhookHandlers gets the channels from the wallet's chainhook and starts a handler.
+func (server *OpencxServer) StartChainhookHandlers(wallet *wallit.Wallit) {
+	hook := wallet.ExportHook()
 
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("Error when starting vtc wallet: \n%s", err)
+	server.HookMap[wallet.Param] = &hook
+
+	hookBlockChan := hook.NewRawBlocksChannel()
+	currentHeightChan := hook.NewHeightChannel()
+
+	logging.Infof("Successfully set up chainhook from wallet, starting handlers")
+	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, wallet.Param)
+
+}
+
+// LinkAllWallets will link the exchanges' wallets with the lit node running. Defaults to false for running tower.
+func (server *OpencxServer) LinkAllWallets() (err error) {
+
+	// Not sure whether or not this should just assume that everything in the map is what you want, but I'm going to
+	// assume that if there's a coin / param in the CoinList that isn't in the wallet map, then the wallets haven't
+	// been started or something is wrong. This is definitely a synchronous thing to be doing, you need to start
+	// the wallets for all your coins before you try to link them all. If you don't want to link them all, use
+	// LinkManyWallets.
+	for _, param := range server.CoinList {
+		wallet, found := server.WalletMap[param]
+		if !found {
+			err = fmt.Errorf("Wallet in Coin List not being tracked by exchange in map, start it please")
 		}
-		errChan <- err
-		coinTypeChan <- coinType
-	}()
 
-	if lnutil.YupString(hostString) {
-		vtcParam = &coinparam.VertcoinTestNetParams
-		vtcParam.PoWFunction = dummyProofOfWork
-		vtcParam.DNSSeeds = []string{"jlovejoy.mit.edu", "gertjaap.ddns.net", "fr1.vtconline.org", "tvtc.vertcoin.org"}
-	} else {
-		vtcParam = &coinparam.VertcoinRegTestParams
-	}
+		// Idk if I should run a tower with these, probably. It's an exchange
+		if err = server.LinkOneWallet(wallet, false); err != nil {
+			return
+		}
 
-	vtcParam.DiffCalcFunction = dummyDifficulty
-
-	logging.Infof("Starting VTC Wallet\n")
-
-	var vtcWallet *wallit.Wallit
-	if vtcWallet, coinType, err = wallit.NewWallit(server.OpencxVTCTestPrivKey, vtcParam.StartHeight, false, hostString, server.WallitRoot, "", vtcParam); err != nil {
-		return
-	}
-
-	vtcHook := vtcWallet.ExportHook()
-
-	logging.Infof("VTC Wallet Started, cointype: %d\n", coinType)
-
-	server.OpencxVTCWallet = vtcWallet
-
-	hookBlockChan := vtcHook.NewRawBlocksChannel()
-	currentHeightChan := vtcHook.NewHeightChannel()
-
-	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, vtcParam)
-
-	return
-}
-
-// LinkAllWallets will link the exchanges' wallets with the lit node running.
-func (server *OpencxServer) LinkAllWallets(btcCoinType int, ltcCoinType int, vtcCoinType int) (err error) {
-	// Idk if I should run a tower with these, probably. It's an exchange
-	if err = server.LinkOneWallet(server.OpencxBTCWallet, btcCoinType, false); err != nil {
-		err = fmt.Errorf("Error linking BTC Wallet to node: \n%s", err)
-		return
-	}
-
-	if err = server.LinkOneWallet(server.OpencxLTCWallet, ltcCoinType, false); err != nil {
-		err = fmt.Errorf("Error linking LTC Wallet to node: \n%s", err)
-		return
-	}
-
-	if err = server.LinkOneWallet(server.OpencxVTCWallet, vtcCoinType, false); err != nil {
-		err = fmt.Errorf("Error linking VTC Wallet to node: \n%s", err)
-		return
 	}
 
 	logging.Infof("Successfully linked all wallets!")
 	return
 }
 
+// LinkManyWallets takes in a bunch of wallets and links them. We set the tower for all wallets consistently
+// coinType as specified in the parameters.
+func (server *OpencxServer) LinkManyWallets(wallets []*wallit.Wallit, tower bool) (err error) {
+	for _, wallet := range wallets {
+		if err = server.LinkOneWallet(wallet, tower); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
 // LinkOneWallet is a modified version of linkwallet in lit that doesn't make the wallet but links it with an already running one. Your responsibility to pass the correct cointype and tower.
-func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, tower bool) (err error) {
+func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, tower bool) (err error) {
 	// we don't need param passed as a parameter to this function, the wallet already has it so we have to substitute a bunch of stuff
 	WallitIdx := wallet.Param.HDCoinType
 
@@ -374,11 +338,10 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 
 	if server.ExchangeNode.ConnectedCoinTypes == nil {
 		server.ExchangeNode.ConnectedCoinTypes = make(map[uint32]bool)
-		server.ExchangeNode.ConnectedCoinTypes[uint32(coinType)] = true
 	}
 
 	// why is this needed in 2 places, can't this be the only time this is run?
-	server.ExchangeNode.ConnectedCoinTypes[uint32(coinType)] = true
+	server.ExchangeNode.ConnectedCoinTypes[WallitIdx] = true
 
 	// re-register channel addresses
 	qChans, err := server.ExchangeNode.GetAllQchans()
@@ -398,7 +361,7 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, coinType int, t
 	}
 
 	go server.ExchangeNode.OPEventHandler(server.ExchangeNode.SubWallet[WallitIdx].LetMeKnow())
-	go server.ExchangeNode.HeightEventHandler(server.HeightEventChanMap[coinType])
+	go server.ExchangeNode.HeightEventHandler(server.HeightEventChanMap[int(WallitIdx)])
 
 	// If this is the first coin we're linking then set that one to default.
 	if !server.ExchangeNode.MultiWallet {

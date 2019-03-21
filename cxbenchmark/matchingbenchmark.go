@@ -6,6 +6,8 @@ import (
 	"github.com/mit-dci/opencx/logging"
 )
 
+// TODO: make this work with public keys. Currently doesn't work.
+
 // PlaceAndFill places a whole bunch of orders (in goroutines of course) and fills a whole bunch of orders.
 func PlaceAndFill(client *benchclient.BenchClient, user1 string, user2 string, pair string, howMany int) {
 	for i := 0; i < howMany; i++ {
