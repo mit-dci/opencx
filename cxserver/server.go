@@ -457,10 +457,13 @@ func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.Height
 func (server *OpencxServer) ChainHookHeightHandler(incomingBlockHeight chan int32, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
 	for {
 
-		// h := <-incomingBlockHeight
+		// this used to be commented out. Since in lit the channels are buffered, we HAVE to make sure that this is cleared
+		// otherwise lit will just completely block and wait for us to pull from the channel, and we will stop getting
+		// headers and everything. IF it's needed, just always pulling from this would be fine if we don't care about it.
+		h := <-incomingBlockHeight
 		block := <-blockChan
 		logging.Infof("Block %s from %s", block.Header.BlockHash(), coinType.Name)
-		// server.CallIngest(h.Height, block, coinType)
+		server.CallIngest(h, block, coinType)
 	}
 }
 
