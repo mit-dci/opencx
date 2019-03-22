@@ -3,9 +3,9 @@ package cxrpc
 import (
 	"fmt"
 
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/logging"
-	"github.com/mit-dci/opencx/match"
 )
 
 // RegisterArgs holds the args for register
@@ -32,18 +32,12 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) (err erro
 		}
 	}()
 
-	// Create addresses based on username and put them into maps
-	addrMap := make(map[match.Asset]string)
-	if addrMap[match.BTCTest], err = cl.Server.NewAddressBTC(pubkey); err != nil {
-		return
-	}
-
-	if addrMap[match.LTCTest], err = cl.Server.NewAddressLTC(pubkey); err != nil {
-		return
-	}
-
-	if addrMap[match.VTCTest], err = cl.Server.NewAddressVTC(pubkey); err != nil {
-		return
+	// go through each enabled wallet in the server and create a new address for them.
+	addrMap := make(map[*coinparam.Params]string)
+	for param := range cl.Server.WalletMap {
+		if addrMap[param], err = cl.Server.GetAddrForCoin(param, pubkey); err != nil {
+			return
+		}
 	}
 
 	// Do all this locking just cause

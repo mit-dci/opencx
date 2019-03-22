@@ -3,6 +3,9 @@ package cxrpc
 import (
 	"fmt"
 
+	"github.com/mit-dci/opencx/util"
+
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"
@@ -108,42 +111,19 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err erro
 		return
 	}
 
-	if args.Withdrawal.Asset.String() == match.VTCTest.String() {
-		cl.Server.LockIngests()
-		if reply.Txid, err = cl.Server.VTCWithdraw(args.Withdrawal.Address, pubkey, args.Withdrawal.Amount); err != nil {
-			// gotta put these here cause if it errors out then oops just locked everything
-			cl.Server.UnlockIngests()
-			err = fmt.Errorf("Error with withdraw command: \n%s", err)
-			return
-		}
-		cl.Server.UnlockIngests()
-
+	var coinType *coinparam.Params
+	if coinType, err = util.GetCoinTypeFromName(args.Withdrawal.Asset.String()); err != nil {
 		return
 	}
-	if args.Withdrawal.Asset.String() == match.BTCTest.String() {
-		cl.Server.LockIngests()
-		if reply.Txid, err = cl.Server.BTCWithdraw(args.Withdrawal.Address, pubkey, args.Withdrawal.Amount); err != nil {
-			// gotta put these here cause if it errors out then oops just locked everything
-			cl.Server.UnlockIngests()
-			err = fmt.Errorf("Error with withdraw command: \n%s", err)
-			return
-		}
-		cl.Server.UnlockIngests()
 
+	cl.Server.LockIngests()
+	if reply.Txid, err = cl.Server.WithdrawCoins(args.Withdrawal.Address, pubkey, args.Withdrawal.Amount, coinType); err != nil {
+		// gotta put these here cause if it errors out then oops just locked everything
+		cl.Server.UnlockIngests()
+		err = fmt.Errorf("Error with withdraw command: \n%s", err)
 		return
 	}
-	if args.Withdrawal.Asset.String() == match.LTCTest.String() {
-		cl.Server.LockIngests()
-		if reply.Txid, err = cl.Server.LTCWithdraw(args.Withdrawal.Address, pubkey, args.Withdrawal.Amount); err != nil {
-			// gotta put these here cause if it errors out then oops just locked everything
-			cl.Server.UnlockIngests()
-			err = fmt.Errorf("Error with withdraw command: \n%s", err)
-			return
-		}
-		cl.Server.UnlockIngests()
-
-		return
-	}
+	cl.Server.UnlockIngests()
 
 	return
 }
