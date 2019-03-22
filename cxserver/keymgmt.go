@@ -9,44 +9,21 @@ import (
 	"github.com/mit-dci/lit/wallit"
 )
 
-// NewAddressLTC returns a new address based on the keygen retrieved from the wallet
-func (server *OpencxServer) NewAddressLTC(pubkey *koblitz.PublicKey) (string, error) {
-	// No really what is this
-	return server.getLTCAddrFunc()(pubkey)
+// GetAddrForCoin gets an address based on a wallet and pubkey
+func (server *OpencxServer) GetAddrForCoin(coinType *coinparam.Params, pubkey *koblitz.PublicKey) (addr string, err error) {
+	wallet, found := server.WalletMap[coinType]
+	if !found {
+		err = fmt.Errorf("Could not find wallet to create address for")
+	}
+	if addr, err = GetAddrFunction(wallet)(pubkey); err != nil {
+		return
+	}
+
+	return
 }
 
-// NewAddressBTC returns a new address based on the keygen retrieved from the wallet
-func (server *OpencxServer) NewAddressBTC(pubkey *koblitz.PublicKey) (string, error) {
-	// What is this
-	return server.getBTCAddrFunc()(pubkey)
-}
-
-// NewAddressVTC returns a new address based on the keygen retrieved from the wallet
-func (server *OpencxServer) NewAddressVTC(pubkey *koblitz.PublicKey) (string, error) {
-	// Is this currying
-	return server.getVTCAddrFunc()(pubkey)
-}
-
-// getVTCAddrFunc is used by NewAddressVTC as well as UpdateAddresses to call the address closure
-func (server *OpencxServer) getVTCAddrFunc() func(pubkey *koblitz.PublicKey) (string, error) {
-	// TODO: this is a hack pre-refactor
-	vtcParam := &coinparam.VertcoinRegTestParams
-	return GetAddrFunction(server.WalletMap[vtcParam])
-}
-
-// getBTCAddrFunc is used by NewAddressBTC as well as UpdateAddresses to call the address closure
-func (server *OpencxServer) getBTCAddrFunc() func(pubkey *koblitz.PublicKey) (string, error) {
-	// TODO: this is a hack pre-refactor
-	btcParam := &coinparam.RegressionNetParams
-	return GetAddrFunction(server.WalletMap[btcParam])
-}
-
-// getLTCAddrFunc is used by NewAddressLTC as well as UpdateAddresses to call the address closure
-func (server *OpencxServer) getLTCAddrFunc() func(pubkey *koblitz.PublicKey) (string, error) {
-	// TODO: this is a hack pre-refactor
-	ltcParam := &coinparam.LiteRegNetParams
-	return GetAddrFunction(server.WalletMap[ltcParam])
-}
+// TODO: honestly just delete this at some point. If anyone wants a free pull request just
+// make GetAddrFunction a function with 2 parameters.
 
 // GetAddrFunction returns a function that can safely be called by the DB
 func GetAddrFunction(wallet *wallit.Wallit) func(*koblitz.PublicKey) (string, error) {
