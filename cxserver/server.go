@@ -42,24 +42,11 @@ type OpencxServer struct {
 	registrationString string
 	getOrdersString    string
 
-	// Hehe it's the vault, pls don't steal
-	OpencxBTCTestPrivKey *hdkeychain.ExtendedKey
-	OpencxVTCTestPrivKey *hdkeychain.ExtendedKey
-	OpencxLTCTestPrivKey *hdkeychain.ExtendedKey
-
 	ExchangeNode *qln.LitNode
 
 	BlockChanMap       map[int]chan *wire.MsgBlock
 	HeightEventChanMap map[int]chan lnutil.HeightEvent
 	ingestMutex        sync.Mutex
-
-	OpencxBTCWallet *wallit.Wallit
-	OpencxLTCWallet *wallit.Wallit
-	OpencxVTCWallet *wallit.Wallit
-
-	OpencxBTCHook *uspv.ChainHook
-	OpencxLTCHook *uspv.ChainHook
-	OpencxVTCHook *uspv.ChainHook
 
 	// These are supposed to replace the various BTC/LTC/VTC chainhooks above.
 	// All you should need to add a new coin to the exchange is the correct coin params to connect

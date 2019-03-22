@@ -26,7 +26,6 @@ var (
 
 // DB contains the sql DB type as well as a logger.
 // The database is a BEHEMOTH, should be refactored. Some examples on how to refactor are cleaning up mutexes, creating config file for all the globals,
-// figuring out a better way to handle schemas, finding a better spot for a keychain, and putting the price somewhere else.
 // What would be great is to move everything having to do with price and matching into match and making match more like a matching engine framework
 // or library for exchanges.
 type DB struct {

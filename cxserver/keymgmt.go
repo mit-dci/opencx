@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/lit/btcutil/base58"
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/lit/wallit"
 )
@@ -28,17 +29,23 @@ func (server *OpencxServer) NewAddressVTC(pubkey *koblitz.PublicKey) (string, er
 
 // getVTCAddrFunc is used by NewAddressVTC as well as UpdateAddresses to call the address closure
 func (server *OpencxServer) getVTCAddrFunc() func(pubkey *koblitz.PublicKey) (string, error) {
-	return GetAddrFunction(server.OpencxVTCWallet)
+	// TODO: this is a hack pre-refactor
+	vtcParam := &coinparam.VertcoinRegTestParams
+	return GetAddrFunction(server.WalletMap[vtcParam])
 }
 
 // getBTCAddrFunc is used by NewAddressBTC as well as UpdateAddresses to call the address closure
 func (server *OpencxServer) getBTCAddrFunc() func(pubkey *koblitz.PublicKey) (string, error) {
-	return GetAddrFunction(server.OpencxBTCWallet)
+	// TODO: this is a hack pre-refactor
+	btcParam := &coinparam.RegressionNetParams
+	return GetAddrFunction(server.WalletMap[btcParam])
 }
 
 // getLTCAddrFunc is used by NewAddressLTC as well as UpdateAddresses to call the address closure
 func (server *OpencxServer) getLTCAddrFunc() func(pubkey *koblitz.PublicKey) (string, error) {
-	return GetAddrFunction(server.OpencxLTCWallet)
+	// TODO: this is a hack pre-refactor
+	ltcParam := &coinparam.LiteRegNetParams
+	return GetAddrFunction(server.WalletMap[ltcParam])
 }
 
 // GetAddrFunction returns a function that can safely be called by the DB

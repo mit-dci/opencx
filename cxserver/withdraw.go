@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	"github.com/mit-dci/lit/wallit"
@@ -19,24 +20,32 @@ import (
 	"github.com/mit-dci/opencx/logging"
 )
 
+// TODO: refactor entire database, match, and asset stuff to support our new automated way of hooks and wallets
+
 // I'm having fun with closures here to remove all the copy paste that I usually have to do
 
 // VTCWithdraw will be used to watch for events on the chain.
 func (server *OpencxServer) VTCWithdraw(address string, pubkey *koblitz.PublicKey, amount uint64) (string, error) {
+	// TODO: this is a hack pre-refactor
+	vtcParam := &coinparam.VertcoinRegTestParams
 	// Plug in all the specifics -- which wallet to use to send out tx, which testnet, which asset string because I haven't gotten it dependent on params yet
-	return server.withdrawFromChain(server.OpencxVTCWallet, &chaincfg.VertcoinTestNetParams, "vtc")(address, pubkey, amount)
+	return server.withdrawFromChain(server.WalletMap[vtcParam], &chaincfg.VertcoinTestNetParams, "vtc")(address, pubkey, amount)
 }
 
 // BTCWithdraw will be used to watch for events on the chain.
 func (server *OpencxServer) BTCWithdraw(address string, pubkey *koblitz.PublicKey, amount uint64) (string, error) {
+	// TODO: this is a hack pre-refactor
+	btcParam := &coinparam.RegressionNetParams
 	// Plug in all the specifics -- which wallet to use to send out tx, which testnet, which asset string because I haven't gotten it dependent on params yet
-	return server.withdrawFromChain(server.OpencxBTCWallet, &chaincfg.TestNet3Params, "btc")(address, pubkey, amount)
+	return server.withdrawFromChain(server.WalletMap[btcParam], &chaincfg.TestNet3Params, "btc")(address, pubkey, amount)
 }
 
 // LTCWithdraw will be used to watch for events on the chain.
 func (server *OpencxServer) LTCWithdraw(address string, pubkey *koblitz.PublicKey, amount uint64) (string, error) {
+	// TODO: this is a hack pre-refactor
+	ltcParam := &coinparam.LiteRegNetParams
 	// Plug in all the specifics -- which wallet to use to send out tx, which testnet, which asset string because I haven't gotten it dependent on params yet
-	return server.withdrawFromChain(server.OpencxLTCWallet, &chaincfg.LiteCoinTestNet4Params, "ltc")(address, pubkey, amount)
+	return server.withdrawFromChain(server.WalletMap[ltcParam], &chaincfg.LiteCoinTestNet4Params, "ltc")(address, pubkey, amount)
 }
 
 // withdrawFromChain returns a function that we'll then call from the vtc stuff -- this is a closure that's also a method for server, don't worry about it lol
