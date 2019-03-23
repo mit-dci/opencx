@@ -8,6 +8,7 @@ import (
 
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -21,7 +22,6 @@ var (
 	depositSchema        = "deposit"
 	pendingDepositSchema = "pending_deposits"
 	orderSchema          = "orders"
-	assetArray           = []string{"btc", "ltc", "vtc"}
 )
 
 // the globalread and globalwrite variables are for debugging
@@ -31,14 +31,29 @@ var (
 // What would be great is to move everything having to do with price and matching into match and making match more like a matching engine framework
 // or library for exchanges.
 type DB struct {
-	DBHandler            *sql.DB
-	balanceSchema        string
-	depositSchema        string
+	// the SQL handler for the db
+	DBHandler *sql.DB
+
+	// name of balance schema
+	balanceSchema string
+
+	// name of deposit schema
+	depositSchema string
+
+	// name of pending deposit schema
 	pendingDepositSchema string
-	orderSchema          string
-	coinList             []*coinparam.Params
-	pairsArray           []*match.Pair
-	gPriceMap            map[string]float64
+
+	// name of order schema
+	orderSchema string
+
+	// list of all coins supported, passed in from above
+	coinList []*coinparam.Params
+
+	// the pairs that are supported. generated from coinList when the db is initiated
+	pairsArray []*match.Pair
+
+	// pricemap for pair that we manually add to
+	gPriceMap map[string]float64
 }
 
 // SetPrice sets the price, uses a lock since it will be written to and read from possibly at the same time (written to by server, read by client)
@@ -55,30 +70,46 @@ func (db *DB) GetPrice(pairString string) (price float64) {
 	return price
 }
 
-// SetupClient sets up the mysql client and driver
-func (db *DB) SetupClient(coinList []*coinparam.Params, pairs []*match.Pair) error {
-	var err error
+// GetPairs returns the pairs list
+func (db *DB) GetPairs() (pairArray []*match.Pair) {
+	pairArray = db.pairsArray
+	return
+}
 
+// SetupClient sets up the mysql client and driver
+func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	db.gPriceMap = make(map[string]float64)
 	db.balanceSchema = balanceSchema
 	db.depositSchema = depositSchema
 	db.pendingDepositSchema = pendingDepositSchema
 	db.orderSchema = orderSchema
 	// Create users and schemas and assign permissions to opencx
-	err = db.RootInitSchemas()
-	if err != nil {
-		return fmt.Errorf("Root could not initialize schemas: \n%s", err)
+	if err = db.RootInitSchemas(); err != nil {
+		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
+		return
 	}
 
 	// open db handle
 	dbHandle, err := sql.Open("mysql", defaultUsername+":"+defaultPassword+"@/")
 	if err != nil {
-		return fmt.Errorf("Error opening database: \n%s", err)
+		err = fmt.Errorf("Error opening database: \n%s", err)
+		return
 	}
 
 	db.DBHandler = dbHandle
 	db.coinList = coinList
-	db.pairsArray = match.GenerateAssetPairs()
+
+	// Get all the pairs
+	if db.pairsArray, err = match.GenerateAssetPairs(coinList); err != nil {
+		return
+	}
+
+	// DEBUGGING
+	// Get all the asset pairs
+	for i, pair := range db.pairsArray {
+		logging.Debugf("Pair %d: %s\n", i, pair)
+	}
+	// END DEBUGGING
 
 	err = db.DBHandler.Ping()
 	if err != nil {
@@ -88,98 +119,91 @@ func (db *DB) SetupClient(coinList []*coinparam.Params, pairs []*match.Pair) err
 	// Initialize Balance tables
 	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
 	// 66 bytes because we use big bytes and they use small bytes for varbinary
-	err = db.InitializeNewTables(db.balanceSchema, "pubkey VARBINARY(66), balance BIGINT(64)")
-	if err != nil {
-		return fmt.Errorf("Could not initialize balance tables: \n%s", err)
+	if err = db.InitializeNewTables(db.balanceSchema, "pubkey VARBINARY(66), balance BIGINT(64)"); err != nil {
+		err = fmt.Errorf("Could not initialize balance tables: \n%s", err)
+		return
 	}
 
 	// Initialize Deposit tables
-	err = db.InitializeTables(db.depositSchema, "pubkey VARBINARY(66), address VARCHAR(34), CONSTRAINT unique_pubkeys UNIQUE (pubkey, address)")
-	if err != nil {
-		return fmt.Errorf("Could not initialize deposit tables: \n%s", err)
+	if err = db.InitializeTables(db.depositSchema, "pubkey VARBINARY(66), address VARCHAR(34), CONSTRAINT unique_pubkeys UNIQUE (pubkey, address)"); err != nil {
+		err = fmt.Errorf("Could not initialize deposit tables: \n%s", err)
+		return
 	}
 
 	// Initialize pending_deposits table
-	err = db.InitializeNewTables(db.pendingDepositSchema, "pubkey VARBINARY(66), expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT")
-	if err != nil {
-		return fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
+	if err = db.InitializeNewTables(db.pendingDepositSchema, "pubkey VARBINARY(66), expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT"); err != nil {
+		err = fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
+		return
 	}
 
 	// Initialize order table
 	// You can have a price up to 30 digits total, and 10 decimal places.
-	err = db.InitializePairTables(db.orderSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP")
-	if err != nil {
-		return fmt.Errorf("Could not initialize order tables: \n%s", err)
+	if err = db.InitializePairTables(db.orderSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP"); err != nil {
+		err = fmt.Errorf("Could not initialize order tables: \n%s", err)
+		return
 	}
-	return nil
+	return
 }
 
 // InitializeTables initializes all of the tables necessary for the exchange to run.
-func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
-	var err error
+func (db *DB) InitializeTables(schemaName string, schemaSpec string) (err error) {
 
 	// Use the schema
-	_, err = db.DBHandler.Exec("USE " + schemaName + ";")
-	if err != nil {
-		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+	if _, err = db.DBHandler.Exec("USE " + schemaName + ";"); err != nil {
+		err = fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+		return
 	}
 	for _, chain := range db.coinList {
 		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", chain.Name, schemaSpec)
-		_, err = db.DBHandler.Exec(tableQuery)
-		if err != nil {
-			return fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
+		if _, err = db.DBHandler.Exec(tableQuery); err != nil {
+			err = fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
+			return
 		}
 	}
-	return nil
+	return
 }
 
 // InitializeNewTables initalizes tables based on schema and clears them.
-func (db *DB) InitializeNewTables(schemaName string, schemaSpec string) error {
-	var err error
-
+func (db *DB) InitializeNewTables(schemaName string, schemaSpec string) (err error) {
 	// Use the schema
-	_, err = db.DBHandler.Exec("USE " + schemaName + ";")
-	if err != nil {
-		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+	if _, err = db.DBHandler.Exec("USE " + schemaName + ";"); err != nil {
+		err = fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+		return
 	}
 	for _, chain := range db.coinList {
 		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", chain.Name, schemaSpec)
-		_, err = db.DBHandler.Exec(tableQuery)
-		if err != nil {
-			return fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
+		if _, err = db.DBHandler.Exec(tableQuery); err != nil {
+			err = fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
+			return
 		}
 		deleteQuery := fmt.Sprintf("DELETE FROM %s;", chain.Name)
-		_, err = db.DBHandler.Exec(deleteQuery)
-		if err != nil {
-			return fmt.Errorf("Could not delete stuff from table after creating: \n%s", err)
+		if _, err = db.DBHandler.Exec(deleteQuery); err != nil {
+			err = fmt.Errorf("Could not delete stuff from table after creating: \n%s", err)
+			return
 		}
 	}
-	return nil
+	return
 }
 
 // InitializePairTables initializes tables per pair
-func (db *DB) InitializePairTables(schemaName string, schemaSpec string) error {
-	var err error
-
+func (db *DB) InitializePairTables(schemaName string, schemaSpec string) (err error) {
 	// Use the schema
-	_, err = db.DBHandler.Exec("USE " + schemaName + ";")
-	if err != nil {
-		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+	if _, err = db.DBHandler.Exec("USE " + schemaName + ";"); err != nil {
+		err = fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+		return
 	}
 	for _, pair := range db.pairsArray {
 		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", pair.String(), schemaSpec)
-		_, err = db.DBHandler.Exec(tableQuery)
-		if err != nil {
-			return fmt.Errorf("Could not create table %s: \n%s", pair.String(), err)
+		if _, err = db.DBHandler.Exec(tableQuery); err != nil {
+			err = fmt.Errorf("Could not create table %s: \n%s", pair.String(), err)
+			return
 		}
 	}
-	return nil
+	return
 }
 
 // RootInitSchemas initalizes the schemas, creates users, and grants permissions to those users
-func (db *DB) RootInitSchemas() error {
-	var err error
-
+func (db *DB) RootInitSchemas() (err error) {
 	// Log in to root
 	rootHandler, err := sql.Open("mysql", defaultUsername+":"+defaultPassword+"@/")
 	if err != nil {
@@ -189,44 +213,42 @@ func (db *DB) RootInitSchemas() error {
 	// When the method is done, close the root connection
 	defer rootHandler.Close()
 
-	err = rootHandler.Ping()
-	if err != nil {
-		return fmt.Errorf("Could not ping the database, is it running: \n%s", err)
+	if err = rootHandler.Ping(); err != nil {
+		err = fmt.Errorf("Could not ping the database, is it running: \n%s", err)
+		return
 	}
 
-	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.balanceSchema)
-	if err != nil {
-		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.balanceSchema); err != nil {
+		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+		return
 	}
 
-	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.depositSchema)
-	if err != nil {
-		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.depositSchema); err != nil {
+		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+		return
 	}
 
-	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.pendingDepositSchema)
-	if err != nil {
-		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.pendingDepositSchema); err != nil {
+		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+		return
 	}
 
-	err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.orderSchema)
-	if err != nil {
-		return fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.orderSchema); err != nil {
+		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+		return
 	}
 
-	return nil
+	return
 }
 
 // Helper function for db
-func rootCreateSchemaForUser(rootHandler *sql.DB, username string, schemaString string) error {
-	var err error
-
+func rootCreateSchemaForUser(rootHandler *sql.DB, username string, schemaString string) (err error) {
 	// check pending deposit schema
 	// if pending deposit schema not there make it
-	_, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + schemaString + ";")
-	if err != nil {
-		return fmt.Errorf("Could not create %s schema: \n%s", schemaString, err)
+	if _, err = rootHandler.Exec("CREATE SCHEMA IF NOT EXISTS " + schemaString + ";"); err != nil {
+		err = fmt.Errorf("Could not create %s schema: \n%s", schemaString, err)
+		return
 	}
 
-	return nil
+	return
 }

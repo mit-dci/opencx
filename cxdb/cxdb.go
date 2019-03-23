@@ -18,13 +18,15 @@ import (
 // should not check validity of the things it is doing, just update or insert or return whatever.
 type OpencxStore interface {
 	// SetupClient makes sure that whatever things need to be done before we use the datastore can be done before we need to use the datastore.
-	SetupClient([]*coinparam.Params, []*match.Pair) error
+	SetupClient([]*coinparam.Params) error
 	// RegisterUser takes in a pubkey, and a map of asset to addresses for the pubkey. It inserts the necessary information in databases to register the pubkey.
 	RegisterUser(*koblitz.PublicKey, map[*coinparam.Params]string) error
 	// GetBalance gets the balance for a pubkey and an asset.
 	GetBalance(*koblitz.PublicKey, string) (uint64, error)
 	// GetDepositAddress gets the deposit address for a pubkey and an asset.
 	GetDepositAddress(*koblitz.PublicKey, string) (string, error)
+	// GetPairs gets all the trading pairs that we can trade on
+	GetPairs() []*match.Pair
 	// PlaceOrder places an order in the datastore.
 	PlaceOrder(*match.LimitOrder) (string, error)
 	// ViewOrderBook takes in a trading pair and returns buy order and sell orders separately. This should eventually only return the orderbook, not sure.

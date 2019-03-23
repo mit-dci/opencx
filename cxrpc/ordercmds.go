@@ -179,7 +179,8 @@ type GetPairsReply struct {
 
 // GetPairs gets all the pairs
 func (cl *OpencxRPC) GetPairs(args GetPairsArgs, reply *GetPairsReply) (err error) {
-	for _, pair := range cl.Server.PairsArray {
+	// just go through all the pairs and prettily print them
+	for _, pair := range cl.Server.OpencxDB.GetPairs() {
 		reply.PairList = append(reply.PairList, pair.PrettyString())
 	}
 

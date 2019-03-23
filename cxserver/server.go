@@ -37,7 +37,6 @@ type OpencxServer struct {
 	ChainhookRoot string
 	LitRoot       string
 	AssetArray    []match.Asset
-	PairsArray    []*match.Pair
 
 	registrationString string
 	getOrdersString    string
@@ -74,12 +73,11 @@ func (server *OpencxServer) UnlockOrders() {
 }
 
 // InitServer creates a new server
-func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray []*match.Pair, coinList []*coinparam.Params) *OpencxServer {
+func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []*coinparam.Params) *OpencxServer {
 	server := &OpencxServer{
 		OpencxDB:           db,
 		OpencxRoot:         homedir,
 		OpencxPort:         rpcport,
-		PairsArray:         pairsArray,
 		registrationString: "opencx-register",
 		getOrdersString:    "opencx-getorders",
 		orderMutex:         new(sync.Mutex),

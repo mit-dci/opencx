@@ -3,6 +3,8 @@ package match
 import (
 	"fmt"
 	"strings"
+
+	"github.com/mit-dci/lit/coinparam"
 )
 
 // Pair is a struct that represents a trading pair
@@ -25,29 +27,34 @@ func (p *Pair) PrettyString() string {
 	return p.AssetWant.String() + "/" + p.AssetHave.String()
 }
 
-// generateUniquePairs generates unique asset pairs based on the assets available
-func generateUniquePairs(assetList []Asset) []*Pair {
+// GenerateAssetPairs generates unique asset pairs based on the coinparams you pass it
+func GenerateAssetPairs(coinList []*coinparam.Params) (pairList []*Pair, err error) {
 
-	assetListLen := len(assetList)
-	numPairIndeces := assetListLen * (assetListLen - 1) / 2
-	var pairList = make([]*Pair, numPairIndeces)
+	coinListLen := len(coinList)
+	numPairIndeces := coinListLen * (coinListLen - 1) / 2
+	pairList = make([]*Pair, numPairIndeces)
 	pairListIndex := 0
-	for i, elem := range assetList {
-		for lower := i + 1; lower < assetListLen; lower++ {
+	for i, elem := range coinList {
+		for lower := i + 1; lower < coinListLen; lower++ {
+			var assetWant Asset
+			if assetWant, err = AssetFromCoinParam(elem); err != nil {
+				return
+			}
+
+			var assetHave Asset
+			if assetHave, err = AssetFromCoinParam(coinList[lower]); err != nil {
+				return
+			}
+
 			pairList[pairListIndex] = &Pair{
-				AssetWant: elem,
-				AssetHave: assetList[lower],
+				AssetWant: assetWant,
+				AssetHave: assetHave,
 			}
 			pairListIndex++
 		}
 	}
 
-	return pairList
-}
-
-// GenerateAssetPairs generates unique asset pairs based on the default assets available
-func GenerateAssetPairs() []*Pair {
-	return generateUniquePairs(AssetList())
+	return
 }
 
 // Delim is essentially a constant for this struct, I'm sure there are better ways of doing it.

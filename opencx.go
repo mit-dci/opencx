@@ -12,7 +12,6 @@ import (
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/db/ocxsql"
 	"github.com/mit-dci/opencx/logging"
-	"github.com/mit-dci/opencx/match"
 	"github.com/mit-dci/opencx/util"
 )
 
@@ -103,15 +102,11 @@ func main() {
 
 	db := new(ocxsql.DB)
 
-	// Get all the pairs
-	assetPairs := match.GenerateAssetPairs()
-
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
 
 	// Setup DB Client
-	err = db.SetupClient(coinList, assetPairs)
-	if err != nil {
+	if err = db.SetupClient(coinList); err != nil {
 		log.Fatalf("Error setting up sql client: \n%s", err)
 	}
 
@@ -119,7 +114,7 @@ func main() {
 	defer db.DBHandler.Close()
 
 	// Anyways, here's where we set the server
-	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, assetPairs, coinList)
+	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, coinList)
 
 	// Check that the private key exists and if it does, load it
 	if err = ocxServer.SetupServerKeys(key); err != nil {
@@ -157,11 +152,6 @@ func main() {
 		}
 
 		// logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
-	}
-
-	// Get all the asset pairs
-	for i, pair := range assetPairs {
-		logging.Debugf("Pair %d: %s\n", i, pair)
 	}
 
 	// Register RPC Commands and set server
