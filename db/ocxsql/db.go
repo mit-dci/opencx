@@ -105,6 +105,11 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	}
 
 	// DEBUGGING
+	// Get all the assets
+	for i, asset := range db.coinList {
+		logging.Debugf("Asset %d: %s\n", i, asset.Name)
+	}
+
 	// Get all the asset pairs
 	for i, pair := range db.pairsArray {
 		logging.Debugf("Pair %d: %s\n", i, pair)
