@@ -73,40 +73,13 @@ func (server *OpencxServer) UnlockOrders() {
 	server.orderMutex.Unlock()
 }
 
-// MatchingLoop is supposed to be run as a goroutine. This will always match stuff, and creates the server mutex map and order map
-func (server *OpencxServer) MatchingLoop(pair *match.Pair, bufferSize int) {
-
-	for {
-
-		server.LockOrders()
-
-		_, foundOrders := server.OrderMap[*pair]
-		if foundOrders && len(server.OrderMap[*pair]) >= bufferSize {
-
-			logging.Infof("Server order queue reached %d; Matching all prices.", bufferSize)
-			server.OrderMap[*pair] = []*match.LimitOrder{}
-
-			server.LockIngests()
-			if err := server.OpencxDB.RunMatching(pair); err != nil {
-				// gotta put these here cause if it errors out then oops just locked everything
-				// logging.Errorf("Error with matching: \n%s", err)
-			}
-			server.UnlockIngests()
-		}
-
-		server.UnlockOrders()
-	}
-
-}
-
 // InitServer creates a new server
-func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray []*match.Pair, assets []match.Asset, coinList []*coinparam.Params) *OpencxServer {
+func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, pairsArray []*match.Pair, coinList []*coinparam.Params) *OpencxServer {
 	server := &OpencxServer{
 		OpencxDB:           db,
 		OpencxRoot:         homedir,
 		OpencxPort:         rpcport,
 		PairsArray:         pairsArray,
-		AssetArray:         assets,
 		registrationString: "opencx-register",
 		getOrdersString:    "opencx-getorders",
 		orderMutex:         new(sync.Mutex),

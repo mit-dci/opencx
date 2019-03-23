@@ -18,7 +18,7 @@ import (
 // should not check validity of the things it is doing, just update or insert or return whatever.
 type OpencxStore interface {
 	// SetupClient makes sure that whatever things need to be done before we use the datastore can be done before we need to use the datastore.
-	SetupClient([]match.Asset, []*match.Pair) error
+	SetupClient([]*coinparam.Params, []*match.Pair) error
 	// RegisterUser takes in a pubkey, and a map of asset to addresses for the pubkey. It inserts the necessary information in databases to register the pubkey.
 	RegisterUser(*koblitz.PublicKey, map[*coinparam.Params]string) error
 	// GetBalance gets the balance for a pubkey and an asset.

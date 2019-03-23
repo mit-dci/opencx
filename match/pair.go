@@ -3,8 +3,6 @@ package match
 import (
 	"fmt"
 	"strings"
-
-	"github.com/mit-dci/lit/coinparam"
 )
 
 // Pair is a struct that represents a trading pair
@@ -60,22 +58,6 @@ func (p Pair) Delim() string {
 // String is the tostring function for a pair
 func (p Pair) String() string {
 	return p.AssetWant.String() + p.Delim() + p.AssetHave.String()
-}
-
-// making this asset stuff was sort of a mistake, example below
-// I just needed an asset struct in the first place
-
-// GetAssociatedCoinParam gets the coinparam parameters related to said asset
-func (a Asset) GetAssociatedCoinParam() *coinparam.Params {
-	switch a {
-	case BTCTest:
-		return &coinparam.TestNet3Params
-	case LTCTest:
-		return &coinparam.LiteCoinTestNet4Params
-	case VTCTest:
-		return &coinparam.VertcoinTestNetParams
-	}
-	return nil
 }
 
 // FromString creates a pair object from a string. This is for user input only, hence the slash

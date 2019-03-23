@@ -106,11 +106,11 @@ func main() {
 	// Get all the pairs
 	assetPairs := match.GenerateAssetPairs()
 
-	// Get all the assets
-	assets := match.AssetList()
+	// Generate the coin list based on the parameters we know
+	coinList := generateCoinList(&conf)
 
 	// Setup DB Client
-	err = db.SetupClient(assets, assetPairs)
+	err = db.SetupClient(coinList, assetPairs)
 	if err != nil {
 		log.Fatalf("Error setting up sql client: \n%s", err)
 	}
@@ -118,11 +118,8 @@ func main() {
 	// defer the db closing to when we stop
 	defer db.DBHandler.Close()
 
-	// Generate the coin list based on the parameters we know
-	coinList := generateCoinList(&conf)
-
 	// Anyways, here's where we set the server
-	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, assetPairs, assets, coinList)
+	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, assetPairs, coinList)
 
 	// Check that the private key exists and if it does, load it
 	if err = ocxServer.SetupServerKeys(key); err != nil {
@@ -162,9 +159,8 @@ func main() {
 		// logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
 	}
 
-	// Get all the asset pairs then start the matching loop
+	// Get all the asset pairs
 	for i, pair := range assetPairs {
-		go ocxServer.MatchingLoop(pair, orderBufferSize)
 		logging.Debugf("Pair %d: %s\n", i, pair)
 	}
 

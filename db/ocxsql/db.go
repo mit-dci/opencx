@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/mit-dci/lit/coinparam"
+
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mit-dci/opencx/match"
@@ -34,7 +36,7 @@ type DB struct {
 	depositSchema        string
 	pendingDepositSchema string
 	orderSchema          string
-	assetArray           []match.Asset
+	coinList             []*coinparam.Params
 	pairsArray           []*match.Pair
 	gPriceMap            map[string]float64
 }
@@ -54,7 +56,7 @@ func (db *DB) GetPrice(pairString string) (price float64) {
 }
 
 // SetupClient sets up the mysql client and driver
-func (db *DB) SetupClient(assets []match.Asset, pairs []*match.Pair) error {
+func (db *DB) SetupClient(coinList []*coinparam.Params, pairs []*match.Pair) error {
 	var err error
 
 	db.gPriceMap = make(map[string]float64)
@@ -75,7 +77,7 @@ func (db *DB) SetupClient(assets []match.Asset, pairs []*match.Pair) error {
 	}
 
 	db.DBHandler = dbHandle
-	db.assetArray = assets
+	db.coinList = coinList
 	db.pairsArray = match.GenerateAssetPairs()
 
 	err = db.DBHandler.Ping()
@@ -121,11 +123,11 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) error {
 	if err != nil {
 		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
 	}
-	for _, assetString := range db.assetArray {
-		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", assetString, schemaSpec)
+	for _, chain := range db.coinList {
+		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", chain.Name, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
-			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
+			return fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
 		}
 	}
 	return nil
@@ -140,13 +142,13 @@ func (db *DB) InitializeNewTables(schemaName string, schemaSpec string) error {
 	if err != nil {
 		return fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
 	}
-	for _, assetString := range db.assetArray {
-		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", assetString, schemaSpec)
+	for _, chain := range db.coinList {
+		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", chain.Name, schemaSpec)
 		_, err = db.DBHandler.Exec(tableQuery)
 		if err != nil {
-			return fmt.Errorf("Could not create table %s: \n%s", assetString, err)
+			return fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
 		}
-		deleteQuery := fmt.Sprintf("DELETE FROM %s;", assetString)
+		deleteQuery := fmt.Sprintf("DELETE FROM %s;", chain.Name)
 		_, err = db.DBHandler.Exec(deleteQuery)
 		if err != nil {
 			return fmt.Errorf("Could not delete stuff from table after creating: \n%s", err)

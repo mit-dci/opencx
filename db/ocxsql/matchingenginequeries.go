@@ -4,6 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/mit-dci/opencx/util"
+
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	"github.com/mit-dci/opencx/logging"
@@ -193,6 +196,19 @@ func shouldMatch(buyPrices []float64, sellPrices []float64) bool {
 
 // RunMatchingForPriceWithinTransaction runs matching only for a particular price, and takes a transaction
 func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float64, tx *sql.Tx) (err error) {
+	// get coinparam for assetwant
+	var assetWantCoinType *coinparam.Params
+	if assetWantCoinType, err = util.GetCoinTypeFromName(pair.AssetWant.String()); err != nil {
+		err = fmt.Errorf("Tried to run matching for asset that doesn't have a coinType. Nothing will be compatible")
+		return
+	}
+
+	// get coinparam for assetwant
+	var assetHaveCoinType *coinparam.Params
+	if assetHaveCoinType, err = util.GetCoinTypeFromName(pair.AssetHave.String()); err != nil {
+		err = fmt.Errorf("Tried to run matching for asset that doesn't have a coinType. Nothing will be compatible")
+		return
+	}
 
 	defer func() {
 		if err != nil {
@@ -257,7 +273,6 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 	if err = buyRows.Close(); err != nil {
 		return
 	}
-	// logging.Infof("Buy orders length: %d", len(buyOrders))
 
 	// loop through them both and make sure there are elements in both otherwise we're good
 	for len(buyOrders) > 0 && len(sellOrders) > 0 {
@@ -294,13 +309,12 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 				return
 			}
 
-			// logging.Infof("done delete")
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountHave, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountHave, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountWant, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountWant, tx, assetHaveCoinType); err != nil {
 				return
 			}
 
@@ -341,11 +355,11 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 			}
 
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountWant, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountWant, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountHave, tx, assetHaveCoinType); err != nil {
 				return
 			}
 
@@ -378,11 +392,11 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 			}
 
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, currBuyOrder.AmountWant, tx, pair.AssetWant.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, currBuyOrder.AmountWant, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, currBuyOrder.AmountHave, tx, pair.AssetHave.GetAssociatedCoinParam()); err != nil {
+			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, currBuyOrder.AmountHave, tx, assetHaveCoinType); err != nil {
 				return
 			}
 

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/mit-dci/opencx/util"
+
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	"github.com/mit-dci/lit/coinparam"
@@ -214,9 +216,15 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 
 			var correctAssetHave *coinparam.Params
 			if side == "buy" {
-				correctAssetHave = pair.AssetHave.GetAssociatedCoinParam()
+				// make sure that the asset has an associated coinparam. Don't trade assets that you can't settle on a ledger.
+				if correctAssetHave, err = util.GetCoinTypeFromName(pair.AssetHave.String()); err != nil {
+					return
+				}
 			} else if side == "sell" {
-				correctAssetHave = pair.AssetWant.GetAssociatedCoinParam()
+				// make sure that the asset has an associated coinparam. Don't trade assets that you can't settle on a ledger.
+				if correctAssetHave, err = util.GetCoinTypeFromName(pair.AssetWant.String()); err != nil {
+					return
+				}
 			}
 
 			// update the balance of the client

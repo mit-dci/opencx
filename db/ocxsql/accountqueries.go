@@ -48,9 +48,9 @@ func (db *DB) InitializeAccountBalances(pubkey *koblitz.PublicKey) (err error) {
 		return
 	}
 
-	for _, assetString := range db.assetArray {
+	for _, chain := range db.coinList {
 		// Insert 0 balance into balance table
-		insertBalanceQueries := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d);", assetString, pubkey.SerializeCompressed(), 0)
+		insertBalanceQueries := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d);", chain.Name, pubkey.SerializeCompressed(), 0)
 		if _, err = tx.Exec(insertBalanceQueries); err != nil {
 			return
 		}
