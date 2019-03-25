@@ -5,8 +5,9 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/opencx/match"
+
+	"github.com/mit-dci/lit/lnutil"
 
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"
@@ -97,7 +98,10 @@ func (cl *openCxClient) Withdraw(args []string) (err error) {
 		return
 	}
 
-	asset := match.AssetFromString(args[1])
+	var asset match.Asset
+	if asset, err = match.AssetFromString(args[1]); err != nil {
+		return
+	}
 	address := args[2]
 
 	var withdrawReply *cxrpc.WithdrawReply
