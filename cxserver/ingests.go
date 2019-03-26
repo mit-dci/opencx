@@ -48,7 +48,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 				// It's P2PKH, let's get the address
 				var addr *btcutil.AddressPubKeyHash
 				if addr, err = btcutil.NewAddressPubKeyHash(data, coinType); err != nil {
-					return err
+					return
 				}
 
 				if pubkey, found := addressesWeOwn[addr.String()]; found {
@@ -82,11 +82,27 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	if height%10000 == 0 {
 		logging.Infof("Finished ingesting %s block at height %d\n", coinType.Name, height)
 	}
-	return nil
+	return
 }
 
-func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType *coinparam.Params) (err error) {
-	logging.Infof("Pubkey %x funded a channel to give me %d %s\n", pubkey.SerializeCompressed(), state.MyAmt, coinType.Name)
+func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblitz.PublicKey) (err error) {
+	logging.Infof("Pubkey %x funded a channel to give me %d\n", pubkey.SerializeCompressed(), state.MyAmt)
+
+	var addrMap map[*coinparam.Params]string
+	if addrMap, err = server.GetAddressMap(pubkey); err != nil {
+		return
+	}
+
+	logging.Infof("Registering user with pubkey %x\n", pubkey.SerializeCompressed())
+	server.LockIngests()
+
+	if err = server.OpencxDB.RegisterUser(pubkey, addrMap); err != nil {
+		server.UnlockIngests()
+		return
+	}
+
+	server.UnlockIngests()
+
 	return
 }
 

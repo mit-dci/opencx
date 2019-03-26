@@ -33,25 +33,11 @@ func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Even
 			return eventbus.EHANDLE_CANCEL
 		}
 
-		var addrMap map[*coinparam.Params]string
-		if addrMap, err = server.GetAddressMap(pubkey); err != nil {
-			logging.Errorf("Getting address map error: \n%s", err)
-			return eventbus.EHANDLE_CANCEL
-		}
-
-		logging.Infof("Registering user with pubkey %x\n", pubkey.SerializeCompressed())
-		server.LockIngests()
-
-		if err = server.OpencxDB.RegisterUser(pubkey, addrMap); err != nil {
-			logging.Errorf("Registering user error: \n%s", err)
-			server.UnlockIngests()
-			return eventbus.EHANDLE_CANCEL
-		}
-
-		server.UnlockIngests()
-
 		if !ee.State.Failed {
-			go server.ingestChannelFund(ee.State, pubkey, ee.CoinType)
+			if err = server.ingestChannelFund(ee.State, pubkey); err != nil {
+				logging.Errorf("ingesting channel fund error: %s", err)
+				return eventbus.EHANDLE_CANCEL
+			}
 		}
 
 		logging.Infof("We got a sig proof handler! Name of event: %s", ee.Name())
