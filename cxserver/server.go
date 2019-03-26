@@ -11,8 +11,6 @@ import (
 
 	"github.com/mit-dci/lit/uspv"
 
-	"github.com/mit-dci/lit/eventbus"
-
 	"github.com/mit-dci/lit/btcutil"
 	"github.com/mit-dci/lit/btcutil/chaincfg/chainhash"
 	"github.com/mit-dci/lit/btcutil/hdkeychain"
@@ -340,63 +338,6 @@ func (server *OpencxServer) LinkOneWallet(wallet *wallit.Wallit, tower bool) (er
 	return nil
 }
 
-// GetSigProofHandler gets the handler func to pass in to the register function. Maybe just make this a normal function, but I think we need server stuff
-func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Event) eventbus.EventHandleResult) {
-	hFunc = func(event eventbus.Event) (res eventbus.EventHandleResult) {
-		// We know this is a channel state update event
-		ee, ok := event.(qln.ChannelStateUpdateEvent)
-		if !ok {
-			logging.Errorf("Wrong type of event, why are you making this the handler for that?")
-			// Still don't know if this is the right thing to return
-			return eventbus.EHANDLE_CANCEL
-		}
-		// wait till merged
-		// MyAmt := ee.State.MyAmt
-
-		// if !ee.State.Failed {
-		//   server.OpencxDB
-		// }
-
-		logging.Infof("We got a sig proof handler! Name of event: %s", ee.Name())
-
-		return eventbus.EHANDLE_OK
-	}
-	return
-}
-
-// HeightHandler is a handler for when there is a height and block event for the wallet. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
-func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.HeightEvent, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
-	for {
-
-		h := <-incomingBlockHeight
-		block := <-blockChan
-		server.CallIngest(h.Height, block, coinType)
-	}
-}
-
-// ChainHookHeightHandler is a handler for when there is a height and block event. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
-func (server *OpencxServer) ChainHookHeightHandler(incomingBlockHeight chan int32, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
-	for {
-
-		// this used to be commented out. Since in lit the channels are buffered, we HAVE to make sure that this is cleared
-		// otherwise lit will just completely block and wait for us to pull from the channel, and we will stop getting
-		// headers and everything. IF it's needed, just always pulling from this would be fine if we don't care about it.
-		h := <-incomingBlockHeight
-		block := <-blockChan
-		logging.Infof("Block %s from %s", block.Header.BlockHash(), coinType.Name)
-		server.CallIngest(h, block, coinType)
-	}
-}
-
-// CallIngest calls the ingest function. This is so we can make a bunch of different handlers that call this depending on which way they use channels.
-func (server *OpencxServer) CallIngest(blockHeight int32, block *wire.MsgBlock, coinType *coinparam.Params) {
-	// logging.Debugf("Ingesting %d transactions at height %d\n", len(block.Transactions), blockHeight)
-	if err := server.ingestTransactionListAndHeight(block.Transactions, uint64(blockHeight), coinType); err != nil {
-		logging.Infof("something went horribly wrong with %s\n", coinType.Name)
-		logging.Errorf("Here's what went horribly wrong: %s\n", err)
-	}
-}
-
 // MatchingRoutine is supposed to be run as a goroutine from placeorder so we can wait a bit while we run an order
 func (server *OpencxServer) MatchingRoutine(started chan bool, pair *match.Pair, price float64) {
 	server.LockIngests()
@@ -461,5 +402,17 @@ func (server *OpencxServer) GetOrdersStringVerify(sig []byte) (pubkey *koblitz.P
 		return
 	}
 
+	return
+}
+
+// GetAddressMap gets an address map for a pubkey. This is so we can register multiple ways.
+func (server *OpencxServer) GetAddressMap(pubkey *koblitz.PublicKey) (addrMap map[*coinparam.Params]string, err error) {
+	// go through each enabled wallet in the server and create a new address for them.
+	addrMap = make(map[*coinparam.Params]string)
+	for param := range server.WalletMap {
+		if addrMap[param], err = server.GetAddrForCoin(param, pubkey); err != nil {
+			return
+		}
+	}
 	return
 }

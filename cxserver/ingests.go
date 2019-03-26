@@ -87,6 +87,10 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	return nil
 }
 
+func (server *OpencxServer) ingestChannelFund() (err error) {
+	return
+}
+
 // LockIngests makes the ingest wait for whatever is happening on the outside, probably creating accounts and such
 func (server *OpencxServer) LockIngests() {
 	server.ingestMutex.Lock()
