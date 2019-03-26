@@ -29,25 +29,29 @@ func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Even
 		var pubkey *koblitz.PublicKey
 		var err error
 		if pubkey, err = koblitz.ParsePubKey(ee.TheirPub[:], koblitz.S256()); err != nil {
-			return
+			logging.Errorf("Parsing pubkey error: \n%s", err)
+			return eventbus.EHANDLE_CANCEL
 		}
 
 		var addrMap map[*coinparam.Params]string
 		if addrMap, err = server.GetAddressMap(pubkey); err != nil {
-			return
+			logging.Errorf("Getting address map error: \n%s", err)
+			return eventbus.EHANDLE_CANCEL
 		}
 
+		logging.Infof("Registering user with pubkey %x\n", pubkey.SerializeCompressed())
 		server.LockIngests()
 
 		if err = server.OpencxDB.RegisterUser(pubkey, addrMap); err != nil {
+			logging.Errorf("Registering user error: \n%s", err)
 			server.UnlockIngests()
-			return
+			return eventbus.EHANDLE_CANCEL
 		}
 
 		server.UnlockIngests()
 
 		if !ee.State.Failed {
-			go server.ingestChannelFund()
+			go server.ingestChannelFund(ee.State, pubkey, ee.CoinType)
 		}
 
 		logging.Infof("We got a sig proof handler! Name of event: %s", ee.Name())
@@ -60,7 +64,6 @@ func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Even
 // HeightHandler is a handler for when there is a height and block event for the wallet. We need both channels to work and be synchronized, which I'm assuming is the case in the lit repos. Will need to double check.
 func (server *OpencxServer) HeightHandler(incomingBlockHeight chan lnutil.HeightEvent, blockChan chan *wire.MsgBlock, coinType *coinparam.Params) {
 	for {
-
 		h := <-incomingBlockHeight
 		block := <-blockChan
 		server.CallIngest(h.Height, block, coinType)

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/mit-dci/opencx/util"
-
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/lit/portxo"
@@ -65,15 +63,9 @@ func (server *OpencxServer) withdrawFromChain(params *coinparam.Params) (withdra
 		// set log level for this thread
 		logging.SetLogLevel(2)
 
-		// wrap because it needs to be a chaincfg param -- if you use the net name instead of 'btc', 'ltc', 'vtc' then you can stop doing a lot of dumb stuff
-		params.PubKeyHashAddrID = wallet.Param.PubKeyHashAddrID
-
-		// Changing the type of params so they conform to chaincfg
-		cfgParams := util.ConvertChaincfgCoinparam(params)
-
 		// Decoding given address
 		var addr btcutil.Address
-		if addr, err = btcutil.DecodeAddress(address, cfgParams); err != nil {
+		if addr, err = btcutil.DecodeAddress(address, params); err != nil {
 			return
 		}
 

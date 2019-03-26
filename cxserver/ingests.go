@@ -3,7 +3,8 @@ package cxserver
 import (
 	"fmt"
 
-	"github.com/mit-dci/lit/btcutil/chaincfg"
+	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/qln"
 
 	"github.com/mit-dci/lit/btcutil"
 
@@ -46,10 +47,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 			if scriptType == "P2PKH" {
 				// It's P2PKH, let's get the address
 				var addr *btcutil.AddressPubKeyHash
-
-				coinTypeChaincfgWrap := new(chaincfg.Params)
-				coinTypeChaincfgWrap.PubKeyHashAddrID = coinType.PubKeyHashAddrID
-				if addr, err = btcutil.NewAddressPubKeyHash(data, coinTypeChaincfgWrap); err != nil {
+				if addr, err = btcutil.NewAddressPubKeyHash(data, coinType); err != nil {
 					return err
 				}
 
@@ -87,7 +85,8 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	return nil
 }
 
-func (server *OpencxServer) ingestChannelFund() (err error) {
+func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType *coinparam.Params) (err error) {
+	logging.Infof("Pubkey %x funded a channel to give me %d %s\n", pubkey.SerializeCompressed(), state.MyAmt, coinType.Name)
 	return
 }
 
