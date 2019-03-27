@@ -217,12 +217,12 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 			var correctAssetHave *coinparam.Params
 			if side == "buy" {
 				// make sure that the asset has an associated coinparam. Don't trade assets that you can't settle on a ledger.
-				if correctAssetHave, err = util.GetCoinTypeFromName(pair.AssetHave.String()); err != nil {
+				if correctAssetHave, err = util.GetParamFromName(pair.AssetHave.String()); err != nil {
 					return
 				}
 			} else if side == "sell" {
 				// make sure that the asset has an associated coinparam. Don't trade assets that you can't settle on a ledger.
-				if correctAssetHave, err = util.GetCoinTypeFromName(pair.AssetWant.String()); err != nil {
+				if correctAssetHave, err = util.GetParamFromName(pair.AssetWant.String()); err != nil {
 					return
 				}
 			}

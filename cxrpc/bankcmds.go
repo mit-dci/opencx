@@ -112,7 +112,7 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err erro
 	}
 
 	var coinType *coinparam.Params
-	if coinType, err = util.GetCoinTypeFromName(args.Withdrawal.Asset.String()); err != nil {
+	if coinType, err = util.GetParamFromName(args.Withdrawal.Asset.String()); err != nil {
 		return
 	}
 

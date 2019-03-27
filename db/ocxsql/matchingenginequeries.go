@@ -198,14 +198,14 @@ func shouldMatch(buyPrices []float64, sellPrices []float64) bool {
 func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float64, tx *sql.Tx) (err error) {
 	// get coinparam for assetwant
 	var assetWantCoinType *coinparam.Params
-	if assetWantCoinType, err = util.GetCoinTypeFromName(pair.AssetWant.String()); err != nil {
+	if assetWantCoinType, err = util.GetParamFromName(pair.AssetWant.String()); err != nil {
 		err = fmt.Errorf("Tried to run matching for asset that doesn't have a coinType. Nothing will be compatible")
 		return
 	}
 
 	// get coinparam for assetwant
 	var assetHaveCoinType *coinparam.Params
-	if assetHaveCoinType, err = util.GetCoinTypeFromName(pair.AssetHave.String()); err != nil {
+	if assetHaveCoinType, err = util.GetParamFromName(pair.AssetHave.String()); err != nil {
 		err = fmt.Errorf("Tried to run matching for asset that doesn't have a coinType. Nothing will be compatible")
 		return
 	}

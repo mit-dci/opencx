@@ -51,7 +51,7 @@ func (db *DB) GetBalance(pubkey *koblitz.PublicKey, asset string) (uint64, error
 // UpdateDeposits happens when a block is sent in, it updates the deposits table with correct deposits
 func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64, coinType *coinparam.Params) (err error) {
 
-	coinSchema, err := util.GetSchemaNameFromCoinType(coinType)
+	coinSchema, err := util.GetSchemaNameFromParam(coinType)
 	if err != nil {
 		return fmt.Errorf("Error while updating deposits: \n%s", err)
 	}
@@ -197,7 +197,7 @@ func (db *DB) UpdateBalanceWithinTransaction(pubkey *koblitz.PublicKey, amount u
 	}()
 
 	// Another reason why just switching to coinparam stuff is the best option, or at least some sort of coinparam / name struct
-	coinSchema, err := util.GetSchemaNameFromCoinType(coinType)
+	coinSchema, err := util.GetSchemaNameFromParam(coinType)
 	if err != nil {
 		return
 	}
@@ -249,7 +249,7 @@ func (db *DB) UpdateBalancesWithinTransaction(pubkeys []*koblitz.PublicKey, amou
 		}
 	}()
 
-	coinSchema, err := util.GetSchemaNameFromCoinType(coinType)
+	coinSchema, err := util.GetSchemaNameFromParam(coinType)
 	if err != nil {
 		return
 	}
@@ -343,7 +343,7 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 		return nil, fmt.Errorf("Could not use deposit address schema: \n%s", err)
 	}
 
-	asset, err := util.GetSchemaNameFromCoinType(coinType)
+	asset, err := util.GetSchemaNameFromParam(coinType)
 	if err != nil {
 		return nil, fmt.Errorf("Tried to get deposit addresses for %s which isn't a valid asset", asset)
 	}
