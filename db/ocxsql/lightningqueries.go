@@ -40,7 +40,7 @@ func (db *DB) LightningDeposit(pubkey *koblitz.PublicKey, amount uint64, param *
 }
 
 // LightningWithdraw will remove money from a user's tracked lightning balance or return an error.
-func (db *DB) LightningWithdraw(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params, qChanID uint32) (err error) {
+func (db *DB) LightningWithdraw(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
 	var tx *sql.Tx
 	if tx, err = db.DBHandler.Begin(); err != nil {
 		err = fmt.Errorf("Error beginning transaction while updating funds: \n%s", err)
@@ -59,22 +59,23 @@ func (db *DB) LightningWithdraw(pubkey *koblitz.PublicKey, amount uint64, param 
 		return
 	}
 
-	updateLightningBalanceQuery := fmt.Sprintf("SELECT amount FROM %s WHERE pubkey='%s' AND qchanID=%d;", param.Name, pubkey.SerializeCompressed(), qChanID)
+	updateLightningBalanceQuery := fmt.Sprintf("SELECT amount FROM %s WHERE pubkey='%s';", param.Name, pubkey.SerializeCompressed())
 	logging.Infof("lightning query: %s", updateLightningBalanceQuery)
 	var res *sql.Rows
 	if res, err = tx.Query(updateLightningBalanceQuery); err != nil {
 		return
 	}
 
+	var totalAmount uint64
+
 	var amountGot uint64
-	var success bool
-	if success = res.Next(); !success {
-		err = fmt.Errorf("Database error: pubkey doesn't exist")
-		return
-	}
-	if err = res.Scan(&amountGot); err != nil {
-		err = fmt.Errorf("Error scanning for amount: \n%s", err)
-		return
+	for res.Next() {
+		if err = res.Scan(&amountGot); err != nil {
+			err = fmt.Errorf("Error scanning for amount: \n%s", err)
+			return
+		}
+
+		totalAmount += amountGot
 	}
 
 	if err = res.Close(); err != nil {
