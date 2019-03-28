@@ -153,7 +153,8 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 		return
 	}
 
-	if err = db.InitializeTables(db.lightningbalanceSchema, "pubkey VARBINARY(66), qchanID INT(32), amount BIGINT(64);"); err != nil {
+	if err = db.InitializeNewTables(db.lightningbalanceSchema, "pubkey VARBINARY(66), qchanID INT(32), amount BIGINT(64)"); err != nil {
+		err = fmt.Errorf("Could not initialize lightning balance tables: \n%s", err)
 		return
 	}
 	return
@@ -248,6 +249,11 @@ func (db *DB) RootInitSchemas() (err error) {
 	}
 
 	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.orderSchema); err != nil {
+		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+		return
+	}
+
+	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.lightningbalanceSchema); err != nil {
 		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
 		return
 	}
