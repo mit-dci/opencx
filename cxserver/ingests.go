@@ -85,8 +85,13 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	return
 }
 
-func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType uint32) (err error) {
+func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType uint32, qchanID uint32) (err error) {
 	logging.Infof("Pubkey %x funded a channel to give me %d of cointype %d\n", pubkey.SerializeCompressed(), state.MyAmt, coinType)
+
+	var param *coinparam.Params
+	if param, err = util.GetParamFromHDCoinType(coinType); err != nil {
+		return
+	}
 
 	var addrMap map[*coinparam.Params]string
 	if addrMap, err = server.GetAddressMap(pubkey); err != nil {
@@ -98,6 +103,10 @@ func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblit
 
 	if err = server.OpencxDB.RegisterUser(pubkey, addrMap); err != nil {
 		server.UnlockIngests()
+		return
+	}
+
+	if err = server.OpencxDB.LightningDeposit(pubkey, uint64(state.MyAmt), param, qchanID); err != nil {
 		return
 	}
 

@@ -18,10 +18,11 @@ var (
 	defaultPassword = "testpass"
 
 	// definitely move this to a config file
-	balanceSchema        = "balances"
-	depositSchema        = "deposit"
-	pendingDepositSchema = "pending_deposits"
-	orderSchema          = "orders"
+	balanceSchema          = "balances"
+	depositSchema          = "deposit"
+	pendingDepositSchema   = "pending_deposits"
+	orderSchema            = "orders"
+	lightningbalanceSchema = "litbalances"
 )
 
 // the globalread and globalwrite variables are for debugging
@@ -45,6 +46,9 @@ type DB struct {
 
 	// name of order schema
 	orderSchema string
+
+	// name of lightning balance schema
+	lightningbalanceSchema string
 
 	// list of all coins supported, passed in from above
 	coinList []*coinparam.Params
@@ -83,6 +87,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	db.depositSchema = depositSchema
 	db.pendingDepositSchema = pendingDepositSchema
 	db.orderSchema = orderSchema
+	db.lightningbalanceSchema = lightningbalanceSchema
 	// Create users and schemas and assign permissions to opencx
 	if err = db.RootInitSchemas(); err != nil {
 		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
@@ -145,6 +150,10 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	// You can have a price up to 30 digits total, and 10 decimal places.
 	if err = db.InitializePairTables(db.orderSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP"); err != nil {
 		err = fmt.Errorf("Could not initialize order tables: \n%s", err)
+		return
+	}
+
+	if err = db.InitializeTables(db.lightningbalanceSchema, "pubkey VARBINARY(66), qchanID INT(32), amount BIGINT(64);"); err != nil {
 		return
 	}
 	return
