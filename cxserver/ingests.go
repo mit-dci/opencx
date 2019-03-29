@@ -85,13 +85,30 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	return
 }
 
-func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType uint32, qchanID uint32) (err error) {
-	logging.Infof("Pubkey %x funded a channel to give me %d of cointype %d\n", pubkey.SerializeCompressed(), state.MyAmt, coinType)
+// ingestChannelConfirm changes the user's balance to reflect that a confirmation of a channel happened
+func (server *OpencxServer) ingestChannelConfirm(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType uint32) (err error) {
+	logging.Infof("Confirmed channel from %x to give me %d of cointype %d\n", pubkey.SerializeCompressed(), state.MyAmt, coinType)
 
 	var param *coinparam.Params
 	if param, err = util.GetParamFromHDCoinType(coinType); err != nil {
 		return
 	}
+
+	logging.Infof("Confirmed channel from pubkey %x\n", pubkey.SerializeCompressed())
+	server.LockIngests()
+
+	if err = server.OpencxDB.UpdateBalance(pubkey, uint64(state.MyAmt), param); err != nil {
+		return
+	}
+
+	server.UnlockIngests()
+
+	return
+}
+
+// ingestChannelFund only registers the user because the fund channel hasn't necessarily been confirmed yet
+func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType uint32, qchanID uint32) (err error) {
+	logging.Infof("Pubkey %x funded a channel to give me %d of cointype %d\n", pubkey.SerializeCompressed(), state.MyAmt, coinType)
 
 	var addrMap map[*coinparam.Params]string
 	if addrMap, err = server.GetAddressMap(pubkey); err != nil {
@@ -103,10 +120,6 @@ func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblit
 
 	if err = server.OpencxDB.RegisterUser(pubkey, addrMap); err != nil {
 		server.UnlockIngests()
-		return
-	}
-
-	if err = server.OpencxDB.LightningDeposit(pubkey, uint64(state.MyAmt), param, qchanID); err != nil {
 		return
 	}
 

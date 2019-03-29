@@ -138,13 +138,14 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 	return nil
 }
 
-// UpdateBalance updates a single balance
-func (db *DB) UpdateBalance(pubkey *koblitz.PublicKey, amount uint64) (err error) {
+// UpdateBalance adds to a single balance
+func (db *DB) UpdateBalance(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
 
-	tx, err := db.DBHandler.Begin()
-	if err != nil {
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
 		return
 	}
+
 	defer func() {
 		if err != nil {
 			tx.Rollback()
@@ -154,41 +155,15 @@ func (db *DB) UpdateBalance(pubkey *koblitz.PublicKey, amount uint64) (err error
 		err = tx.Commit()
 	}()
 
-	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+	if err = db.UpdateBalanceWithinTransaction(pubkey, amount, tx, param); err != nil {
 		return
 	}
 
-	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM btc WHERE pubkey='%x';", pubkey.SerializeCompressed())
-	rows, err := tx.Query(currentBalanceQuery)
-	if err != nil {
-		return
-	}
-
-	// Get the first result for balance
-	rows.Next()
-	balance := new(uint64)
-
-	if err = rows.Scan(balance); err != nil {
-		return
-	}
-
-	if err = rows.Close(); err != nil {
-		return
-	}
-
-	// Update the balance
-	// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-	insertBalanceQuery := fmt.Sprintf("UPDATE btc SET balance='%d' WHERE pubkey='%x';", *balance+amount, pubkey.SerializeCompressed())
-
-	if _, err = tx.Exec(insertBalanceQuery); err != nil {
-		return
-	}
-
-	return nil
+	return
 }
 
 // UpdateBalanceWithinTransaction increases the balance of pubkey by amount
-func (db *DB) UpdateBalanceWithinTransaction(pubkey *koblitz.PublicKey, amount uint64, tx *sql.Tx, coinType *coinparam.Params) (err error) {
+func (db *DB) UpdateBalanceWithinTransaction(pubkey *koblitz.PublicKey, amount uint64, tx *sql.Tx, param *coinparam.Params) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("Error updating balances within transaction: \n%s", err)
@@ -196,47 +171,40 @@ func (db *DB) UpdateBalanceWithinTransaction(pubkey *koblitz.PublicKey, amount u
 		}
 	}()
 
-	// Another reason why just switching to coinparam stuff is the best option, or at least some sort of coinparam / name struct
-	coinSchema, err := util.GetSchemaNameFromParam(coinType)
-	if err != nil {
+	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
 		return
 	}
 
-	// logging.Infof("Adding %d %s to %s's balance\n", amount, coinSchema, username)
-	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", coinSchema, pubkey.SerializeCompressed())
-	res, queryErr := tx.Query(currentBalanceQuery)
-	if queryErr != nil {
-		err = queryErr
+	currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", param.Name, pubkey.SerializeCompressed())
+	var rows *sql.Rows
+	if rows, err = tx.Query(currentBalanceQuery); err != nil {
 		return
 	}
 
 	// Get the first result for balance
-	if res.Next() {
-		var balance uint64
+	var balance uint64
+	if rows.Next() {
 
-		if err = res.Scan(&balance); err != nil {
-			return
-		}
-		if err = res.Close(); err != nil {
-			return
-		}
-
-		// Update the balance
-		// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-		insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE pubkey='%x';", coinSchema, balance+amount, pubkey.SerializeCompressed())
-		if _, err = tx.Exec(insertBalanceQuery); err != nil {
+		if err = rows.Scan(&balance); err != nil {
 			return
 		}
 	} else {
-		// Create the balance
-		// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-		insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d);", coinSchema, pubkey.SerializeCompressed(), amount)
-		if _, err = tx.Exec(insertBalanceQuery); err != nil {
-			return
-		}
+		// If we have no results then there's an issue
+		err = fmt.Errorf("No balance for pubkey, please register")
+		return
 	}
 
-	return nil
+	if err = rows.Close(); err != nil {
+		return
+	}
+
+	insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE pubkey='%x';", param.Name, balance+amount, pubkey.SerializeCompressed())
+
+	if _, err = tx.Exec(insertBalanceQuery); err != nil {
+		return
+	}
+
+	return
 }
 
 // UpdateBalancesWithinTransaction updates many balances, uses a transaction for all db stuff.

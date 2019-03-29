@@ -41,8 +41,8 @@ type OpencxStore interface {
 	RunMatchingForPrice(*match.Pair, float64) error
 	// UpdateDeposits updates the deposits when a block comes in
 	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
-	// LightningDeposit updates the balance of a user who is funding through lightning
-	LightningDeposit(*koblitz.PublicKey, uint64, *coinparam.Params, uint32) error
+	// UpdateBalance updates the balance of a user
+	UpdateBalance(*koblitz.PublicKey, uint64, *coinparam.Params) error
 	// GetDepositAddressMap gets a map of the deposit addresses we own to pubkeys
 	GetDepositAddressMap(*coinparam.Params) (map[string]*koblitz.PublicKey, error)
 	// GetOrder gets an order from an OrderID

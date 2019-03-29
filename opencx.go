@@ -130,6 +130,10 @@ func main() {
 	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.sigproof", ocxServer.GetSigProofHandler())
 	logging.Infof("done registering sigproof handler")
 
+	logging.Infof("registering opconfirm handler")
+	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.opconfirm", ocxServer.GetOPConfirmHandler())
+	logging.Infof("done registering opconfirm handler")
+
 	// Generate the host param list
 	hpList := util.HostParamList(generateHostParams(&conf))
 

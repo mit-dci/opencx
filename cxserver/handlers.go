@@ -10,6 +10,36 @@ import (
 	"github.com/mit-dci/opencx/logging"
 )
 
+// GetOPConfirmHandler gets the handler func to pass in an amount to the updatebalance function
+func (server *OpencxServer) GetOPConfirmHandler() (hFunc func(event eventbus.Event) eventbus.EventHandleResult) {
+	hFunc = func(event eventbus.Event) (res eventbus.EventHandleResult) {
+		// We know this is a channel state update event
+		ee, ok := event.(qln.ChannelStateUpdateEvent)
+		if !ok {
+			logging.Errorf("Wrong type of event, why are you making this the handler for that?")
+			// Still don't know if this is the right thing to return when we have an error
+			return eventbus.EHANDLE_CANCEL
+		}
+
+		var pubkey *koblitz.PublicKey
+		var err error
+		if pubkey, err = koblitz.ParsePubKey(ee.TheirPub[:], koblitz.S256()); err != nil {
+			logging.Errorf("Parsing pubkey error: \n%s", err)
+			return eventbus.EHANDLE_CANCEL
+		}
+
+		if !ee.State.Failed {
+			if err = server.ingestChannelConfirm(ee.State, pubkey, ee.CoinType); err != nil {
+				logging.Errorf("ingesting channel fund error: %s", err)
+				return eventbus.EHANDLE_CANCEL
+			}
+		}
+
+		return eventbus.EHANDLE_OK
+	}
+	return
+}
+
 // GetSigProofHandler gets the handler func to pass in things to the register function. We get their pub key from the
 // QChan through the event bus and then use that to register a new user.
 func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Event) eventbus.EventHandleResult) {
@@ -21,10 +51,6 @@ func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Even
 			// Still don't know if this is the right thing to return
 			return eventbus.EHANDLE_CANCEL
 		}
-		// wait till merged
-		// MyAmt := ee.State.MyAmt
-
-		logging.Infof("Their public key: %x", ee.TheirPub)
 
 		var pubkey *koblitz.PublicKey
 		var err error
@@ -39,8 +65,6 @@ func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Even
 				return eventbus.EHANDLE_CANCEL
 			}
 		}
-
-		logging.Infof("We got a sig proof handler! Name of event: %s", ee.Name())
 
 		return eventbus.EHANDLE_OK
 	}
