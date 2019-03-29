@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 // GetLitConnectionArgs holds the args for the getlitconnection RPC command
@@ -46,6 +47,23 @@ func (cl *OpencxRPC) GetLitConnection(args GetLitConnectionArgs, reply *GetLitCo
 		// TODO: figure out how to use the rest of the port list
 		reply.Ports[i] = uint16(port64)
 	}
+
+	return
+}
+
+// WithdrawToLightningNodeArgs holds the args for the withdrawtolightning RPC command
+type WithdrawToLightningNodeArgs struct {
+	Withdrawal *match.Withdrawal
+	Signature  []byte
+}
+
+// WithdrawToLightningNodeReply holds the reply for the withdrawtolightning RPC command
+type WithdrawToLightningNodeReply struct {
+	Txid string
+}
+
+// WithdrawToLightningNode creates a channel that pushes a certain amount to a lightning node through a lightning channel.
+func (cl *OpencxRPC) WithdrawToLightningNode(args WithdrawToLightningNodeArgs, reply *WithdrawToLightningNodeReply) (err error) {
 
 	return
 }

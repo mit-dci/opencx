@@ -76,6 +76,11 @@ func main() {
 		return
 	}
 
+	if len(os.Args) < 2 {
+		logging.Fatalf("Please enter arguments to the command line tool")
+		return
+	}
+
 	if os.Args[1] == "help" {
 		if err = client.parseCommands(os.Args[1:]); err != nil {
 			logging.Fatalf("%s", err)

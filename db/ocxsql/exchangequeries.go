@@ -228,7 +228,7 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 			}
 
 			// update the balance of the client
-			if err = db.UpdateBalanceWithinTransaction(pubkey, amtHave, tx, correctAssetHave); err != nil {
+			if err = db.AddToBalanceWithinTransaction(pubkey, amtHave, tx, correctAssetHave); err != nil {
 				return
 			}
 		}

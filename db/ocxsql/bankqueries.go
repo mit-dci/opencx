@@ -13,7 +13,7 @@ import (
 )
 
 // GetBalance gets the balance of an account
-func (db *DB) GetBalance(pubkey *koblitz.PublicKey, asset string) (uint64, error) {
+func (db *DB) GetBalance(pubkey *koblitz.PublicKey, param *coinparam.Params) (uint64, error) {
 	var err error
 
 	// Use the balance schema
@@ -22,7 +22,7 @@ func (db *DB) GetBalance(pubkey *koblitz.PublicKey, asset string) (uint64, error
 		return 0, fmt.Errorf("Could not use balance schema: \n%s", err)
 	}
 
-	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", asset, pubkey.SerializeCompressed())
+	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", param.Name, pubkey.SerializeCompressed())
 	res, err := db.DBHandler.Query(getBalanceQuery)
 	// db.IncrementReads()
 	if err != nil {
@@ -138,8 +138,8 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 	return nil
 }
 
-// UpdateBalance adds to a single balance
-func (db *DB) UpdateBalance(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
+// AddToBalance adds to a single balance
+func (db *DB) AddToBalance(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
 
 	var tx *sql.Tx
 	if tx, err = db.DBHandler.Begin(); err != nil {
@@ -155,15 +155,15 @@ func (db *DB) UpdateBalance(pubkey *koblitz.PublicKey, amount uint64, param *coi
 		err = tx.Commit()
 	}()
 
-	if err = db.UpdateBalanceWithinTransaction(pubkey, amount, tx, param); err != nil {
+	if err = db.AddToBalanceWithinTransaction(pubkey, amount, tx, param); err != nil {
 		return
 	}
 
 	return
 }
 
-// UpdateBalanceWithinTransaction increases the balance of pubkey by amount
-func (db *DB) UpdateBalanceWithinTransaction(pubkey *koblitz.PublicKey, amount uint64, tx *sql.Tx, param *coinparam.Params) (err error) {
+// AddToBalanceWithinTransaction increases the balance of pubkey by amount
+func (db *DB) AddToBalanceWithinTransaction(pubkey *koblitz.PublicKey, amount uint64, tx *sql.Tx, param *coinparam.Params) (err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("Error updating balances within transaction: \n%s", err)

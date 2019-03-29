@@ -22,7 +22,7 @@ type OpencxStore interface {
 	// RegisterUser takes in a pubkey, and a map of asset to addresses for the pubkey. It inserts the necessary information in databases to register the pubkey.
 	RegisterUser(*koblitz.PublicKey, map[*coinparam.Params]string) error
 	// GetBalance gets the balance for a pubkey and an asset.
-	GetBalance(*koblitz.PublicKey, string) (uint64, error)
+	GetBalance(*koblitz.PublicKey, *coinparam.Params) (uint64, error)
 	// GetDepositAddress gets the deposit address for a pubkey and an asset.
 	GetDepositAddress(*koblitz.PublicKey, string) (string, error)
 	// GetPairs gets all the trading pairs that we can trade on
@@ -43,6 +43,8 @@ type OpencxStore interface {
 	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
 	// UpdateBalance updates the balance of a user
 	UpdateBalance(*koblitz.PublicKey, uint64, *coinparam.Params) error
+	// AddToBalance adds to the balance of a user
+	AddToBalance(*koblitz.PublicKey, uint64, *coinparam.Params) error
 	// GetDepositAddressMap gets a map of the deposit addresses we own to pubkeys
 	GetDepositAddressMap(*coinparam.Params) (map[string]*koblitz.PublicKey, error)
 	// GetOrder gets an order from an OrderID

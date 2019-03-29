@@ -310,11 +310,11 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 			}
 
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountHave, tx, assetWantCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountHave, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountWant, tx, assetHaveCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountWant, tx, assetHaveCoinType); err != nil {
 				return
 			}
 
@@ -355,11 +355,11 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 			}
 
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountWant, tx, assetWantCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountWant, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountHave, tx, assetHaveCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountHave, tx, assetHaveCoinType); err != nil {
 				return
 			}
 
@@ -392,11 +392,11 @@ func (db *DB) RunMatchingForPriceWithinTransaction(pair *match.Pair, price float
 			}
 
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.UpdateBalanceWithinTransaction(currBuyOrder.Pubkey, currBuyOrder.AmountWant, tx, assetWantCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(currBuyOrder.Pubkey, currBuyOrder.AmountWant, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.UpdateBalanceWithinTransaction(currSellOrder.Pubkey, currBuyOrder.AmountHave, tx, assetHaveCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(currSellOrder.Pubkey, currBuyOrder.AmountHave, tx, assetHaveCoinType); err != nil {
 				return
 			}
 

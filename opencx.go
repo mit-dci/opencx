@@ -134,6 +134,10 @@ func main() {
 	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.opconfirm", ocxServer.GetOPConfirmHandler())
 	logging.Infof("done registering opconfirm handler")
 
+	logging.Infof("registering push handler")
+	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.push", ocxServer.GetPushHandler())
+	logging.Infof("done registering push handler")
+
 	// Generate the host param list
 	hpList := util.HostParamList(generateHostParams(&conf))
 

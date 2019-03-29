@@ -10,6 +10,37 @@ import (
 	"github.com/mit-dci/opencx/logging"
 )
 
+// GetPushHandler gets the handler func to add to the user's balance since they've pushed over a lightning channel
+func (server *OpencxServer) GetPushHandler() (hFunc func(event eventbus.Event) eventbus.EventHandleResult) {
+	hFunc = func(event eventbus.Event) (res eventbus.EventHandleResult) {
+		// We know this is a channel state update event
+		ee, ok := event.(qln.ChannelStateUpdateEvent)
+		if !ok {
+			logging.Errorf("Wrong type of event, why are you making this the handler for that?")
+			// Still don't know if this is the right thing to return when we have an error
+			return eventbus.EHANDLE_CANCEL
+		}
+
+		var pubkey *koblitz.PublicKey
+		var err error
+		if pubkey, err = koblitz.ParsePubKey(ee.TheirPub[:], koblitz.S256()); err != nil {
+			logging.Errorf("Parsing pubkey error: \n%s", err)
+			return eventbus.EHANDLE_CANCEL
+		}
+
+		if !ee.State.Failed {
+			if err = server.ingestChannelConfirm(ee.State, pubkey, ee.CoinType); err != nil {
+				logging.Errorf("ingesting channel fund error: %s", err)
+				return eventbus.EHANDLE_CANCEL
+			}
+		}
+
+		return eventbus.EHANDLE_OK
+	}
+
+	return
+}
+
 // GetOPConfirmHandler gets the handler func to pass in an amount to the updatebalance function
 func (server *OpencxServer) GetOPConfirmHandler() (hFunc func(event eventbus.Event) eventbus.EventHandleResult) {
 	hFunc = func(event eventbus.Event) (res eventbus.EventHandleResult) {
