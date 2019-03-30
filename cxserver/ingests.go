@@ -85,6 +85,26 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	return
 }
 
+// ingestChannelPush changes the user's balance to reflect that a confirmation of a channel happened
+func (server *OpencxServer) ingestChannelPush(pushAmt uint64, pubkey *koblitz.PublicKey, coinType uint32) (err error) {
+	logging.Infof("Confirmed push from %x to give me %d of cointype %d\n", pubkey.SerializeCompressed(), pushAmt, coinType)
+	var param *coinparam.Params
+	if param, err = util.GetParamFromHDCoinType(coinType); err != nil {
+		return
+	}
+
+	logging.Infof("Confirmed channel from pubkey %x\n", pubkey.SerializeCompressed())
+	server.LockIngests()
+
+	if err = server.OpencxDB.AddToBalance(pubkey, pushAmt, param); err != nil {
+		return
+	}
+
+	server.UnlockIngests()
+
+	return
+}
+
 // ingestChannelConfirm changes the user's balance to reflect that a confirmation of a channel happened
 func (server *OpencxServer) ingestChannelConfirm(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType uint32) (err error) {
 	logging.Infof("Confirmed channel from %x to give me %d of cointype %d\n", pubkey.SerializeCompressed(), state.MyAmt, coinType)
@@ -97,7 +117,7 @@ func (server *OpencxServer) ingestChannelConfirm(state *qln.StatCom, pubkey *kob
 	logging.Infof("Confirmed channel from pubkey %x\n", pubkey.SerializeCompressed())
 	server.LockIngests()
 
-	if err = server.OpencxDB.UpdateBalance(pubkey, uint64(state.MyAmt), param); err != nil {
+	if err = server.OpencxDB.AddToBalance(pubkey, uint64(state.MyAmt), param); err != nil {
 		return
 	}
 

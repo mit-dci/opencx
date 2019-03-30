@@ -30,14 +30,20 @@ func (cl *OpencxRPC) GetBalance(args GetBalanceArgs, reply *GetBalanceReply) (er
 	sha3.Write([]byte(args.Asset))
 	e := sha3.Sum(nil)
 
-	pubkey, _, err := koblitz.RecoverCompact(koblitz.S256(), args.Signature, e)
-	if err != nil {
+	var pubkey *koblitz.PublicKey
+	if pubkey, _, err = koblitz.RecoverCompact(koblitz.S256(), args.Signature, e); err != nil {
 		err = fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
 		return
 	}
 
+	var param *coinparam.Params
+	if param, err = util.GetParamFromName(args.Asset); err != nil {
+		err = fmt.Errorf("Error getting coin type from name, pass in a different asset")
+		return
+	}
+
 	cl.Server.LockIngests()
-	if reply.Amount, err = cl.Server.OpencxDB.GetBalance(pubkey, args.Asset); err != nil {
+	if reply.Amount, err = cl.Server.OpencxDB.GetBalance(pubkey, param); err != nil {
 		cl.Server.UnlockIngests()
 		err = fmt.Errorf("Error with getbalance command: \n%s", err)
 		return

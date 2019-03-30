@@ -41,8 +41,6 @@ type OpencxStore interface {
 	RunMatchingForPrice(*match.Pair, float64) error
 	// UpdateDeposits updates the deposits when a block comes in
 	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
-	// UpdateBalance updates the balance of a user
-	UpdateBalance(*koblitz.PublicKey, uint64, *coinparam.Params) error
 	// AddToBalance adds to the balance of a user
 	AddToBalance(*koblitz.PublicKey, uint64, *coinparam.Params) error
 	// GetDepositAddressMap gets a map of the deposit addresses we own to pubkeys

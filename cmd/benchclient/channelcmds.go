@@ -16,3 +16,15 @@ func (cl *BenchClient) GetLitConnection() (getLitConnectionReply *cxrpc.GetLitCo
 
 	return
 }
+
+// WithdrawToLightningNode takes in some arguments such as public key, amount, and ln node address
+func (cl *BenchClient) WithdrawToLightningNode() (withdrawToLightningNodeReply *cxrpc.WithdrawToLightningNodeReply, err error) {
+	withdrawToLightningNodeReply = new(cxrpc.WithdrawToLightningNodeReply)
+	withdrawToLightningNodeArgs := &cxrpc.WithdrawToLightningNodeArgs{}
+
+	if err = cl.Call("OpencxRPC.WithdrawToLightningNode", withdrawToLightningNodeArgs, withdrawToLightningNodeReply); err != nil {
+		return
+	}
+
+	return
+}

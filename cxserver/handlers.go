@@ -29,8 +29,8 @@ func (server *OpencxServer) GetPushHandler() (hFunc func(event eventbus.Event) e
 		}
 
 		if !ee.State.Failed {
-			if err = server.ingestChannelConfirm(ee.State, pubkey, ee.CoinType); err != nil {
-				logging.Errorf("ingesting channel fund error: %s", err)
+			if err = server.ingestChannelPush(uint64(ee.State.Delta), pubkey, ee.CoinType); err != nil {
+				logging.Errorf("ingesting channel push error: %s", err)
 				return eventbus.EHANDLE_CANCEL
 			}
 		}
@@ -61,7 +61,7 @@ func (server *OpencxServer) GetOPConfirmHandler() (hFunc func(event eventbus.Eve
 
 		if !ee.State.Failed {
 			if err = server.ingestChannelConfirm(ee.State, pubkey, ee.CoinType); err != nil {
-				logging.Errorf("ingesting channel fund error: %s", err)
+				logging.Errorf("ingesting channel confirm error: %s", err)
 				return eventbus.EHANDLE_CANCEL
 			}
 		}
