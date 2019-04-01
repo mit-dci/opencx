@@ -124,7 +124,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	// Initialize Balance tables
 	// hacky workaround to get behind the fact I made a dumb abstraction with InitializeTables
 	// 66 bytes because we use big bytes and they use small bytes for varbinary
-	if err = db.InitializeNewTables(db.balanceSchema, "pubkey VARBINARY(66), balance BIGINT(64)"); err != nil {
+	if err = db.InitializeTables(db.balanceSchema, "pubkey VARBINARY(66), balance BIGINT(64)"); err != nil {
 		err = fmt.Errorf("Could not initialize balance tables: \n%s", err)
 		return
 	}
@@ -160,7 +160,7 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) (err error)
 		return
 	}
 	for _, chain := range db.coinList {
-		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", chain.Name, schemaSpec)
+		tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", chain.Name, schemaSpec)
 		if _, err = db.DBHandler.Exec(tableQuery); err != nil {
 			err = fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
 			return
