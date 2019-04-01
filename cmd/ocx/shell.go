@@ -107,8 +107,8 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 		if getHelpForCommand(viewOrderbookCommand, args) {
 			return nil
 		}
-		if len(args) != 1 || len(args) != 2 {
-			return fmt.Errorf("Must specify from 1 to 2 arguments: pair [buy|sell]")
+		if len(args) != 1 && len(args) != 2 {
+			return fmt.Errorf("Must specify from 1 to 2 arguments: pair [buy|sell], you have %d")
 		}
 
 		if err := cl.ViewOrderbook(args); err != nil {

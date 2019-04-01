@@ -68,32 +68,18 @@ func (p Pair) String() string {
 }
 
 // FromString creates a pair object from a string. This is for user input only, hence the slash
-func (p *Pair) FromString(pairString string) error {
+func (p *Pair) FromString(pairString string) (err error) {
 	strSplit := strings.Split(pairString, "/")
 
-	switch strSplit[0] {
-	case BTCTest.String():
-		p.AssetWant = BTCTest
-	case LTCTest.String():
-		p.AssetWant = LTCTest
-	case VTCTest.String():
-		p.AssetWant = VTCTest
-	default:
-		return fmt.Errorf("Unsupported Asset")
+	if p.AssetWant, err = AssetFromString(strSplit[0]); err != nil {
+		return
 	}
 
-	switch strSplit[1] {
-	case BTCTest.String():
-		p.AssetHave = BTCTest
-	case LTCTest.String():
-		p.AssetHave = LTCTest
-	case VTCTest.String():
-		p.AssetHave = VTCTest
-	default:
-		return fmt.Errorf("Unsupported Asset")
+	if p.AssetHave, err = AssetFromString(strSplit[1]); err != nil {
+		return
 	}
 
-	return nil
+	return
 }
 
 // Serialize serializes the pair into a byte array

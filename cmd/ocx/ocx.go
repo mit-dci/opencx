@@ -45,7 +45,7 @@ var (
 	defaultConfigFilename = "ocx.conf"
 	defaultLogFilename    = "ocxlog.txt"
 	defaultOcxHomeDirName = os.Getenv("HOME") + "/.ocx/"
-	defaultKeyFileName    = "privkey.hex"
+	defaultKeyFileName    = defaultOcxHomeDirName + "privkey.hex"
 	defaultLogLevel       = 0
 	defaultHomeDir        = os.Getenv("HOME")
 	defaultRpcport        = uint16(12345)
@@ -87,7 +87,7 @@ func main() {
 		}
 		return
 	}
-	client.KeyPath = filepath.Join(conf.OcxHomeDir, conf.KeyFileName)
+	client.KeyPath = filepath.Join(conf.KeyFileName)
 	client.RPCClient = new(benchclient.BenchClient)
 	if err = client.RPCClient.SetupBenchClient(conf.Rpchost, conf.Rpcport); err != nil {
 		logging.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
