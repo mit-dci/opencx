@@ -28,11 +28,12 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 			return
 		}
 	}()
+	var addressesWeOwn map[string]*koblitz.PublicKey
 	server.LockIngests()
-	addressesWeOwn, err := server.OpencxDB.GetDepositAddressMap(coinType)
-	if err != nil {
+	if addressesWeOwn, err = server.OpencxDB.GetDepositAddressMap(coinType); err != nil {
 		// if errors out, unlock
 		server.UnlockIngests()
+		logging.Errorf("Error getting deposit address map")
 		return
 	}
 	server.UnlockIngests()
@@ -48,6 +49,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 				// It's P2PKH, let's get the address
 				var addr *btcutil.AddressPubKeyHash
 				if addr, err = btcutil.NewAddressPubKeyHash(data, coinType); err != nil {
+					logging.Errorf("Error decoding p2pkh")
 					return
 				}
 
@@ -74,6 +76,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	if err = server.OpencxDB.UpdateDeposits(deposits, height, coinType); err != nil {
 		// if errors out, unlock
 		server.UnlockIngests()
+		logging.Errorf("Error updating deposits")
 		return
 	}
 	server.UnlockIngests()

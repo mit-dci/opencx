@@ -2,6 +2,7 @@ package ocxsql
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -306,19 +307,55 @@ func (db *DB) GetDepositAddress(pubkey *koblitz.PublicKey, asset string) (string
 // GetDepositAddressMap returns a map from deposit addresses to pubkeys, essentially a set and only to get O(1) access time.
 func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses map[string]*koblitz.PublicKey, err error) {
 
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
+		return
+	}
+	// this defer is pushed onto the stack first
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while getting deposit addr map: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+		return
+	}()
+
 	// Use the deposit schema
-	if _, err = db.DBHandler.Exec("USE " + db.depositSchema + ";"); err != nil {
-		return nil, fmt.Errorf("Could not use deposit address schema: \n%s", err)
+	if _, err = tx.Exec("USE " + db.depositSchema + ";"); err != nil {
+		err = fmt.Errorf("Could not use deposit address schema: \n%s", err)
 	}
 
-	asset, err := util.GetSchemaNameFromParam(coinType)
-	if err != nil {
-		return nil, fmt.Errorf("Tried to get deposit addresses for %s which isn't a valid asset", asset)
+	var assetString string
+	if assetString, err = util.GetSchemaNameFromParam(coinType); err != nil {
+		err = fmt.Errorf("Tried to get deposit addresses for %s which isn't a valid asset", assetString)
+		return
 	}
-	getBalanceQuery := fmt.Sprintf("SELECT address, pubkey FROM %s;", asset)
-	res, err := db.DBHandler.Query(getBalanceQuery)
-	if err != nil {
-		return nil, fmt.Errorf("Error when getting deposit address: \n%s", err)
+
+	var getBalanceStmt *sql.Stmt
+	if getBalanceStmt, err = tx.Prepare(fmt.Sprintf("SELECT pubkey, address FROM %s", assetString)); err != nil {
+		return
+	}
+
+	// defer stmt.close so it still is executed but doesn't interfere with closing other stuff if it errors out
+	// this defer is pushed onto the defer stack second, so we close out the statement, then close out the tx.
+	defer func() {
+		if err != nil {
+			if newErr := getBalanceStmt.Close(); newErr != nil {
+				err = fmt.Errorf("Error with closing getbalancestmt: \n%s\nAdditional errors: \n%s", newErr, err)
+			}
+		} else {
+			if newErr := getBalanceStmt.Close(); newErr != nil {
+				err = fmt.Errorf("Error with closing getbalancestmt: \n%s", newErr)
+			}
+		}
+	}()
+
+	var res *sql.Rows
+	if res, err = getBalanceStmt.Query(); err != nil {
+		err = fmt.Errorf("Error when getting deposit address: \n%s", err)
+		return
 	}
 
 	depositAddresses = make(map[string]*koblitz.PublicKey)
@@ -326,13 +363,19 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 	for res.Next() {
 		var depositAddr string
 		var pubkeyBytes []byte
-		err = res.Scan(&depositAddr, &pubkeyBytes)
-		if err != nil {
-			return nil, fmt.Errorf("Error scanning for depositAddress: \n%s", err)
+		if err = res.Scan(&pubkeyBytes, &depositAddr); err != nil {
+			err = fmt.Errorf("Error scanning for depositAddress: \n%s", err)
+			return
+		}
+
+		// so res.Scan does something weird because I'm not using prepared statements. I would prefer to be using a byte array to scan into, since the pubkey is a varbinary?
+		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
+			return
 		}
 
 		var pubkey *koblitz.PublicKey
 		if pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
+			err = fmt.Errorf("Error parsing pubkey %x for curve S256: \n%s", pubkeyBytes, err)
 			return
 		}
 
@@ -340,16 +383,17 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 	}
 
 	if err = res.Close(); err != nil {
-		return nil, fmt.Errorf("Error closing deposit result: \n%s", err)
+		err = fmt.Errorf("Error closing deposit result: \n%s", err)
+		return
 	}
 
-	return depositAddresses, nil
+	return
 }
 
 // Withdraw checks that the user has a certain amount of money and removes it if they do
 func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (err error) {
-	tx, err := db.DBHandler.Begin()
-	if err != nil {
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
 		return
 	}
 	defer func() {
