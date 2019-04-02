@@ -121,6 +121,12 @@ def IncomingOrderEventHandler(incomingOrder):
    - [ ] Lightning push back on withdrawal channel as deposit
    - [ ] Magic: fully non custodial exchange
 
+## Note on phishing
+If people were to tell other people "send me bitcoin and I'll credit you on my OpenCX exchange" that's ripe for phishing. 
+It's just a bitcoin/vertcoin/litecoin/lightning node, how do people know that's the service being provided?
+Even if this were "non-custodial," I could be like "oh your funds will be put into an orderbook when you send them," and you'd have no way of knowing if that's true.
+You could put your funds in a "non-custodial smart contract" "DEX" like nash, and I could just take your funds.
+
 ## Note on proofs
 One thing I've been more and more interested in as a research topic has been the idea of a publicly auditable exchange. This means that things like Provisions will be produced.
 One possibility I've been exploring is the idea that liabilities are essentially proof of users for the exchange, and proof of assets (like in Provisions) backs those users up with money. The idea behind this is then the exchange might be able to then "prove" that an action occurred, and that action is backed up by some liabilities.
@@ -132,6 +138,10 @@ Given the recent SEC report by Bitwise, even considering the fact that the entir
 One solution to this problem might be a proof that is associated with each order, proving that the order is backed up by assets that the exchange has to be accountable for in the Provisions proof.
 I need to think the details through more, like if you should monitor the orderbook, batch order proofs, etc.
 I also need to figure out if Provisions is really a good base for this sort of thing.
+
+It's also imperative for any decentralized exchange that doesn't rely on redundant computation and trust for verification to have efficient proofs of correct operation, like for the matching engine.
+The idea of a publicly auditable exchange is good, but they still have all of the control.
+The idea of a decentralized exchange is good, but it's really hard to prove that you provide the correct service without trust.
 
 #### Decentralization notes
 
