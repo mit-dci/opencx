@@ -1,13 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/mit-dci/lit/btcutil/hdkeychain"
+	"github.com/mit-dci/lit/coinparam"
 
 	"golang.org/x/crypto/sha3"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/portxo"
 
 	"github.com/mit-dci/opencx/cmd/benchclient"
 
@@ -103,10 +106,31 @@ func (cl *openCxClient) Call(serviceMethod string, args interface{}, reply inter
 }
 
 func (cl *openCxClient) UnlockKey() (err error) {
-	if cl.RPCClient.PrivKey, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
+	var keyFromFile *[32]byte
+	logging.Infof("client keypath: %s", cl.KeyPath)
+	if keyFromFile, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
 		logging.Errorf("Error reading key from file: \n%s", err)
 		return
 	}
+
+	// We use TestNet3Params because that's what qln uses
+	var rootPrivKey *hdkeychain.ExtendedKey
+	if rootPrivKey, err = hdkeychain.NewMaster(keyFromFile[:], &coinparam.TestNet3Params); err != nil {
+		return
+	}
+
+	// make keygen the same
+	var kg portxo.KeyGen
+	kg.Depth = 5
+	kg.Step[0] = 44 | 1<<31
+	kg.Step[1] = 513 | 1<<31
+	kg.Step[2] = 9 | 1<<31
+	kg.Step[3] = 0 | 1<<31
+	kg.Step[4] = 0 | 1<<31
+	if cl.RPCClient.PrivKey, err = kg.DerivePrivateKey(rootPrivKey); err != nil {
+		return
+	}
+
 	return
 }
 
@@ -114,19 +138,12 @@ func (cl *openCxClient) UnlockKey() (err error) {
 // BenchClient shouldn't be responsible for interactive stuff, just providing a good
 // Go API for the RPC methods the exchange offers.
 func (cl *openCxClient) SignBytes(bytes []byte) (signature []byte, err error) {
-	var privkeyBytes *[32]byte
-	if privkeyBytes, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
-		logging.Errorf("Error reading key from file: \n%s", err)
-		return
-	}
-
-	privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), privkeyBytes[:])
 
 	sha := sha3.New256()
 	sha.Write(bytes)
 	e := sha.Sum(nil)
 
-	if signature, err = koblitz.SignCompact(koblitz.S256(), privkey, e, false); err != nil {
+	if signature, err = koblitz.SignCompact(koblitz.S256(), cl.RPCClient.PrivKey, e, false); err != nil {
 		logging.Errorf("Failed to sign bytes.")
 		return
 	}
@@ -135,12 +152,7 @@ func (cl *openCxClient) SignBytes(bytes []byte) (signature []byte, err error) {
 }
 
 // RetreivePublicKey returns the public key if it's been unlocked.
-func (cl *openCxClient) RetreivePublicKey() (pubkey *koblitz.PublicKey, err error) {
-	_, pubkey = koblitz.PrivKeyFromBytes(koblitz.S256(), cl.RPCClient.PrivKey[:])
-
-	if pubkey == nil {
-		err = fmt.Errorf("Private key not unlocked, cannot retreive public key")
-		return
-	}
+func (cl *openCxClient) RetreivePublicKey() (pubkey *koblitz.PublicKey) {
+	pubkey = cl.RPCClient.PrivKey.PubKey()
 	return
 }

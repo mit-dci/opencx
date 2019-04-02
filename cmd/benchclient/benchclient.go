@@ -1,6 +1,7 @@
 package benchclient
 
 import (
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/cxrpc"
 )
 
@@ -9,7 +10,7 @@ type BenchClient struct {
 	hostname  string
 	port      uint16
 	RPCClient *cxrpc.OpencxRPCClient
-	PrivKey   *[32]byte
+	PrivKey   *koblitz.PrivateKey
 }
 
 // SetupBenchClient creates a new BenchClient for use as an RPC Client

@@ -5,12 +5,11 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/mit-dci/opencx/match"
-
 	"github.com/mit-dci/lit/lnutil"
 
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 var getBalanceCommand = &Command{

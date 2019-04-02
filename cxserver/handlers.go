@@ -2,7 +2,6 @@ package cxserver
 
 import (
 	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/lit/eventbus"
 	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/lit/qln"
@@ -21,15 +20,11 @@ func (server *OpencxServer) GetPushHandler() (hFunc func(event eventbus.Event) e
 			return eventbus.EHANDLE_CANCEL
 		}
 
-		var pubkey *koblitz.PublicKey
-		var err error
-		if pubkey, err = koblitz.ParsePubKey(ee.TheirPub[:], koblitz.S256()); err != nil {
-			logging.Errorf("Parsing pubkey error: \n%s", err)
-			return eventbus.EHANDLE_CANCEL
-		}
+		logging.Infof("Their pubkey: %x", (&ee.TheirPub).SerializeCompressed())
 
+		var err error
 		if !ee.State.Failed {
-			if err = server.ingestChannelPush(uint64(ee.State.Delta), pubkey, ee.CoinType); err != nil {
+			if err = server.ingestChannelPush(uint64(ee.State.Delta), &ee.TheirPub, ee.CoinType); err != nil {
 				logging.Errorf("ingesting channel push error: %s", err)
 				return eventbus.EHANDLE_CANCEL
 			}
@@ -52,15 +47,9 @@ func (server *OpencxServer) GetOPConfirmHandler() (hFunc func(event eventbus.Eve
 			return eventbus.EHANDLE_CANCEL
 		}
 
-		var pubkey *koblitz.PublicKey
 		var err error
-		if pubkey, err = koblitz.ParsePubKey(ee.TheirPub[:], koblitz.S256()); err != nil {
-			logging.Errorf("Parsing pubkey error: \n%s", err)
-			return eventbus.EHANDLE_CANCEL
-		}
-
 		if !ee.State.Failed {
-			if err = server.ingestChannelConfirm(ee.State, pubkey, ee.CoinType); err != nil {
+			if err = server.ingestChannelConfirm(ee.State, &ee.TheirPub, ee.CoinType); err != nil {
 				logging.Errorf("ingesting channel confirm error: %s", err)
 				return eventbus.EHANDLE_CANCEL
 			}
@@ -83,15 +72,9 @@ func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Even
 			return eventbus.EHANDLE_CANCEL
 		}
 
-		var pubkey *koblitz.PublicKey
 		var err error
-		if pubkey, err = koblitz.ParsePubKey(ee.TheirPub[:], koblitz.S256()); err != nil {
-			logging.Errorf("Parsing pubkey error: \n%s", err)
-			return eventbus.EHANDLE_CANCEL
-		}
-
 		if !ee.State.Failed {
-			if err = server.ingestChannelFund(ee.State, pubkey, ee.CoinType, ee.ChanIdx); err != nil {
+			if err = server.ingestChannelFund(ee.State, &ee.TheirPub, ee.CoinType, ee.ChanIdx); err != nil {
 				logging.Errorf("ingesting channel fund error: %s", err)
 				return eventbus.EHANDLE_CANCEL
 			}

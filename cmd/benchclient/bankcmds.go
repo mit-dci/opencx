@@ -12,9 +12,6 @@ import (
 // GetBalance calls the getbalance rpc command
 func (cl *BenchClient) GetBalance(asset string) (getBalanceReply *cxrpc.GetBalanceReply, err error) {
 
-	// get privkey for signing
-	privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
-
 	getBalanceReply = new(cxrpc.GetBalanceReply)
 	getBalanceArgs := &cxrpc.GetBalanceArgs{
 		Asset: asset,
@@ -26,7 +23,7 @@ func (cl *BenchClient) GetBalance(asset string) (getBalanceReply *cxrpc.GetBalan
 	e := sha3.Sum(nil)
 
 	// Sign
-	compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
+	compactSig, err := koblitz.SignCompact(koblitz.S256(), cl.PrivKey, e, false)
 
 	// set signature in args
 	getBalanceArgs.Signature = compactSig
@@ -41,9 +38,6 @@ func (cl *BenchClient) GetBalance(asset string) (getBalanceReply *cxrpc.GetBalan
 // GetDepositAddress calls the getdepositaddress rpc command
 func (cl *BenchClient) GetDepositAddress(username string, asset string) (getDepositAddressReply *cxrpc.GetDepositAddressReply, err error) {
 
-	// get privkey for signing
-	privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
-
 	getDepositAddressReply = new(cxrpc.GetDepositAddressReply)
 	getDepositAddressArgs := &cxrpc.GetDepositAddressArgs{
 		Asset: asset,
@@ -55,7 +49,7 @@ func (cl *BenchClient) GetDepositAddress(username string, asset string) (getDepo
 	e := sha3.Sum(nil)
 
 	// Sign order
-	compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
+	compactSig, err := koblitz.SignCompact(koblitz.S256(), cl.PrivKey, e, false)
 
 	// set signature in args
 	getDepositAddressArgs.Signature = compactSig
@@ -69,31 +63,29 @@ func (cl *BenchClient) GetDepositAddress(username string, asset string) (getDepo
 
 // GetAllBalances get the balance for every token
 func (cl *BenchClient) GetAllBalances() (balances map[string]uint64, err error) {
+	balances = make(map[string]uint64)
 	var reply *cxrpc.GetBalanceReply
-	if reply, err = cl.GetBalance("btc"); err != nil {
+	if reply, err = cl.GetBalance("regtest"); err != nil {
 		return
 	}
 
-	balances["btc"] = reply.Amount
+	balances["regtest"] = reply.Amount
 
-	if reply, err = cl.GetBalance("vtc"); err != nil {
+	if reply, err = cl.GetBalance("vtcreg"); err != nil {
 		return
 	}
-	balances["vtc"] = reply.Amount
+	balances["vtcreg"] = reply.Amount
 
-	if reply, err = cl.GetBalance("ltc"); err != nil {
+	if reply, err = cl.GetBalance("litereg"); err != nil {
 		return
 	}
-	balances["ltc"] = reply.Amount
+	balances["litereg"] = reply.Amount
 
 	return
 }
 
 // Withdraw calls the withdraw rpc command
 func (cl *BenchClient) Withdraw(amount uint64, asset match.Asset, address string) (withdrawReply *cxrpc.WithdrawReply, err error) {
-
-	// get privkey for signing
-	privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
 
 	withdrawReply = new(cxrpc.WithdrawReply)
 	withdrawArgs := &cxrpc.WithdrawArgs{
@@ -110,7 +102,7 @@ func (cl *BenchClient) Withdraw(amount uint64, asset match.Asset, address string
 	e := sha3.Sum(nil)
 
 	// Sign order
-	compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
+	compactSig, err := koblitz.SignCompact(koblitz.S256(), cl.PrivKey, e, false)
 
 	// set signature in args
 	withdrawArgs.Signature = compactSig

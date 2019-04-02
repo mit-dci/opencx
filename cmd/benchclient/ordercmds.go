@@ -35,9 +35,6 @@ func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side string, pair s
 		newOrder.Pubkey = pubkey
 		newOrder.Side = side
 
-		// get privkey for signing
-		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
-
 		// check that the sides are correct
 		if newOrder.Side != "buy" && newOrder.Side != "sell" {
 			return fmt.Errorf("Order's side isn't buy or sell, try again")
@@ -59,7 +56,7 @@ func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side string, pair s
 		e := sha3.Sum(nil)
 
 		// Sign order
-		compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
+		compactSig, err := koblitz.SignCompact(koblitz.S256(), cl.PrivKey, e, false)
 
 		orderArgs.Signature = compactSig
 		orderArgs.Order = &newOrder
@@ -119,16 +116,13 @@ func (cl *BenchClient) CancelOrder(orderID string) (cancelOrderReply *cxrpc.Canc
 		OrderID: orderID,
 	}
 
-	// get privkey for signing
-	privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), cl.PrivKey[:])
-
 	// create e = hash(m)
 	sha3 := sha3.New256()
 	sha3.Write([]byte(cancelOrderArgs.OrderID))
 	e := sha3.Sum(nil)
 
 	// Sign order
-	compactSig, err := koblitz.SignCompact(koblitz.S256(), privkey, e, false)
+	compactSig, err := koblitz.SignCompact(koblitz.S256(), cl.PrivKey, e, false)
 
 	cancelOrderArgs.Signature = compactSig
 

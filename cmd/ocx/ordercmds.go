@@ -43,9 +43,7 @@ func (cl *openCxClient) OrderCommand(args []string) (err error) {
 	}
 
 	var pubkey *koblitz.PublicKey
-	if pubkey, err = cl.RetreivePublicKey(); err != nil {
-		return
-	}
+	pubkey = cl.RetreivePublicKey()
 
 	var reply *cxrpc.SubmitOrderReply
 	if reply, err = cl.RPCClient.OrderCommand(pubkey, side, pair, amountHave, price); err != nil {
