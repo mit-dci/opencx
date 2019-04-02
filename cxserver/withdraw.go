@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/mit-dci/lit/lnutil"
+
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/lit/portxo"
@@ -13,8 +15,6 @@ import (
 	"github.com/mit-dci/lit/btcutil/txscript"
 
 	"github.com/mit-dci/lit/btcutil"
-
-	"github.com/mit-dci/opencx/logging"
 )
 
 // TODO: refactor entire database, match, and asset stuff to support our new automated way of hooks and wallets
@@ -59,9 +59,6 @@ func (server *OpencxServer) withdrawFromChain(params *coinparam.Params) (withdra
 			return
 		}
 		server.UnlockIngests()
-
-		// set log level for this thread
-		logging.SetLogLevel(2)
 
 		// Decoding given address
 		var addr btcutil.Address
@@ -113,5 +110,82 @@ func (server *OpencxServer) withdrawFromChain(params *coinparam.Params) (withdra
 
 		return withdrawTx.TxHash().String(), nil
 	}
+	return
+}
+
+// withdrawFromChain returns a function that we'll then call from the vtc stuff -- this is a closure that's also a method for server, don't worry about it lol
+func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (withdrawFunction func(*koblitz.PublicKey, uint64) (string, error), err error) {
+
+	// Try to get correct wallet
+	// wallet, found := server.WalletMap[params]
+	// if !found {
+	// 	err = fmt.Errorf("Could not find wallet for those coin params")
+	// 	return
+	// }
+
+	withdrawFunction = func(pubkey *koblitz.PublicKey, amount uint64) (txid string, err error) {
+
+		if amount < 180000 {
+			err = fmt.Errorf("You can't withdraw any less than 180000 %s", params.Name)
+			return
+		}
+
+		var peerIdx uint32
+		if peerIdx, err = server.GetPeerFromPubkey(pubkey); err != nil {
+			return
+		}
+
+		// if we already have a channel and we can, we should push
+		if !server.ExchangeNode.ConnectedToPeer(peerIdx) {
+			err = fmt.Errorf("Not connected to peer! Please connect to the exchange. We don't know how to connect to you")
+			return
+		}
+
+		server.LockIngests()
+		if err = server.OpencxDB.Withdraw(pubkey, params.Name, amount); err != nil {
+			// if errors out, unlock
+			server.UnlockIngests()
+			return
+		}
+		server.UnlockIngests()
+
+		// var chanIdx uint32
+		// if chanIdx, err = server.ExchangeNode.FundChannel(peerIdx, params.HDCoinType, getcapacity, amount, nil); err != nil {
+		// 	return
+		// }
+
+		return "", nil
+	}
+	return
+}
+
+// GetPeerFromPubkey gets a peer index from a pubkey.
+func (server *OpencxServer) GetPeerFromPubkey(pubkey *koblitz.PublicKey) (peerIdx uint32, err error) {
+
+	var pubkey33 [33]byte
+	copy(pubkey33[:], pubkey.SerializeCompressed())
+	litAddr := lnutil.LitAdrFromPubkey(pubkey33)
+
+	// until this is removed, this is good for our purposes
+	if peerIdx, err = server.ExchangeNode.FindPeerIndexByAddress(litAddr); err != nil {
+		return
+	}
+
+	return
+}
+
+// GetChanIdxPeerParam getst a channel index for a param and pubkey / peer
+func (server *OpencxServer) GetChanIdxPeerParam(pubkey *koblitz.PublicKey, param *coinparam.Params) (chanIdx uint32, err error) {
+
+	// var peerIdx uint32
+	// if peerIdx, err = server.GetPeerFromPubkey(pubkey); err != nil {
+	// 	return
+	// }
+
+	// var qchanList []*qln.Qchan
+	// if qchanList, err = server.ExchangeNode.GetAllQchans(); err != nil {
+	// 	return
+	// }
+
 	return
 }
