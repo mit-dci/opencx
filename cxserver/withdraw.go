@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/mit-dci/lit/lnp2p"
+	"github.com/mit-dci/lit/qln"
+
 	"github.com/mit-dci/lit/lnutil"
 
 	"github.com/mit-dci/lit/coinparam"
@@ -174,18 +177,46 @@ func (server *OpencxServer) GetPeerFromPubkey(pubkey *koblitz.PublicKey) (peerId
 	return
 }
 
-// GetChanIdxPeerParam getst a channel index for a param and pubkey / peer
-func (server *OpencxServer) GetChanIdxPeerParam(pubkey *koblitz.PublicKey, param *coinparam.Params) (chanIdx uint32, err error) {
+// GetQchansByPeerParam gets channel indexes for a param and pubkey / peer
+func (server *OpencxServer) GetQchansByPeerParam(pubkey *koblitz.PublicKey, param *coinparam.Params) (qchans []*qln.Qchan, err error) {
 
-	// var peerIdx uint32
-	// if peerIdx, err = server.GetPeerFromPubkey(pubkey); err != nil {
-	// 	return
-	// }
+	// get the peer idx
+	var peerIdx uint32
+	if peerIdx, err = server.GetPeerFromPubkey(pubkey); err != nil {
+		return
+	}
 
-	// var qchanList []*qln.Qchan
-	// if qchanList, err = server.ExchangeNode.GetAllQchans(); err != nil {
-	// 	return
-	// }
+	// get the peer
+	var peer *lnp2p.Peer
+	if peer = server.ExchangeNode.PeerMan.GetPeerByIdx(int32(peerIdx)); err != nil {
+		return
+	}
+
+	// lock this so we can be in peace
+	server.ExchangeNode.PeerMapMtx.Lock()
+	// get the remote peer from the qchan
+	var remotePeer *qln.RemotePeer
+	var found bool
+	if remotePeer, found = server.ExchangeNode.PeerMap[peer]; !found {
+		err = fmt.Errorf("Could not find remote peer that peer manager is tracking, there's something wrong with the lit node")
+		// unlock because we have to before we return or else we deadlock
+		server.ExchangeNode.PeerMapMtx.Unlock()
+		return
+	}
+	server.ExchangeNode.PeerMapMtx.Unlock()
+
+	// populate qchans just to be safe -- this might not be necessary and makes this function very inefficient
+	if err = server.ExchangeNode.PopulateQchanMap(remotePeer); err != nil {
+		return
+	}
+
+	// get qchans from peer
+	for _, qchan := range remotePeer.QCs {
+		// if this is the same coin then return the idx
+		if qchan.Coin() == param.HDCoinType {
+			qchans = append(qchans, qchan)
+		}
+	}
 
 	return
 }
