@@ -126,25 +126,17 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err erro
 
 	if args.Withdrawal.Lightning {
 
-		cl.Server.LockIngests()
 		if reply.Txid, err = cl.Server.WithdrawLightning(pubkey, args.Withdrawal.Amount, coinType); err != nil {
-			// gotta put these here cause if it errors out then oops just locked everything
-			cl.Server.UnlockIngests()
-			err = fmt.Errorf("Error with withdraw command (withdraw from chain): \n%s", err)
+			err = fmt.Errorf("Error with withdraw command (withdraw from lightning): \n%s", err)
 			return
 		}
-		cl.Server.UnlockIngests()
 
 	} else {
 
-		cl.Server.LockIngests()
 		if reply.Txid, err = cl.Server.WithdrawCoins(args.Withdrawal.Address, pubkey, args.Withdrawal.Amount, coinType); err != nil {
-			// gotta put these here cause if it errors out then oops just locked everything
-			cl.Server.UnlockIngests()
 			err = fmt.Errorf("Error with withdraw command (withdraw from chain): \n%s", err)
 			return
 		}
-		cl.Server.UnlockIngests()
 
 	}
 

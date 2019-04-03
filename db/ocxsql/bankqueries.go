@@ -269,39 +269,56 @@ func (db *DB) UpdateBalancesWithinTransaction(pubkeys []*koblitz.PublicKey, amou
 }
 
 // GetDepositAddress gets the deposit address of an account
-func (db *DB) GetDepositAddress(pubkey *koblitz.PublicKey, asset string) (string, error) {
-	var err error
+func (db *DB) GetDepositAddress(pubkey *koblitz.PublicKey, asset string) (depositAddr string, err error) {
+
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
+		return
+	}
+	// this defer is pushed onto the stack first
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while getting deposit addr map: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+		return
+	}()
 
 	// Use the deposit schema
-	_, err = db.DBHandler.Exec("USE " + db.depositSchema + ";")
-	if err != nil {
-		return "", fmt.Errorf("Could not use deposit schema: \n%s", err)
+	if _, err = tx.Exec("USE " + db.depositSchema + ";"); err != nil {
+		err = fmt.Errorf("Could not use deposit schema: \n%s", err)
+		return
 	}
 
 	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE pubkey='%x';", asset, pubkey.SerializeCompressed())
-	res, err := db.DBHandler.Query(getBalanceQuery)
-	if err != nil {
-		return "", fmt.Errorf("Error when getting deposit: \n%s", err)
+	var rows *sql.Rows
+	if rows, err = db.DBHandler.Query(getBalanceQuery); err != nil {
+		err = fmt.Errorf("Error when getting deposit: \n%s", err)
+		return
 	}
 
-	depositAddr := new(string)
-	success := res.Next()
-	if !success {
-		return "", fmt.Errorf("Database error: nothing to scan")
-	}
-	err = res.Scan(depositAddr)
-	if err != nil {
-		return "", fmt.Errorf("Error scanning for amount: \n%s", err)
-	}
-	logging.Debugf("Pubkey %x's deposit address for %s: %s\n", pubkey.SerializeCompressed(), asset, *depositAddr)
+	if rows.Next() {
 
-	err = res.Close()
-	if err != nil {
-		return "", fmt.Errorf("Error closing deposit result: \n%s", err)
+		if err = rows.Scan(&depositAddr); err != nil {
+			err = fmt.Errorf("Error scanning for deposit address: \n%s", err)
+			return
+		}
+
+		logging.Debugf("Pubkey %x's deposit address for %s: %s\n", pubkey.SerializeCompressed(), asset, depositAddr)
+
+	} else {
+		err = fmt.Errorf("Cannot find deposit address. Make sure you've registered")
+		return
 	}
 
-	return *depositAddr, nil
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing deposit result: \n%s", err)
+		return
+	}
 
+	return
 }
 
 // GetDepositAddressMap returns a map from deposit addresses to pubkeys, essentially a set and only to get O(1) access time.
@@ -396,6 +413,7 @@ func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (
 	if tx, err = db.DBHandler.Begin(); err != nil {
 		return
 	}
+
 	defer func() {
 		if err != nil {
 			tx.Rollback()
@@ -408,12 +426,13 @@ func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (
 	// Use the balance schema
 
 	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+		err = fmt.Errorf("Error trying to use database: \n%s", err)
 		return
 	}
 
 	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", asset, pubkey.SerializeCompressed())
-	rows, err := db.DBHandler.Query(getBalanceQuery)
-	if err != nil {
+	var rows *sql.Rows
+	if rows, err = tx.Query(getBalanceQuery); err != nil {
 		return
 	}
 

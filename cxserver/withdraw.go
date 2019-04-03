@@ -7,6 +7,7 @@ import (
 	"github.com/mit-dci/lit/consts"
 	"github.com/mit-dci/lit/lnp2p"
 	"github.com/mit-dci/lit/qln"
+	"github.com/mit-dci/opencx/logging"
 
 	"github.com/mit-dci/lit/lnutil"
 
@@ -157,6 +158,7 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 
 		if amount <= 0 {
 			err = fmt.Errorf("Can't withdraw <= 0")
+			return
 		}
 
 		// calculate fee, do this using subwallet because the funding will all be done through lit
@@ -170,9 +172,11 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 
 		var peerIdx uint32
 		if peerIdx, err = server.GetPeerFromPubkey(pubkey); err != nil {
-			err = fmt.Errorf("You may not have ever connected with the exchange, or you're using a different identity. The exchange can only authenticate for channel creating if you are the node")
+			err = fmt.Errorf("You may not have ever connected with the exchange, or you're using a different identity. The exchange can only authenticate for channel creating if you are the node: \n%s", err)
 			return
 		}
+
+		logging.Infof("Checking if connected to peer")
 
 		// if we already have a channel and we can, we should push
 		if !server.ExchangeNode.ConnectedToPeer(peerIdx) {
@@ -190,9 +194,12 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 
 		// TODO: this should only happen when we get a proof that the other person actually took the withdraw / updated the state. We don't have a guarantee that they will always accept
 
+		logging.Infof("Checking withdraw lock...")
 		server.LockIngests()
+		logging.Infof("Locked ingests, withdrawing")
 		if err = server.OpencxDB.Withdraw(pubkey, params.Name, uint64(amount)); err != nil {
 			// if errors out, unlock
+			logging.Errorf("Error while withdrawing from db: %s\n", err)
 			server.UnlockIngests()
 			return
 		}
@@ -203,18 +210,21 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 		// make data but we don't really want any
 		noData := new([32]byte)
 
+		logging.Infof("Trying to fund channel")
 		// retreive chanIdx because we need it for qchan for outpoint hash, if that's not useful anymore just make this chanIdx => _
 		var chanIdx uint32
 		if chanIdx, err = server.ExchangeNode.FundChannel(peerIdx, params.HDCoinType, ccap, amount, *noData); err != nil {
 			return
 		}
 
+		logging.Infof("Getting qchanidx")
 		// get qchan so we can get the outpoint hash
 		var qchan *qln.Qchan
 		if qchan, err = server.ExchangeNode.GetQchanByIdx(chanIdx); err != nil {
 			return
 		}
 
+		logging.Infof("We're pretty much done with this withdraw")
 		// get outpoint hash because that's useful information to return
 		txid = qchan.Op.Hash.String()
 
