@@ -25,6 +25,14 @@ import (
 
 // WithdrawCoins inputs the correct parameters to return a withdraw txid
 func (server *OpencxServer) WithdrawCoins(address string, pubkey *koblitz.PublicKey, amount uint64, params *coinparam.Params) (txid string, err error) {
+
+	// TODO: change everything to int64 and just deal with the negatives in error handling. Casting is probably more dangerous
+	// if you try to withdraw an overflow amount then get out
+	if int64(amount) < 0 {
+		err = fmt.Errorf("That amount would have caused an overflow, enter something lower")
+		return
+	}
+
 	// Create the function, basically make sure the wallet stuff is alright
 	var withdrawFunction func(string, *koblitz.PublicKey, uint64) (string, error)
 	if withdrawFunction, err = server.withdrawFromChain(params); err != nil {
@@ -33,6 +41,31 @@ func (server *OpencxServer) WithdrawCoins(address string, pubkey *koblitz.Public
 	}
 	// Actually try to withdraw
 	if txid, err = withdrawFunction(address, pubkey, amount); err != nil {
+		err = fmt.Errorf("Error withdrawing coins: \n%s", err)
+		return
+	}
+	return
+}
+
+// WithdrawLightning inputs the correct parameters to return a correct txid associated with a channel outpoint
+func (server *OpencxServer) WithdrawLightning(pubkey *koblitz.PublicKey, amount uint64, params *coinparam.Params) (txid string, err error) {
+
+	// TODO: change everything to int64 and just deal with the negatives in error handling. Casting is probably more dangerous
+	// if you try to withdraw an overflow amount then get out
+	if int64(amount) < 0 {
+		err = fmt.Errorf("That amount would have caused an overflow, enter something lower")
+		return
+	}
+
+	// Create the function, basically make sure the wallet stuff is alright
+	var withdrawFunction func(*koblitz.PublicKey, int64) (string, error)
+	if withdrawFunction, err = server.withdrawFromLightning(params); err != nil {
+		err = fmt.Errorf("Error creating withdraw function: \n%s", err)
+		return
+	}
+
+	// Actually try to withdraw
+	if txid, err = withdrawFunction(pubkey, int64(amount)); err != nil {
 		err = fmt.Errorf("Error withdrawing coins: \n%s", err)
 		return
 	}
@@ -120,13 +153,6 @@ func (server *OpencxServer) withdrawFromChain(params *coinparam.Params) (withdra
 // withdrawFromChain returns a function that we'll then call from the vtc stuff -- this is a closure that's also a method for server, don't worry about it lol
 func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (withdrawFunction func(*koblitz.PublicKey, int64) (string, error), err error) {
 
-	// Try to get correct wallet
-	// wallet, found := server.WalletMap[params]
-	// if !found {
-	// 	err = fmt.Errorf("Could not find wallet for those coin params")
-	// 	return
-	// }
-
 	withdrawFunction = func(pubkey *koblitz.PublicKey, amount int64) (txid string, err error) {
 
 		if amount <= 0 {
@@ -144,6 +170,7 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 
 		var peerIdx uint32
 		if peerIdx, err = server.GetPeerFromPubkey(pubkey); err != nil {
+			err = fmt.Errorf("You may not have ever connected with the exchange, or you're using a different identity. The exchange can only authenticate for channel creating if you are the node")
 			return
 		}
 

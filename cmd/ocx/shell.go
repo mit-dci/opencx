@@ -139,6 +139,18 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error calling withdraw command: \n%s", err)
 		}
 	}
+	if cmd == "litwithdraw" {
+		if getHelpForCommand(litWithdrawCommand, args) {
+			return nil
+		}
+		if len(args) != 2 {
+			return fmt.Errorf("Must specify 3 arguments: amount coin")
+		}
+
+		if err := cl.LitWithdraw(args); err != nil {
+			return fmt.Errorf("Error calling withdraw command: \n%s", err)
+		}
+	}
 	if cmd == "cancelorder" {
 		if getHelpForCommand(cancelOrderCommand, args) {
 			return nil

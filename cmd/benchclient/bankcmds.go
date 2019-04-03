@@ -90,9 +90,45 @@ func (cl *BenchClient) Withdraw(amount uint64, asset match.Asset, address string
 	withdrawReply = new(cxrpc.WithdrawReply)
 	withdrawArgs := &cxrpc.WithdrawArgs{
 		Withdrawal: &match.Withdrawal{
-			Amount:  amount,
-			Asset:   asset,
-			Address: address,
+			Amount:    amount,
+			Asset:     asset,
+			Address:   address,
+			Lightning: false,
+		},
+	}
+
+	// create e = hash(m)
+	sha3 := sha3.New256()
+	sha3.Write(withdrawArgs.Withdrawal.Serialize())
+	e := sha3.Sum(nil)
+
+	// Sign order
+	compactSig, err := koblitz.SignCompact(koblitz.S256(), cl.PrivKey, e, false)
+
+	// set signature in args
+	withdrawArgs.Signature = compactSig
+
+	if err = cl.Call("OpencxRPC.Withdraw", withdrawArgs, withdrawReply); err != nil {
+		return
+	}
+
+	if withdrawReply.Txid == "" {
+		err = fmt.Errorf("Error: Unsupported Asset")
+		return
+	}
+
+	return
+}
+
+// WithdrawLightning calls the withdraw rpc command, but with the lightning boolean set to true
+func (cl *BenchClient) WithdrawLightning(amount uint64, asset match.Asset) (withdrawReply *cxrpc.WithdrawReply, err error) {
+
+	withdrawReply = new(cxrpc.WithdrawReply)
+	withdrawArgs := &cxrpc.WithdrawArgs{
+		Withdrawal: &match.Withdrawal{
+			Amount:    amount,
+			Asset:     asset,
+			Lightning: true,
 		},
 	}
 

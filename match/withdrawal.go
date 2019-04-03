@@ -7,6 +7,8 @@ type Withdrawal struct {
 	Asset   Asset
 	Amount  uint64
 	Address string
+	// This tells whether or not this is a lightning withdrawal. Default value is false so that makes it easier
+	Lightning bool
 }
 
 // Serialize serializes the withdrawal

@@ -111,3 +111,33 @@ func (cl *openCxClient) Withdraw(args []string) (err error) {
 	logging.Infof("Withdraw transaction ID: %s\n", withdrawReply.Txid)
 	return
 }
+
+var litWithdrawCommand = &Command{
+	Format: fmt.Sprintf("%s%s%s\n", lnutil.Red("litwithdraw"), lnutil.ReqColor("amount"), lnutil.ReqColor("asset")),
+	Description: fmt.Sprintf("%s\n%s\n%s\n",
+		"This assumes you're using the same keys as your lightning node, and your node should be running.",
+		"This creates a channel with you with the amount you specified.",
+		"Make sure you feel your asset has enough confirmations such that it has been confirmed.",
+	),
+	ShortDescription: fmt.Sprintf("%s\n", "Withdraw amount of asset for lightning."),
+}
+
+func (cl *openCxClient) LitWithdraw(args []string) (err error) {
+	var amount uint64
+	if amount, err = strconv.ParseUint(args[0], 10, 64); err != nil {
+		return
+	}
+
+	var asset match.Asset
+	if asset, err = match.AssetFromString(args[1]); err != nil {
+		return
+	}
+
+	var withdrawReply *cxrpc.WithdrawReply
+	if withdrawReply, err = cl.RPCClient.WithdrawLightning(amount, asset); err != nil {
+		return
+	}
+
+	logging.Infof("Withdraw transaction ID: %s\n", withdrawReply.Txid)
+	return
+}
