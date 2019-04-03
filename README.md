@@ -1,14 +1,14 @@
 # opencx
----
 [![Build Status](https://travis-ci.com/mit-dci/opencx.svg?branch=master)](https://travis-ci.com/mit-dci/opencx)
 [![License](http://img.shields.io/:license-mit-blue.svg?style=flat-square)](http://mit-dci.mit-license.org)
+
+
 A centralized exchange to help understand what a DEX should be
 
 ## Security note
 Gosec still detects a bunch of stuff and I need more configuration and documentation for database username and password.
 
 # Requirements
----
  - Go 1.11+
  - [MariaDB](https://mariadb.org) (not needed for client)
 
@@ -19,7 +19,6 @@ I'm working on adding in lightning compatibility for all of this.
 If you'd like to add your own coins, just add them to the coinparams in `lit`.
 
 # How to run opencx server / exchange
----
 First clone the repo and install dependencies:
 ```sh
 git clone git@github.com/mit-dci/opencx.git
@@ -39,7 +38,6 @@ go build opencx
 ```
 
 # How to run opencx Client
----
 Clone the repo and install dependencies as in the steps above:
 ```sh
 git clone git@github.com/mit-dci/opencx
