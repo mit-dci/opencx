@@ -144,7 +144,7 @@ func (cl *openCxClient) parseCommands(commands []string) error {
 			return nil
 		}
 		if len(args) != 2 {
-			return fmt.Errorf("Must specify 3 arguments: amount coin")
+			return fmt.Errorf("Must specify 2 arguments: amount coin")
 		}
 
 		if err := cl.LitWithdraw(args); err != nil {
@@ -200,7 +200,7 @@ func (cl *openCxClient) Help(textArgs []string) error {
 	if len(textArgs) == 0 {
 
 		fmt.Fprintf(color.Output, lnutil.Header("Commands:\n"))
-		listofCommands := []*Command{helpCommand, registerCommand, getBalanceCommand, getDepositAddressCommand, getAllBalancesCommand, withdrawCommand, getLitConnectionCommand, placeOrderCommand, getPriceCommand, viewOrderbookCommand, cancelOrderCommand, getPairsCommand}
+		listofCommands := []*Command{helpCommand, registerCommand, getBalanceCommand, getDepositAddressCommand, getAllBalancesCommand, withdrawCommand, litWithdrawCommand, getLitConnectionCommand, placeOrderCommand, getPriceCommand, viewOrderbookCommand, cancelOrderCommand, getPairsCommand}
 		printHelp(listofCommands)
 		return nil
 	}

@@ -92,6 +92,10 @@ var withdrawCommand = &Command{
 }
 
 func (cl *openCxClient) Withdraw(args []string) (err error) {
+	if err = cl.UnlockKey(); err != nil {
+		logging.Fatalf("Could not unlock key! Fatal!")
+	}
+
 	var amount uint64
 	if amount, err = strconv.ParseUint(args[0], 10, 64); err != nil {
 		return
@@ -123,6 +127,10 @@ var litWithdrawCommand = &Command{
 }
 
 func (cl *openCxClient) LitWithdraw(args []string) (err error) {
+	if err = cl.UnlockKey(); err != nil {
+		logging.Fatalf("Could not unlock key! Fatal!")
+	}
+
 	var amount uint64
 	if amount, err = strconv.ParseUint(args[0], 10, 64); err != nil {
 		return
