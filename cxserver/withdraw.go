@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/mit-dci/lit/consts"
 	"github.com/mit-dci/lit/lnp2p"
 	"github.com/mit-dci/lit/qln"
 
@@ -117,7 +118,7 @@ func (server *OpencxServer) withdrawFromChain(params *coinparam.Params) (withdra
 }
 
 // withdrawFromChain returns a function that we'll then call from the vtc stuff -- this is a closure that's also a method for server, don't worry about it lol
-func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (withdrawFunction func(*koblitz.PublicKey, uint64) (string, error), err error) {
+func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (withdrawFunction func(*koblitz.PublicKey, int64) (string, error), err error) {
 
 	// Try to get correct wallet
 	// wallet, found := server.WalletMap[params]
@@ -126,10 +127,16 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 	// 	return
 	// }
 
-	withdrawFunction = func(pubkey *koblitz.PublicKey, amount uint64) (txid string, err error) {
+	withdrawFunction = func(pubkey *koblitz.PublicKey, amount int64) (txid string, err error) {
 
-		if amount < 180000 {
-			err = fmt.Errorf("You can't withdraw any less than 180000 %s", params.Name)
+		if amount <= 0 {
+			err = fmt.Errorf("Can't withdraw <= 0")
+		}
+
+		// calculate fee
+		fee := server.ExchangeNode.SubWallet[params.HDCoinType].Fee() * 1000
+		if amount < consts.MinOutput+fee {
+			err = fmt.Errorf("You can't withdraw any less than %d %s", consts.MinOutput+fee, params.Name)
 			return
 		}
 
@@ -144,20 +151,24 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 			return
 		}
 
-		server.LockIngests()
-		if err = server.OpencxDB.Withdraw(pubkey, params.Name, amount); err != nil {
-			// if errors out, unlock
-			server.UnlockIngests()
-			return
-		}
-		server.UnlockIngests()
+		// TODO: this should only happen when we get a proof that the other person actually took the withdraw / updated the state. We don't have a guarantee that they will always accept
+
+		// server.LockIngests()
+		// if err = server.OpencxDB.Withdraw(pubkey, params.Name, uint64(amount)); err != nil {
+		// 	// if errors out, unlock
+		// 	server.UnlockIngests()
+		// 	return
+		// }
+		// server.UnlockIngests()
+
+		// check if any of the channels are of the correct param and have enough capacity (-[min+fee])
 
 		// var chanIdx uint32
 		// if chanIdx, err = server.ExchangeNode.FundChannel(peerIdx, params.HDCoinType, getcapacity, amount, nil); err != nil {
 		// 	return
 		// }
 
-		return "", nil
+		return
 	}
 	return
 }
