@@ -148,6 +148,10 @@ func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblit
 
 	server.UnlockIngests()
 
+	if err = server.SetupFundBack(); err != nil {
+		return
+	}
+
 	return
 }
 

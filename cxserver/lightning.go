@@ -34,3 +34,9 @@ func (server *OpencxServer) SetupLitRPCConnect(rpchost string, rpcport uint16) {
 	time.Sleep(time.Second)
 	return
 }
+
+// SetupFundBack funds a node back after a sigproof
+func (server *OpencxServer) SetupFundBack() (err error) {
+
+	return
+}

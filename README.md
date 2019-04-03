@@ -2,7 +2,6 @@
 [![Build Status](https://travis-ci.com/mit-dci/opencx.svg?branch=master)](https://travis-ci.com/mit-dci/opencx)
 [![License](http://img.shields.io/:license-mit-blue.svg?style=flat-square)](http://mit-dci.mit-license.org)
 
-
 A centralized exchange to help understand what a DEX should be
 
 ## Security note

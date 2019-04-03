@@ -133,7 +133,9 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 			err = fmt.Errorf("Can't withdraw <= 0")
 		}
 
-		// calculate fee
+		// calculate fee, do this using subwallet because the funding will all be done through lit
+		// TODO: figure out if there is redundancy with server.WalletMap and server.ExchangeNode.SubWallet and
+		// if that redundancy is necessary. It might be
 		fee := server.ExchangeNode.SubWallet[params.HDCoinType].Fee() * 1000
 		if amount < consts.MinOutput+fee {
 			err = fmt.Errorf("You can't withdraw any less than %d %s", consts.MinOutput+fee, params.Name)
@@ -151,22 +153,43 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 			return
 		}
 
+		// calculate capacity as a function of the amount to be sent
+		var ccap int64
+		if amount < consts.MinChanCapacity {
+			ccap = consts.MinChanCapacity
+		} else {
+			ccap = amount + consts.MinOutput + fee
+		}
+
 		// TODO: this should only happen when we get a proof that the other person actually took the withdraw / updated the state. We don't have a guarantee that they will always accept
 
-		// server.LockIngests()
-		// if err = server.OpencxDB.Withdraw(pubkey, params.Name, uint64(amount)); err != nil {
-		// 	// if errors out, unlock
-		// 	server.UnlockIngests()
-		// 	return
-		// }
-		// server.UnlockIngests()
+		server.LockIngests()
+		if err = server.OpencxDB.Withdraw(pubkey, params.Name, uint64(amount)); err != nil {
+			// if errors out, unlock
+			server.UnlockIngests()
+			return
+		}
+		server.UnlockIngests()
 
 		// check if any of the channels are of the correct param and have enough capacity (-[min+fee])
 
-		// var chanIdx uint32
-		// if chanIdx, err = server.ExchangeNode.FundChannel(peerIdx, params.HDCoinType, getcapacity, amount, nil); err != nil {
-		// 	return
-		// }
+		// make data but we don't really want any
+		noData := new([32]byte)
+
+		// retreive chanIdx because we need it for qchan for outpoint hash, if that's not useful anymore just make this chanIdx => _
+		var chanIdx uint32
+		if chanIdx, err = server.ExchangeNode.FundChannel(peerIdx, params.HDCoinType, ccap, amount, *noData); err != nil {
+			return
+		}
+
+		// get qchan so we can get the outpoint hash
+		var qchan *qln.Qchan
+		if qchan, err = server.ExchangeNode.GetQchanByIdx(chanIdx); err != nil {
+			return
+		}
+
+		// get outpoint hash because that's useful information to return
+		txid = qchan.Op.Hash.String()
 
 		return
 	}
