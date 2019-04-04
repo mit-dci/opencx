@@ -13,12 +13,18 @@ type Withdrawal struct {
 
 // Serialize serializes the withdrawal
 func (w *Withdrawal) Serialize() (buf []byte) {
+	// bool yes or no
 	// Asset [1 byte]
 	// Amount [64 bytes]
 	// len(address)
 	// Address [len(address)]
 
-	buf = make([]byte, 65+len(w.Address))
+	var oneorzero byte
+	if w.Lightning {
+		oneorzero = 0xff
+	}
+	buf = make([]byte, 66+len(w.Address))
+	buf = append(buf, oneorzero)
 	buf = append(buf, byte(w.Asset))
 	binary.LittleEndian.PutUint64(buf, w.Amount)
 	binary.LittleEndian.PutUint64(buf, uint64(len(w.Address)))

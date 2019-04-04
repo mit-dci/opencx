@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mit-dci/lit/portxo"
+
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/consts"
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -40,17 +42,36 @@ func (server *OpencxServer) SetupLitRPCConnect(rpchost string, rpcport uint16) {
 }
 
 // SetupFundBack funds a node back after a sigproof
-func (server *OpencxServer) SetupFundBack(pubkey *koblitz.PublicKey, channelCapacity int64) (err error) {
+func (server *OpencxServer) SetupFundBack(pubkey *koblitz.PublicKey, currCoinType uint32, channelCapacity int64) (err error) {
 
 	for _, param := range server.CoinList {
-		var txid string
-		// Send with 0 balance on their side
-		logging.Debugf("Creating channel with %x for %d %s coins.", pubkey.SerializeCompressed(), channelCapacity, param.Name)
-		if txid, err = server.CreateChannel(pubkey, 0, channelCapacity, param); err != nil {
-			logging.Errorf("Creating %s channel not successful", param.Name)
-			return
+		if param.HDCoinType != currCoinType {
+			var pWallet qln.UWallet
+			var found bool
+			if pWallet, found = server.ExchangeNode.SubWallet[param.HDCoinType]; !found {
+				err = fmt.Errorf("Don't have wallet for coin, how did this happen?")
+				return
+			}
+
+			var allUtxos []*portxo.PorTxo
+			if allUtxos, err = pWallet.UtxoDump(); err != nil {
+				return
+			}
+
+			var totalValue int64
+			for _, utxo := range allUtxos {
+				totalValue += utxo.Value
+			}
+			logging.Infof("Total value in coin %s: %d", param.Name, totalValue)
+			var txid string
+			// Send with 0 balance on their side
+			logging.Debugf("Creating channel with %x for %d %s coins.", pubkey.SerializeCompressed(), channelCapacity, param.Name)
+			if txid, err = server.CreateChannel(pubkey, 0, channelCapacity, param); err != nil {
+				logging.Errorf("Creating %s channel not successful", param.Name)
+				return
+			}
+			logging.Debugf("Outpoint hash for fund back channel: %s\n", txid)
 		}
-		logging.Debugf("Outpoint hash for fund back channel: %s\n", txid)
 	}
 
 	return
@@ -100,6 +121,16 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 			return
 		}
 		server.UnlockIngests()
+	}
+
+	var utxoDump []*portxo.PorTxo
+	if utxoDump, err = server.ExchangeNode.SubWallet[params.HDCoinType].UtxoDump(); err != nil {
+		logging.Infof("Error dumping utxos")
+		return
+	}
+
+	for _, utxo := range utxoDump {
+		logging.Infof("Coin %s UTXO value: %d\n", params.Name, utxo.Value)
 	}
 
 	// check if any of the channels are of the correct param and have enough capacity (-[min+fee])
