@@ -284,7 +284,7 @@ func (db *DB) GetDepositAddress(pubkey *koblitz.PublicKey, asset string) (deposi
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while getting deposit addr map: \n%s", err)
+			err = fmt.Errorf("Error while getting deposit address: \n%s", err)
 			return
 		}
 		err = tx.Commit()
@@ -299,7 +299,7 @@ func (db *DB) GetDepositAddress(pubkey *koblitz.PublicKey, asset string) (deposi
 
 	getBalanceQuery := fmt.Sprintf("SELECT address FROM %s WHERE pubkey='%x';", asset, pubkey.SerializeCompressed())
 	var rows *sql.Rows
-	if rows, err = db.DBHandler.Query(getBalanceQuery); err != nil {
+	if rows, err = tx.Query(getBalanceQuery); err != nil {
 		err = fmt.Errorf("Error when getting deposit: \n%s", err)
 		return
 	}
@@ -357,7 +357,7 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 	}
 
 	var getBalanceStmt *sql.Stmt
-	if getBalanceStmt, err = tx.Prepare(fmt.Sprintf("SELECT pubkey, address FROM %s", assetString)); err != nil {
+	if getBalanceStmt, err = tx.Prepare(fmt.Sprintf("SELECT pubkey, address FROM %s;", assetString)); err != nil {
 		return
 	}
 
@@ -375,23 +375,23 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 		}
 	}()
 
-	var res *sql.Rows
-	if res, err = getBalanceStmt.Query(); err != nil {
+	var rows *sql.Rows
+	if rows, err = getBalanceStmt.Query(); err != nil {
 		err = fmt.Errorf("Error when getting deposit address: \n%s", err)
 		return
 	}
 
 	depositAddresses = make(map[string]*koblitz.PublicKey)
 
-	for res.Next() {
+	for rows.Next() {
 		var depositAddr string
 		var pubkeyBytes []byte
-		if err = res.Scan(&pubkeyBytes, &depositAddr); err != nil {
-			err = fmt.Errorf("Error scanning for depositAddress: \n%s", err)
+		if err = rows.Scan(&pubkeyBytes, &depositAddr); err != nil {
+			err = fmt.Errorf("Error scanning for depositAddrowss: \n%s", err)
 			return
 		}
 
-		// so res.Scan does something weird because I'm not using prepared statements. I would prefer to be using a byte array to scan into, since the pubkey is a varbinary?
+		// so rows.Scan does something weird because I'm not using prepared statements. I would prefer to be using a byte array to scan into, since the pubkey is a varbinary?
 		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
 			return
 		}
@@ -405,8 +405,8 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 		depositAddresses[depositAddr] = pubkey
 	}
 
-	if err = res.Close(); err != nil {
-		err = fmt.Errorf("Error closing deposit result: \n%s", err)
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing deposit rows: \n%s", err)
 		return
 	}
 

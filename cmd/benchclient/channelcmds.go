@@ -1,6 +1,8 @@
 package benchclient
 
 import (
+	"fmt"
+
 	"github.com/mit-dci/opencx/cxrpc"
 )
 
@@ -19,6 +21,12 @@ func (cl *BenchClient) GetLitConnection() (getLitConnectionReply *cxrpc.GetLitCo
 
 // WithdrawToLightningNode takes in some arguments such as public key, amount, and ln node address
 func (cl *BenchClient) WithdrawToLightningNode() (withdrawToLightningNodeReply *cxrpc.WithdrawToLightningNodeReply, err error) {
+
+	if cl.PrivKey == nil {
+		err = fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
+
 	withdrawToLightningNodeReply = new(cxrpc.WithdrawToLightningNodeReply)
 	withdrawToLightningNodeArgs := &cxrpc.WithdrawToLightningNodeArgs{}
 

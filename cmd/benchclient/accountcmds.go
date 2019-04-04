@@ -1,11 +1,18 @@
 package benchclient
 
 import (
+	"fmt"
+
 	"github.com/mit-dci/opencx/cxrpc"
 )
 
 // Register registers for an account
 func (cl *BenchClient) Register(signature []byte) (registerReply *cxrpc.RegisterReply, err error) {
+
+	if cl.PrivKey == nil {
+		err = fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
 
 	// sign it
 
