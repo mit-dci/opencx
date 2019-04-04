@@ -24,6 +24,7 @@ func (cl *openCxClient) GetBalance(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
+
 	asset := args[0]
 
 	var balanceReply *cxrpc.GetBalanceReply
@@ -45,11 +46,14 @@ var getDepositAddressCommand = &Command{
 }
 
 func (cl *openCxClient) GetDepositAddress(args []string) (err error) {
-	username := args[0]
-	asset := args[1]
+	if err = cl.UnlockKey(); err != nil {
+		logging.Fatalf("Could not unlock key! Fatal!")
+	}
+
+	asset := args[0]
 
 	var getDepositAddressReply *cxrpc.GetDepositAddressReply
-	if getDepositAddressReply, err = cl.RPCClient.GetDepositAddress(username, asset); err != nil {
+	if getDepositAddressReply, err = cl.RPCClient.GetDepositAddress(asset); err != nil {
 		return
 	}
 
@@ -70,6 +74,7 @@ func (cl *openCxClient) GetAllBalances(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
+
 	var getAllBalancesReply map[string]uint64
 	if getAllBalancesReply, err = cl.RPCClient.GetAllBalances(); err != nil {
 		return

@@ -45,7 +45,6 @@ type OpencxServer struct {
 	HeightEventChanMap map[int]chan lnutil.HeightEvent
 	ingestMutex        sync.Mutex
 
-	// These are supposed to replace the various BTC/LTC/VTC chainhooks above.
 	// All you should need to add a new coin to the exchange is the correct coin params to connect
 	// to nodes and (if it works), do proof of work and such.
 	HookMap    map[*coinparam.Params]*uspv.ChainHook
@@ -57,7 +56,11 @@ type OpencxServer struct {
 
 	orderMutex *sync.Mutex
 	OrderMap   map[match.Pair][]*match.LimitOrder
-	// TODO: Or implement client required signatures and pubkeys instead of usernames
+
+	// default Capacity is the default capacity that we send back to people.
+	// remove this when we have some sense of how much money the exchange has and/or some fancy
+	// algorithms to determine this number based on reputation or something
+	defaultCapacity int64
 }
 
 // LockOrders locks the order mutex
@@ -91,7 +94,8 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []
 		WalletMap:  make(map[*coinparam.Params]*wallit.Wallit),
 		PrivKeyMap: make(map[*coinparam.Params]*hdkeychain.ExtendedKey),
 
-		CoinList: coinList,
+		CoinList:        coinList,
+		defaultCapacity: 1000000,
 	}
 	var err error
 	// create wallit root directory

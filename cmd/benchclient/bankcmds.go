@@ -12,6 +12,11 @@ import (
 // GetBalance calls the getbalance rpc command
 func (cl *BenchClient) GetBalance(asset string) (getBalanceReply *cxrpc.GetBalanceReply, err error) {
 
+	if cl.PrivKey == nil {
+		err = fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
+
 	getBalanceReply = new(cxrpc.GetBalanceReply)
 	getBalanceArgs := &cxrpc.GetBalanceArgs{
 		Asset: asset,
@@ -36,7 +41,12 @@ func (cl *BenchClient) GetBalance(asset string) (getBalanceReply *cxrpc.GetBalan
 }
 
 // GetDepositAddress calls the getdepositaddress rpc command
-func (cl *BenchClient) GetDepositAddress(username string, asset string) (getDepositAddressReply *cxrpc.GetDepositAddressReply, err error) {
+func (cl *BenchClient) GetDepositAddress(asset string) (getDepositAddressReply *cxrpc.GetDepositAddressReply, err error) {
+
+	if cl.PrivKey == nil {
+		err = fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
 
 	getDepositAddressReply = new(cxrpc.GetDepositAddressReply)
 	getDepositAddressArgs := &cxrpc.GetDepositAddressArgs{
@@ -63,6 +73,12 @@ func (cl *BenchClient) GetDepositAddress(username string, asset string) (getDepo
 
 // GetAllBalances get the balance for every token
 func (cl *BenchClient) GetAllBalances() (balances map[string]uint64, err error) {
+
+	if cl.PrivKey == nil {
+		err = fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
+
 	balances = make(map[string]uint64)
 	var reply *cxrpc.GetBalanceReply
 	if reply, err = cl.GetBalance("regtest"); err != nil {
@@ -86,6 +102,11 @@ func (cl *BenchClient) GetAllBalances() (balances map[string]uint64, err error) 
 
 // Withdraw calls the withdraw rpc command
 func (cl *BenchClient) Withdraw(amount uint64, asset match.Asset, address string) (withdrawReply *cxrpc.WithdrawReply, err error) {
+
+	if cl.PrivKey == nil {
+		err = fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
 
 	withdrawReply = new(cxrpc.WithdrawReply)
 	withdrawArgs := &cxrpc.WithdrawArgs{
@@ -122,6 +143,11 @@ func (cl *BenchClient) Withdraw(amount uint64, asset match.Asset, address string
 
 // WithdrawLightning calls the withdraw rpc command, but with the lightning boolean set to true
 func (cl *BenchClient) WithdrawLightning(amount uint64, asset match.Asset) (withdrawReply *cxrpc.WithdrawReply, err error) {
+
+	if cl.PrivKey == nil {
+		err = fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
 
 	withdrawReply = new(cxrpc.WithdrawReply)
 	withdrawArgs := &cxrpc.WithdrawArgs{

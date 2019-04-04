@@ -104,6 +104,11 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 			return
 		}
 
+		// so res.Scan does something weird because I'm not using prepared statements. I would prefer to be using a byte array to scan into, since the pubkey is a varbinary?
+		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
+			return
+		}
+
 		var pubkey *koblitz.PublicKey
 		pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256())
 		if err != nil {
@@ -342,6 +347,7 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 	// Use the deposit schema
 	if _, err = tx.Exec("USE " + db.depositSchema + ";"); err != nil {
 		err = fmt.Errorf("Could not use deposit address schema: \n%s", err)
+		return
 	}
 
 	var assetString string

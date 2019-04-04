@@ -15,8 +15,7 @@ func (cl *BenchClient) OrderCommand(pubkey *koblitz.PublicKey, side string, pair
 	errorChannel := make(chan error, 1)
 	replyChannel := make(chan *cxrpc.SubmitOrderReply, 1)
 	cl.OrderAsync(pubkey, side, pair, amountHave, price, replyChannel, errorChannel)
-	err = <-errorChannel
-	if err != nil {
+	if err = <-errorChannel; err != nil {
 		return
 	}
 	reply = <-replyChannel
@@ -25,6 +24,11 @@ func (cl *BenchClient) OrderCommand(pubkey *koblitz.PublicKey, side string, pair
 
 // OrderAsync is supposed to be run in a separate goroutine, OrderCommand makes this synchronous however
 func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64, replyChan chan *cxrpc.SubmitOrderReply, errChan chan error) {
+
+	if cl.PrivKey == nil {
+		errChan <- fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
 
 	errChan <- func() error {
 		// TODO: this can be refactored to look more like the rest of the code, it's just using channels and works really well so I don't want to mess with it rn
@@ -111,6 +115,12 @@ func (cl *BenchClient) ViewOrderbook(assetPair string) (viewOrderbookReply *cxrp
 
 // CancelOrder calls the cancel order rpc command
 func (cl *BenchClient) CancelOrder(orderID string) (cancelOrderReply *cxrpc.CancelOrderReply, err error) {
+
+	if cl.PrivKey == nil {
+		err = fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
+
 	cancelOrderReply = new(cxrpc.CancelOrderReply)
 	cancelOrderArgs := &cxrpc.CancelOrderArgs{
 		OrderID: orderID,
