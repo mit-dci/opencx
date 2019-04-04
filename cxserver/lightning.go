@@ -45,7 +45,9 @@ func (server *OpencxServer) SetupFundBack(pubkey *koblitz.PublicKey, channelCapa
 	for _, param := range server.CoinList {
 		var txid string
 		// Send with 0 balance on their side
+		logging.Debugf("Creating channel with %x for %d %s coins.", pubkey.SerializeCompressed(), channelCapacity, param.Name)
 		if txid, err = server.CreateChannel(pubkey, 0, channelCapacity, param); err != nil {
+			logging.Errorf("Creating %s channel not successful", param.Name)
 			return
 		}
 		logging.Debugf("Outpoint hash for fund back channel: %s\n", txid)
@@ -77,7 +79,7 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 		return
 	}
 
-	logging.Infof("Checking if connected to peer")
+	logging.Debugf("Checking if connected to peer")
 
 	// if we already have a channel and we can, we should push
 	if !server.ExchangeNode.ConnectedToPeer(peerIdx) {
@@ -88,9 +90,9 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 	// TODO: this should only happen when we get a proof that the other person actually took the withdraw / updated the state. We don't have a guarantee that they will always accept
 
 	if initSend != 0 {
-		logging.Infof("Checking withdraw lock...")
+		logging.Debugf("Checking withdraw lock...")
 		server.LockIngests()
-		logging.Infof("Locked ingests, withdrawing")
+		logging.Debugf("Locked ingests, withdrawing")
 		if err = server.OpencxDB.Withdraw(pubkey, params.Name, uint64(initSend)); err != nil {
 			// if errors out, unlock
 			logging.Errorf("Error while withdrawing from db: %s\n", err)
@@ -105,21 +107,21 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 	// make data but we don't really want any
 	noData := new([32]byte)
 
-	logging.Infof("Trying to fund channel")
+	logging.Debugf("Trying to fund channel")
 	// retreive chanIdx because we need it for qchan for outpoint hash, if that's not useful anymore just make this chanIdx => _
 	var chanIdx uint32
 	if chanIdx, err = server.ExchangeNode.FundChannel(peerIdx, params.HDCoinType, ccap, initSend, *noData); err != nil {
 		return
 	}
 
-	logging.Infof("Getting qchanidx")
+	logging.Debugf("Getting qchanidx")
 	// get qchan so we can get the outpoint hash
 	var qchan *qln.Qchan
 	if qchan, err = server.ExchangeNode.GetQchanByIdx(chanIdx); err != nil {
 		return
 	}
 
-	logging.Infof("We're pretty much done with this withdraw")
+	logging.Debugf("We're pretty much done with this withdraw")
 	// get outpoint hash because that's useful information to return
 	txid = qchan.Op.Hash.String()
 

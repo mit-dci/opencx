@@ -423,7 +423,7 @@ func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while withdrawing using database: \n%s", err)
+			err = fmt.Errorf("Error while withdrawing %s using database: \n%s", asset, err)
 			return
 		}
 		err = tx.Commit()

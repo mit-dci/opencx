@@ -49,8 +49,8 @@ func AssetFromCoinParam(cpm *coinparam.Params) (a Asset, err error) {
 		&coinparam.VertcoinTestNetParams:  VTCTest,
 		&coinparam.LiteCoinTestNet4Params: LTCTest,
 		&coinparam.RegressionNetParams:    BTCReg,
-		&coinparam.VertcoinRegTestParams:  LTCReg,
-		&coinparam.LiteRegNetParams:       VTCReg,
+		&coinparam.VertcoinRegTestParams:  VTCReg,
+		&coinparam.LiteRegNetParams:       LTCReg,
 	}
 
 	// grab from map

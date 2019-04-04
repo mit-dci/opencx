@@ -74,6 +74,7 @@ func (server *OpencxServer) GetSigProofHandler() (hFunc func(event eventbus.Even
 
 		var err error
 		if !ee.State.Failed {
+			logging.Infof("Channel not failed, ingest")
 			if err = server.ingestChannelFund(ee.State, &ee.TheirPub, ee.CoinType, ee.ChanIdx); err != nil {
 				logging.Errorf("ingesting channel fund error: %s", err)
 				return eventbus.EHANDLE_CANCEL
