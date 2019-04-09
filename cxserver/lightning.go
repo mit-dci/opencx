@@ -2,6 +2,7 @@ package cxserver
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/mit-dci/lit/portxo"
@@ -13,6 +14,24 @@ import (
 	"github.com/mit-dci/lit/qln"
 	"github.com/mit-dci/opencx/logging"
 )
+
+// SetupLitNode sets up the lit node for use later, I wanna do this because this really shouldn't be in initialization code? should it be?
+// basically just run this after you unlock the key
+func (server *OpencxServer) SetupLitNode(privkey *[32]byte, subDirName string, trackerURL string, proxyURL string, nat string) (err error) {
+
+	// create lit root directory
+	if _, err = os.Stat(server.OpencxRoot + subDirName); os.IsNotExist(err) {
+		if err = os.Mkdir(server.OpencxRoot+subDirName, 0700); err != nil {
+			logging.Errorf("Error while creating a directory: \n%s", err)
+		}
+	}
+
+	if server.ExchangeNode, err = qln.NewLitNode(privkey, server.OpencxRoot+subDirName, trackerURL, proxyURL, nat); err != nil {
+		return
+	}
+
+	return
+}
 
 // SetupLitRPCConnect sets up an rpc connection with a running lit node?
 func (server *OpencxServer) SetupLitRPCConnect(rpchost string, rpcport uint16) {

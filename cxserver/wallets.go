@@ -2,6 +2,7 @@ package cxserver
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/mit-dci/lit/btcutil"
 	"github.com/mit-dci/lit/coinparam"
@@ -11,7 +12,7 @@ import (
 )
 
 // SetupWallet sets up a wallet for a specific coin, based on params.
-func (server *OpencxServer) SetupWallet(errChan chan error, param *coinparam.Params, resync bool, hostString string) {
+func (server *OpencxServer) SetupWallet(errChan chan error, subDirName string, param *coinparam.Params, resync bool, hostString string) {
 	var err error
 	var coinType int
 	defer func() {
@@ -29,8 +30,15 @@ func (server *OpencxServer) SetupWallet(errChan chan error, param *coinparam.Par
 		return
 	}
 
+	// create wallit root directory
+	if _, err = os.Stat(server.OpencxRoot + subDirName); os.IsNotExist(err) {
+		if err = os.Mkdir(server.OpencxRoot+subDirName, 0700); err != nil {
+			logging.Errorf("Error while creating a directory: \n%s", err)
+		}
+	}
+
 	var wallet *wallit.Wallit
-	if wallet, coinType, err = wallit.NewWallit(key, param.StartHeight, resync, hostString, server.WallitRoot, "", param); err != nil {
+	if wallet, coinType, err = wallit.NewWallit(key, param.StartHeight, resync, hostString, server.OpencxRoot+subDirName, "", param); err != nil {
 		return
 	}
 
@@ -45,11 +53,11 @@ func (server *OpencxServer) SetupWallet(errChan chan error, param *coinparam.Par
 }
 
 // SetupAllWallets sets up all wallets with parameters as specified in the hostParamList
-func (server *OpencxServer) SetupAllWallets(hostParamList util.HostParamList, resync bool) (err error) {
+func (server *OpencxServer) SetupAllWallets(hostParamList util.HostParamList, subDirName string, resync bool) (err error) {
 	hpLen := len(hostParamList)
 	errChan := make(chan error, hpLen)
 	for _, hostParam := range hostParamList {
-		go server.SetupWallet(errChan, hostParam.Param, resync, hostParam.Host)
+		go server.SetupWallet(errChan, subDirName, hostParam.Param, resync, hostParam.Host)
 	}
 
 	for i := 0; i < hpLen; i++ {

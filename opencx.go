@@ -122,7 +122,7 @@ func main() {
 	}
 
 	// start the lit node for the exchange
-	if err = ocxServer.SetupLitNode(key, "http://hubris.media.mit.edu:46580", "", ""); err != nil {
+	if err = ocxServer.SetupLitNode(key, "lit", "http://hubris.media.mit.edu:46580", "", ""); err != nil {
 		logging.Fatalf("Error starting lit node: \n%s", err)
 	}
 
@@ -142,7 +142,7 @@ func main() {
 	hpList := util.HostParamList(generateHostParams(&conf))
 
 	// Set up all chain hooks and wallets
-	if err = ocxServer.SetupAllWallets(hpList, conf.Resync); err != nil {
+	if err = ocxServer.SetupAllWallets(hpList, "wallit/", conf.Resync); err != nil {
 		logging.Fatalf("Error setting up wallets: \n%s", err)
 		return
 	}

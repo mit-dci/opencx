@@ -2,7 +2,6 @@ package cxserver
 
 import (
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -25,13 +24,11 @@ import (
 
 // OpencxServer is how rpc can query the database and whatnot
 type OpencxServer struct {
-	OpencxDB      cxdb.OpencxStore
-	OpencxRoot    string
-	OpencxPort    uint16
-	WallitRoot    string
-	ChainhookRoot string
-	LitRoot       string
-	AssetArray    []match.Asset
+	OpencxDB   cxdb.OpencxStore
+	OpencxPort uint16
+	OpencxRoot string
+	WallitRoot string
+	AssetArray []match.Asset
 
 	registrationString string
 	getOrdersString    string
@@ -71,11 +68,11 @@ func (server *OpencxServer) UnlockOrders() {
 }
 
 // InitServer creates a new server
-func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []*coinparam.Params) *OpencxServer {
-	server := &OpencxServer{
+func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []*coinparam.Params) (server *OpencxServer) {
+	server = &OpencxServer{
 		OpencxDB:           db,
-		OpencxRoot:         homedir,
 		OpencxPort:         rpcport,
+		OpencxRoot:         homedir,
 		registrationString: "opencx-register",
 		getOrdersString:    "opencx-getorders",
 		orderMutex:         new(sync.Mutex),
@@ -83,9 +80,6 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []
 		ingestMutex:        *new(sync.Mutex),
 		BlockChanMap:       make(map[int]chan *wire.MsgBlock),
 		HeightEventChanMap: make(map[int]chan lnutil.HeightEvent),
-		WallitRoot:         homedir + "wallit/",
-		ChainhookRoot:      homedir + "chainhook/",
-		LitRoot:            homedir + "lit/",
 
 		HookMap:    make(map[*coinparam.Params]*uspv.ChainHook),
 		WalletMap:  make(map[*coinparam.Params]*wallit.Wallit),
@@ -93,43 +87,6 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []
 
 		CoinList:        coinList,
 		defaultCapacity: 1000000,
-	}
-	var err error
-	// create wallit root directory
-	_, err = os.Stat(server.WallitRoot)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(server.WallitRoot, 0700)
-	}
-	if err != nil {
-		logging.Errorf("Error while creating a directory: \n%s", err)
-	}
-
-	// create chainhook root directory
-	_, err = os.Stat(server.ChainhookRoot)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(server.ChainhookRoot, 0700)
-	}
-	if err != nil {
-		logging.Errorf("Error while creating a directory: \n%s", err)
-	}
-
-	// create lit root directory
-	_, err = os.Stat(server.LitRoot)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(server.LitRoot, 0700)
-	}
-	if err != nil {
-		logging.Errorf("Error while creating a directory: \n%s", err)
-	}
-
-	return server
-}
-
-// SetupLitNode sets up the lit node for use later, I wanna do this because this really shouldn't be in initialization code? should it be?
-// basically just run this after you unlock the key
-func (server *OpencxServer) SetupLitNode(privkey *[32]byte, trackerURL string, proxyURL string, nat string) (err error) {
-	if server.ExchangeNode, err = qln.NewLitNode(privkey, server.LitRoot, trackerURL, proxyURL, nat); err != nil {
-		return
 	}
 
 	return
