@@ -164,14 +164,6 @@ func main() {
 	rpc1.OffButton = make(chan bool, 1)
 	rpc1.Server = ocxServer
 
-	// this tells us when the rpclisten is done
-	doneChan := make(chan bool, 1)
-
-	if !conf.AuthenticatedRPC {
-		logging.Infof(" === will start to listen on rpc ===")
-		go cxrpc.RPCListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
-	}
-
 	// Setup lit node rpc
 	go ocxServer.SetupLitRPCConnect(conf.Lithost, conf.Litport)
 
@@ -189,13 +181,26 @@ func main() {
 			// send off button to off button
 			rpc1.OffButton <- true
 
-			logging.Infof("Done handling %s, server stopped.", signal.String())
 			return
 		}
 	}()
 
-	// block until rpclisten is done
-	<-doneChan
+	if !conf.AuthenticatedRPC {
+		// this tells us when the rpclisten is done
+		doneChan := make(chan bool, 1)
+		logging.Infof(" === will start to listen on rpc ===")
+		go cxrpc.RPCListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
+		// block until rpclisten is done
+		<-doneChan
+	} else {
+		// // this tells us when the rpclisten is done
+		// doneChan := make(chan bool, 1)
+		// logging.Infof(" === will start to listen on rpc ===")
+		// go cxrpc.NoiseListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
+		// // block until rpclisten is done
+		// <-doneChan
+
+	}
 
 	return
 }
