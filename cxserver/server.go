@@ -57,6 +57,10 @@ type OpencxServer struct {
 	// remove this when we have some sense of how much money the exchange has and/or some fancy
 	// algorithms to determine this number based on reputation or something
 	defaultCapacity int64
+
+	// ugh we need an hdkeychain.ExtendedKey and we're using testnet params to generate it... this should
+	// be cleaner on the lit side of things
+	peerPrivKey *hdkeychain.ExtendedKey
 }
 
 // LockOrders locks the order mutex

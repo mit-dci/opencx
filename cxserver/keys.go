@@ -14,7 +14,11 @@ func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) (err error) {
 		return
 	}
 
-	return nil
+	if err = server.SetPeerPrivKey(privkey); err != nil {
+		return
+	}
+
+	return
 }
 
 // SetupManyKeys sets up many keys for the server based on an array of coinparams.
@@ -35,6 +39,17 @@ func (server *OpencxServer) SetupSingleKey(privkey *[32]byte, param *coinparam.P
 		return
 	}
 	server.PrivKeyMap[param] = rootKey
+
+	return
+}
+
+// SetPeerPrivKey sets the peer private key. This uses testnet parameters when getting a new master key. TODO: Change when lit changes this
+func (server *OpencxServer) SetPeerPrivKey(privkey *[32]byte) (err error) {
+
+	// TODO: Change this to a non-coin
+	if server.peerPrivKey, err = hdkeychain.NewMaster(privkey[:], &coinparam.TestNet3Params); err != nil {
+		return
+	}
 
 	return
 }

@@ -310,7 +310,25 @@ func (db *DB) GetUniquePeerIdx() (peerIdx uint32, err error) {
 		return
 	}
 
-	// TODO: Finish this function
+	var rows *sql.Rows
+	getMaxPeerIdxQuery := fmt.Sprintf("SELECT MAX(peerIdx) FROM %s;", db.peerSchema)
+	if rows, err = tx.Query(getMaxPeerIdxQuery); err != nil {
+		return
+	}
+
+	// Add row close to defer stack
+	defer func() {
+		if err = rows.Close(); err != nil {
+			err = fmt.Errorf("Error closing peer rows: \n%s", err)
+		}
+	}()
+
+	if rows.Next() {
+		if err = rows.Scan(&peerIdx); err != nil {
+			err = fmt.Errorf("Error scanning for max peer idx: \n%s", err)
+			return
+		}
+	}
 
 	return
 }
