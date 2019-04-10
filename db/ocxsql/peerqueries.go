@@ -31,7 +31,7 @@ func (db *DB) GetPeerAddrs() (lnAddresses []lncore.LnAddr, err error) {
 	}
 
 	var rows *sql.Rows
-	getPeerAddrsQuery := fmt.Sprintf("SELECT lnaddr FROM %s;", db.peerSchema)
+	getPeerAddrsQuery := fmt.Sprintf("SELECT lnaddr FROM %s;", db.peerTableName)
 	if rows, err = tx.Query(getPeerAddrsQuery); err != nil {
 		return
 	}
@@ -85,7 +85,7 @@ func (db *DB) GetPeerInfo(addr lncore.LnAddr) (peerInfo lncore.PeerInfo, err err
 	}
 
 	var rows *sql.Rows
-	getPeerInfoQuery := fmt.Sprintf("SELECT name, netaddr, peerIdx FROM %s WHERE lnaddr='%s';", db.peerSchema, addr.ToString())
+	getPeerInfoQuery := fmt.Sprintf("SELECT name, netaddr, peerIdx FROM %s WHERE lnaddr='%s';", db.peerTableName, addr.ToString())
 	if rows, err = tx.Query(getPeerInfoQuery); err != nil {
 		return
 	}
@@ -150,7 +150,7 @@ func (db *DB) GetPeerInfos() (peerInfos map[lncore.LnAddr]lncore.PeerInfo, err e
 
 	// TODO: Finish this function
 	var rows *sql.Rows
-	getPeerInfosQuery := fmt.Sprintf("SELECT lnaddr, name, netaddr, peerIdx FROM %s;", db.peerSchema)
+	getPeerInfosQuery := fmt.Sprintf("SELECT lnaddr, name, netaddr, peerIdx FROM %s;", db.peerTableName)
 	if rows, err = tx.Query(getPeerInfosQuery); err != nil {
 		return
 	}
@@ -218,7 +218,7 @@ func (db *DB) AddPeer(addr lncore.LnAddr, pi lncore.PeerInfo) (err error) {
 		return
 	}
 
-	addPeerQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %d);", db.peerSchema, pi.LnAddr.ToString(), *pi.NetAddr, *pi.Nickname, pi.PeerIdx)
+	addPeerQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', '%s', '%s', %d);", db.peerTableName, pi.LnAddr.ToString(), *pi.NetAddr, *pi.Nickname, pi.PeerIdx)
 	if _, err = tx.Exec(addPeerQuery); err != nil {
 		return
 	}
@@ -249,7 +249,7 @@ func (db *DB) UpdatePeer(addr lncore.LnAddr, pi *lncore.PeerInfo) (err error) {
 	}
 
 	// this should not be a bug, if you tell the database to update a lnaddr with a new lnaddr it will do it for you, right?
-	updatePeerQuery := fmt.Sprintf("UPDATE %s SET lnaddr='%s', netaddr='%s', name='%s', peerIdx=%d WHERE lnaddr='%s';", db.peerSchema, pi.LnAddr.ToString(), *pi.NetAddr, *pi.Nickname, pi.PeerIdx, addr.ToString())
+	updatePeerQuery := fmt.Sprintf("UPDATE %s SET lnaddr='%s', netaddr='%s', name='%s', peerIdx=%d WHERE lnaddr='%s';", db.peerTableName, pi.LnAddr.ToString(), *pi.NetAddr, *pi.Nickname, pi.PeerIdx, addr.ToString())
 	if _, err = tx.Exec(updatePeerQuery); err != nil {
 		return
 	}
@@ -280,7 +280,7 @@ func (db *DB) DeletePeer(addr lncore.LnAddr) (err error) {
 	}
 
 	// delete the peer from the peer table
-	deletePeerQuery := fmt.Sprintf("DELETE FROM %s WHERE lnaddr='%s';", db.peerSchema, addr.ToString())
+	deletePeerQuery := fmt.Sprintf("DELETE FROM %s WHERE lnaddr='%s';", db.peerTableName, addr.ToString())
 	if _, err = tx.Exec(deletePeerQuery); err != nil {
 		return
 	}
@@ -311,7 +311,7 @@ func (db *DB) GetUniquePeerIdx() (peerIdx uint32, err error) {
 	}
 
 	var rows *sql.Rows
-	getMaxPeerIdxQuery := fmt.Sprintf("SELECT MAX(peerIdx) FROM %s;", db.peerSchema)
+	getMaxPeerIdxQuery := fmt.Sprintf("SELECT MAX(peerIdx) FROM %s;", db.peerTableName)
 	if rows, err = tx.Query(getMaxPeerIdxQuery); err != nil {
 		return
 	}

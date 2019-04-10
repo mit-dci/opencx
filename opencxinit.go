@@ -16,6 +16,16 @@ import (
 	"github.com/mit-dci/opencx/logging"
 )
 
+var (
+
+	// used in init file, so separate
+	defaultLogLevel       = 0
+	defaultLitLogLevel    = 0
+	defaultConfigFilename = "opencx.conf"
+	defaultLogFilename    = "dblog.txt"
+	defaultKeyFileName    = "privkey.hex"
+)
+
 // createDefaultConfigFile creates a config file  -- only call this if the
 // config file isn't already there
 func createDefaultConfigFile(destinationPath string) error {

@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net"
-	"net/rpc"
 	"os"
+	"os/signal"
+	"syscall"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/cxrpc"
@@ -54,6 +53,9 @@ type opencxConfig struct {
 
 	// filename for key
 	KeyFileName string `long:"keyfilename" short:"k" description:"Filename for private key within root opencx directory used to send transactions"`
+
+	// auth or unauth rpc?
+	AuthenticatedRPC bool `long:"authrpc" description:"Whether or not to use authenticated RPC"`
 }
 
 var (
@@ -68,15 +70,9 @@ var (
 	defaultLithost           = "localhost"
 	defaultLitport           = uint16(12346)
 
-	// used in init file, so separate
-	defaultLogLevel       = 0
-	defaultLitLogLevel    = 0
-	defaultConfigFilename = "opencx.conf"
-	defaultLogFilename    = "dblog.txt"
-	defaultKeyFileName    = "privkey.hex"
+	// Auth rpc
+	defaultAuthenticatedRPC = true
 )
-
-var orderBufferSize = 1
 
 // newConfigParser returns a new command line flags parser.
 func newConfigParser(conf *opencxConfig, options flags.Options) *flags.Parser {
@@ -88,13 +84,14 @@ func main() {
 	var err error
 
 	conf := opencxConfig{
-		OpencxHomeDir: defaultOpencxHomeDirName,
-		Rpcport:       defaultRpcport,
-		Rpchost:       defaultRpchost,
-		MaxPeers:      defaultMaxPeers,
-		MinPeerPort:   defaultMinPeerPort,
-		Lithost:       defaultLithost,
-		Litport:       defaultLitport,
+		OpencxHomeDir:    defaultOpencxHomeDirName,
+		Rpcport:          defaultRpcport,
+		Rpchost:          defaultRpchost,
+		MaxPeers:         defaultMaxPeers,
+		MinPeerPort:      defaultMinPeerPort,
+		Lithost:          defaultLithost,
+		Litport:          defaultLitport,
+		AuthenticatedRPC: defaultAuthenticatedRPC,
 	}
 
 	// Check and load config params
@@ -164,23 +161,41 @@ func main() {
 
 	// Register RPC Commands and set server
 	rpc1 := new(cxrpc.OpencxRPC)
+	rpc1.OffButton = make(chan bool, 1)
 	rpc1.Server = ocxServer
 
-	if err = rpc.Register(rpc1); err != nil {
-		logging.Fatalf("Error registering RPC Interface:\n%s", err)
-	}
+	// this tells us when the rpclisten is done
+	doneChan := make(chan bool, 1)
 
-	// Start RPC Server
-	var listener net.Listener
-	if listener, err = net.Listen("tcp", conf.Rpchost+":"+fmt.Sprintf("%d", conf.Rpcport)); err != nil {
-		logging.Fatal("listen error:", err)
+	if !conf.AuthenticatedRPC {
+		logging.Infof(" === will start to listen on rpc ===")
+		go cxrpc.RPCListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
 	}
-	logging.Infof("Running RPC server on %s\n", listener.Addr().String())
 
 	// Setup lit node rpc
 	go ocxServer.SetupLitRPCConnect(conf.Lithost, conf.Litport)
 
-	defer listener.Close()
-	rpc.Accept(listener)
+	// SIGINT and SIGTERM and SIGQUIT handler for CTRL-c, KILL, CTRL-/, etc.
+	go func() {
+		logging.Infof("Notifying signals")
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGQUIT)
+		signal.Notify(sigs, syscall.SIGTERM)
+		signal.Notify(sigs, syscall.SIGINT)
+		for {
+			signal := <-sigs
+			logging.Infof("Received %s signal, Stopping server gracefully...", signal.String())
 
+			// send off button to off button
+			rpc1.OffButton <- true
+
+			logging.Infof("Done handling %s, server stopped.", signal.String())
+			return
+		}
+	}()
+
+	// block until rpclisten is done
+	<-doneChan
+
+	return
 }

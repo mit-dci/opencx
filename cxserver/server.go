@@ -24,7 +24,8 @@ import (
 	"github.com/mit-dci/opencx/match"
 )
 
-// OpencxServer is how rpc can query the database and whatnot
+// OpencxServer is what orchestrates the exchange. It's where you plug everything into basically.
+// The Server looks spookily like a node.
 type OpencxServer struct {
 	OpencxDB   cxdb.OpencxStore
 	OpencxPort uint16

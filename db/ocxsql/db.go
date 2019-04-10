@@ -23,6 +23,7 @@ var (
 	pendingDepositSchema = "pending_deposits"
 	orderSchema          = "orders"
 	peerSchema           = "peers"
+	peerTableName        = "opencxpeers"
 )
 
 // the globalread and globalwrite variables are for debugging
@@ -50,6 +51,8 @@ type DB struct {
 
 	// name of peer schema
 	peerSchema string
+	// name of peer table
+	peerTableName string
 
 	// list of all coins supported, passed in from above
 	coinList []*coinparam.Params
@@ -89,6 +92,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	db.pendingDepositSchema = pendingDepositSchema
 	db.orderSchema = orderSchema
 	db.peerSchema = peerSchema
+	db.peerTableName = peerTableName
 	// Create users and schemas and assign permissions to opencx
 	if err = db.RootInitSchemas(); err != nil {
 		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
@@ -156,7 +160,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 
 	// Initialize peer table
 	// TODO: change this when peeridx is deprecated, if it ever is
-	if err = db.InitializeTables(db.peerSchema, "lnaddr VARBINARY(40), name TEXT, netaddr TEXT, peerIdx INT(32) UNSIGNED"); err != nil {
+	if err = db.InitializeSingleTable(db.peerSchema, db.peerTableName, "lnaddr VARBINARY(40), name TEXT, netaddr TEXT, peerIdx INT(32) UNSIGNED"); err != nil {
 		err = fmt.Errorf("Could not initialize peer tables: \n%s", err)
 		return
 	}
@@ -164,7 +168,23 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	return
 }
 
-// InitializeTables initializes all of the tables necessary for the exchange to run.
+// InitializeSingleTable initializes a single table in a schema
+func (db *DB) InitializeSingleTable(schemaName string, tableName string, schemaSpec string) (err error) {
+
+	// Use the schema
+	if _, err = db.DBHandler.Exec("USE " + schemaName + ";"); err != nil {
+		err = fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
+		return
+	}
+	tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", tableName, schemaSpec)
+	if _, err = db.DBHandler.Exec(tableQuery); err != nil {
+		err = fmt.Errorf("Could not create table %s: \n%s", tableName, err)
+		return
+	}
+	return
+}
+
+// InitializeTables initializes all of the tables necessary for the exchange to run, using the coin list that is set up.
 func (db *DB) InitializeTables(schemaName string, schemaSpec string) (err error) {
 
 	// Use the schema
@@ -253,6 +273,11 @@ func (db *DB) RootInitSchemas() (err error) {
 	}
 
 	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.orderSchema); err != nil {
+		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+		return
+	}
+
+	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.peerSchema); err != nil {
 		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
 		return
 	}
