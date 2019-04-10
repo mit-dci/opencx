@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/mit-dci/lit/lnp2p"
+
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	"golang.org/x/crypto/sha3"
@@ -27,11 +29,11 @@ type OpencxServer struct {
 	OpencxDB   cxdb.OpencxStore
 	OpencxPort uint16
 	OpencxRoot string
-	WallitRoot string
-	AssetArray []match.Asset
 
 	registrationString string
 	getOrdersString    string
+
+	PeerManager *lnp2p.PeerManager
 
 	ExchangeNode *qln.LitNode
 

@@ -22,6 +22,7 @@ var (
 	depositSchema        = "deposit"
 	pendingDepositSchema = "pending_deposits"
 	orderSchema          = "orders"
+	peerSchema           = "peers"
 )
 
 // the globalread and globalwrite variables are for debugging
@@ -29,7 +30,8 @@ var (
 // DB contains the sql DB type as well as a logger.
 // The database is a BEHEMOTH, should be refactored. Some examples on how to refactor are cleaning up mutexes, creating config file for all the globals,
 // What would be great is to move everything having to do with price and matching into match and making match more like a matching engine framework
-// or library for exchanges.
+// or library for exchanges. This should conform to the cxdb interface, and if the server uses the noise protocol / authenticated networking, or anything
+// that requires conforming to the lncore.LitPeerStorage interface, it should conform to that as well.
 type DB struct {
 	// the SQL handler for the db
 	DBHandler *sql.DB
@@ -45,6 +47,9 @@ type DB struct {
 
 	// name of order schema
 	orderSchema string
+
+	// name of peer schema
+	peerSchema string
 
 	// list of all coins supported, passed in from above
 	coinList []*coinparam.Params
@@ -83,6 +88,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	db.depositSchema = depositSchema
 	db.pendingDepositSchema = pendingDepositSchema
 	db.orderSchema = orderSchema
+	db.peerSchema = peerSchema
 	// Create users and schemas and assign permissions to opencx
 	if err = db.RootInitSchemas(); err != nil {
 		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
@@ -136,7 +142,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	}
 
 	// Initialize pending_deposits table
-	if err = db.InitializeNewTables(db.pendingDepositSchema, "pubkey VARBINARY(66), expectedConfirmHeight INT(32), depositHeight INT(32), amount BIGINT(64), txid TEXT"); err != nil {
+	if err = db.InitializeNewTables(db.pendingDepositSchema, "pubkey VARBINARY(66), expectedConfirmHeight INT(32) UNSIGNED, depositHeight INT(32) UNSIGNED, amount BIGINT(64), txid TEXT"); err != nil {
 		err = fmt.Errorf("Could not initialize pending deposit tables: \n%s", err)
 		return
 	}
@@ -145,6 +151,13 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	// You can have a price up to 30 digits total, and 10 decimal places.
 	if err = db.InitializePairTables(db.orderSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP"); err != nil {
 		err = fmt.Errorf("Could not initialize order tables: \n%s", err)
+		return
+	}
+
+	// Initialize peer table
+	// TODO: change this when peeridx is deprecated, if it ever is
+	if err = db.InitializeTables(db.peerSchema, "lnaddr VARBINARY(40), name TEXT, netaddr TEXT, peerIdx INT(32) UNSIGNED"); err != nil {
+		err = fmt.Errorf("Could not initialize peer tables: \n%s", err)
 		return
 	}
 
