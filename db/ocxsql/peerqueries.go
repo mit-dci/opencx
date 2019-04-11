@@ -63,7 +63,7 @@ func (db *DB) GetPeerAddrs() (lnAddresses []lncore.LnAddr, err error) {
 }
 
 // GetPeerInfo gets the peer info for a specific lnaddr
-func (db *DB) GetPeerInfo(addr lncore.LnAddr) (peerInfo lncore.PeerInfo, err error) {
+func (db *DB) GetPeerInfo(addr lncore.LnAddr) (peerInfo *lncore.PeerInfo, err error) {
 
 	var tx *sql.Tx
 	if tx, err = db.DBHandler.Begin(); err != nil {
@@ -116,7 +116,7 @@ func (db *DB) GetPeerInfo(addr lncore.LnAddr) (peerInfo lncore.PeerInfo, err err
 	}
 
 	// actually set the data to return
-	peerInfo = lncore.PeerInfo{
+	peerInfo = &lncore.PeerInfo{
 		LnAddr:   &addr,
 		Nickname: &nickname,
 		NetAddr:  &netAddr,
