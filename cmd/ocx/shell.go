@@ -24,7 +24,7 @@ var helpCommand = &Command{
 	ShortDescription: "Show information about a given command\n",
 }
 
-func (cl *openCxClient) parseCommands(commands []string) error {
+func (cl *ocxClient) parseCommands(commands []string) error {
 	var args []string
 
 	if len(commands) == 0 {
@@ -196,7 +196,7 @@ func printHelp(commands []*Command) {
 	}
 }
 
-func (cl *openCxClient) Help(textArgs []string) error {
+func (cl *ocxClient) Help(textArgs []string) error {
 	if len(textArgs) == 0 {
 
 		fmt.Fprintf(color.Output, lnutil.Header("Commands:\n"))

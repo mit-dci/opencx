@@ -19,7 +19,7 @@ import (
 	"github.com/mit-dci/opencx/logging"
 )
 
-type openCxClient struct {
+type ocxClient struct {
 	KeyPath   string
 	RPCClient *benchclient.BenchClient
 }
@@ -64,7 +64,7 @@ func newConfigParser(conf *ocxConfig, options flags.Options) *flags.Parser {
 // opencx-cli is the client, opencx is the server
 func main() {
 	var err error
-	var client openCxClient
+	var client ocxClient
 
 	conf := &ocxConfig{
 		OcxHomeDir:  defaultOcxHomeDirName,
@@ -101,11 +101,11 @@ func main() {
 	}
 }
 
-func (cl *openCxClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+func (cl *ocxClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	return cl.RPCClient.Call(serviceMethod, args, reply)
 }
 
-func (cl *openCxClient) UnlockKey() (err error) {
+func (cl *ocxClient) UnlockKey() (err error) {
 	var keyFromFile *[32]byte
 	logging.Infof("client keypath: %s", cl.KeyPath)
 	if keyFromFile, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
@@ -137,7 +137,7 @@ func (cl *openCxClient) UnlockKey() (err error) {
 // SignBytes is used in the register method because that's an interactive process.
 // BenchClient shouldn't be responsible for interactive stuff, just providing a good
 // Go API for the RPC methods the exchange offers.
-func (cl *openCxClient) SignBytes(bytes []byte) (signature []byte, err error) {
+func (cl *ocxClient) SignBytes(bytes []byte) (signature []byte, err error) {
 
 	sha := sha3.New256()
 	sha.Write(bytes)
@@ -152,7 +152,7 @@ func (cl *openCxClient) SignBytes(bytes []byte) (signature []byte, err error) {
 }
 
 // RetreivePublicKey returns the public key if it's been unlocked.
-func (cl *openCxClient) RetreivePublicKey() (pubkey *koblitz.PublicKey) {
+func (cl *ocxClient) RetreivePublicKey() (pubkey *koblitz.PublicKey) {
 	pubkey = cl.RPCClient.PrivKey.PubKey()
 	return
 }

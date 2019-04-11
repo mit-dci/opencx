@@ -17,7 +17,7 @@ var getLitConnectionCommand = &Command{
 	ShortDescription: fmt.Sprintf("%s\n", "Get the lightning node address and hostname in order to connect to the exchange and open up a channel."),
 }
 
-func (cl *openCxClient) GetLitConnection(args []string) (err error) {
+func (cl *ocxClient) GetLitConnection(args []string) (err error) {
 	getLitConnectionReply := new(cxrpc.GetLitConnectionReply)
 
 	if getLitConnectionReply, err = cl.RPCClient.GetLitConnection(); err != nil {

@@ -24,7 +24,7 @@ var placeOrderCommand = &Command{
 }
 
 // OrderCommand submits an order (for now)
-func (cl *openCxClient) OrderCommand(args []string) (err error) {
+func (cl *ocxClient) OrderCommand(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
@@ -63,7 +63,7 @@ var getPriceCommand = &Command{
 }
 
 // GetPrice prints the price for the asset
-func (cl *openCxClient) GetPrice(args []string) (err error) {
+func (cl *ocxClient) GetPrice(args []string) (err error) {
 	assetString := args[0]
 
 	var getPriceReply *cxrpc.GetPriceReply
@@ -84,7 +84,7 @@ var viewOrderbookCommand = &Command{
 }
 
 // ViewOrderbook prints the orderbook
-func (cl *openCxClient) ViewOrderbook(args []string) (err error) {
+func (cl *ocxClient) ViewOrderbook(args []string) (err error) {
 
 	pair := args[0]
 	var viewOrderbookReply *cxrpc.ViewOrderBookReply
@@ -144,7 +144,7 @@ var cancelOrderCommand = &Command{
 }
 
 // CancelOrder calls the cancel order rpc command
-func (cl *openCxClient) CancelOrder(args []string) (err error) {
+func (cl *ocxClient) CancelOrder(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
@@ -169,7 +169,7 @@ var getPairsCommand = &Command{
 }
 
 // GetPairs gets the available trading pairs
-func (cl *openCxClient) GetPairs() (err error) {
+func (cl *ocxClient) GetPairs() (err error) {
 	var getPairsReply *cxrpc.GetPairsReply
 	if getPairsReply, err = cl.RPCClient.GetPairs(); err != nil {
 		return

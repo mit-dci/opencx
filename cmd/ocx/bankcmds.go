@@ -20,7 +20,7 @@ var getBalanceCommand = &Command{
 	ShortDescription: fmt.Sprintf("%s\n", "Get your balance of asset. You must be registered to run this command."),
 }
 
-func (cl *openCxClient) GetBalance(args []string) (err error) {
+func (cl *ocxClient) GetBalance(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
@@ -45,7 +45,7 @@ var getDepositAddressCommand = &Command{
 	ShortDescription: fmt.Sprintf("%s\n", "Get the deposit address for the given asset."),
 }
 
-func (cl *openCxClient) GetDepositAddress(args []string) (err error) {
+func (cl *ocxClient) GetDepositAddress(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
@@ -70,7 +70,7 @@ var getAllBalancesCommand = &Command{
 }
 
 // GetAllBalances get the balance for every token
-func (cl *openCxClient) GetAllBalances(args []string) (err error) {
+func (cl *ocxClient) GetAllBalances(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
@@ -96,7 +96,7 @@ var withdrawCommand = &Command{
 	ShortDescription: fmt.Sprintf("%s\n", "Withdraw amount of asset into recvaddress."),
 }
 
-func (cl *openCxClient) Withdraw(args []string) (err error) {
+func (cl *ocxClient) Withdraw(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
@@ -131,7 +131,7 @@ var litWithdrawCommand = &Command{
 	ShortDescription: fmt.Sprintf("%s\n", "Withdraw amount of asset for lightning."),
 }
 
-func (cl *openCxClient) LitWithdraw(args []string) (err error) {
+func (cl *ocxClient) LitWithdraw(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}

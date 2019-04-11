@@ -18,7 +18,7 @@ var registerCommand = &Command{
 }
 
 // Register registers the user for an account with a username and password
-func (cl *openCxClient) Register(args []string) (err error) {
+func (cl *ocxClient) Register(args []string) (err error) {
 	if err = cl.UnlockKey(); err != nil {
 		logging.Fatalf("Could not unlock key! Fatal!")
 	}
