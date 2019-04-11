@@ -6,6 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
@@ -167,7 +169,6 @@ func main() {
 	// Setup lit node rpc
 	go ocxServer.SetupLitRPCConnect(conf.Lithost, conf.Litport)
 
-	noiseDoneChan := make(chan bool, 1)
 	// SIGINT and SIGTERM and SIGQUIT handler for CTRL-c, KILL, CTRL-/, etc.
 	go func() {
 		logging.Infof("Notifying signals")
@@ -181,7 +182,6 @@ func main() {
 
 			// send off button to off button
 			rpc1.OffButton <- true
-			noiseDoneChan <- true
 
 			return
 		}
@@ -195,26 +195,13 @@ func main() {
 		// block until rpclisten is done
 		<-doneChan
 	} else {
-		// // this tells us when the rpclisten is done
-		// doneChan := make(chan bool, 1)
-		// logging.Infof(" === will start to listen on rpc ===")
-		// go cxrpc.NoiseListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
-		// // block until rpclisten is done
-		// <-doneChan
 
-		// Here we use the same db we passed into InitServer
-		if err = ocxServer.SetupP2PWithDatabase("", db); err != nil {
-			logging.Errorf("Error setting up p2p: %s", err)
-			return
-		}
-
-		if err = ocxServer.ListenForPeers(conf.Rpcport); err != nil {
-			logging.Errorf("Error listening for peers: %s", err)
-			return
-		}
-
-		logging.Infof("done starting to listen for peers")
-		<-noiseDoneChan
+		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
+		// this tells us when the rpclisten is done
+		doneChan := make(chan bool, 1)
+		logging.Infof(" === will start to listen on rpc ===")
+		go cxrpc.NoiseListenAsync(doneChan, privkey, rpc1, conf.Rpchost, conf.Rpcport)
+		<-doneChan
 
 	}
 
