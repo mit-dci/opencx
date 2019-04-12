@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -22,6 +23,7 @@ import (
 type ocxClient struct {
 	KeyPath   string
 	RPCClient *benchclient.BenchClient
+	unlocked  bool
 }
 
 type ocxConfig struct {
@@ -41,18 +43,22 @@ type ocxConfig struct {
 
 	// logging and debug parameters
 	LogLevel []bool `short:"v" description:"Set verbosity level to verbose (-v), very verbose (-vv) or very very verbose (-vvv)"`
+
+	// auth or unauth rpc?
+	AuthenticatedRPC bool `long:"authrpc" description:"Whether or not to use authenticated RPC"`
 }
 
 // Let these be turned into config things at some point
 var (
-	defaultConfigFilename = "ocx.conf"
-	defaultLogFilename    = "ocxlog.txt"
-	defaultOcxHomeDirName = os.Getenv("HOME") + "/.ocx/"
-	defaultKeyFileName    = defaultOcxHomeDirName + "privkey.hex"
-	defaultLogLevel       = 0
-	defaultHomeDir        = os.Getenv("HOME")
-	defaultRpcport        = uint16(12345)
-	defaultRpchost        = "hubris.media.mit.edu"
+	defaultConfigFilename   = "ocx.conf"
+	defaultLogFilename      = "ocxlog.txt"
+	defaultOcxHomeDirName   = os.Getenv("HOME") + "/.ocx/"
+	defaultKeyFileName      = defaultOcxHomeDirName + "privkey.hex"
+	defaultLogLevel         = 0
+	defaultHomeDir          = os.Getenv("HOME")
+	defaultRpcport          = uint16(12345)
+	defaultRpchost          = "hubris.media.mit.edu"
+	defaultAuthenticatedRPC = true
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -67,12 +73,13 @@ func main() {
 	var client ocxClient
 
 	conf := &ocxConfig{
-		OcxHomeDir:  defaultOcxHomeDirName,
-		Rpchost:     defaultRpchost,
-		Rpcport:     defaultRpcport,
-		LogFilename: defaultLogFilename,
-		KeyFileName: defaultKeyFileName,
-		ConfigFile:  defaultConfigFilename,
+		OcxHomeDir:       defaultOcxHomeDirName,
+		Rpchost:          defaultRpchost,
+		Rpcport:          defaultRpcport,
+		LogFilename:      defaultLogFilename,
+		KeyFileName:      defaultKeyFileName,
+		ConfigFile:       defaultConfigFilename,
+		AuthenticatedRPC: defaultAuthenticatedRPC,
 	}
 
 	if didWriteHelp := ocxSetup(conf); didWriteHelp {
@@ -92,8 +99,19 @@ func main() {
 	}
 	client.KeyPath = filepath.Join(conf.KeyFileName)
 	client.RPCClient = new(benchclient.BenchClient)
-	if err = client.RPCClient.SetupBenchClient(conf.Rpchost, conf.Rpcport); err != nil {
-		logging.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
+	if !conf.AuthenticatedRPC {
+		if err = client.RPCClient.SetupBenchClient(conf.Rpchost, conf.Rpcport); err != nil {
+			logging.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
+		}
+	} else {
+		// We have to unlock the key twice, once for handshake and again for commands
+		if err = client.UnlockKey(); err != nil {
+			return
+		}
+		if err = client.RPCClient.SetupBenchNoiseClient(conf.Rpchost, conf.Rpcport); err != nil {
+			logging.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
+		}
+
 	}
 
 	if err = client.parseCommands(os.Args[1:]); err != nil {
@@ -106,29 +124,35 @@ func (cl *ocxClient) Call(serviceMethod string, args interface{}, reply interfac
 }
 
 func (cl *ocxClient) UnlockKey() (err error) {
-	var keyFromFile *[32]byte
-	logging.Infof("client keypath: %s", cl.KeyPath)
-	if keyFromFile, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
-		logging.Errorf("Error reading key from file: \n%s", err)
-		return
-	}
+	// if we're not unlocked and the client is fine too then don't bother
+	if !cl.unlocked || cl.RPCClient.PrivKey == nil {
+		var keyFromFile *[32]byte
+		logging.Infof("client keypath: %s", cl.KeyPath)
+		if keyFromFile, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
+			logging.Errorf("Error reading key from file: \n%s", err)
+			return
+		}
 
-	// We use TestNet3Params because that's what qln uses
-	var rootPrivKey *hdkeychain.ExtendedKey
-	if rootPrivKey, err = hdkeychain.NewMaster(keyFromFile[:], &coinparam.TestNet3Params); err != nil {
-		return
-	}
+		// We use TestNet3Params because that's what qln uses
+		var rootPrivKey *hdkeychain.ExtendedKey
+		if rootPrivKey, err = hdkeychain.NewMaster(keyFromFile[:], &coinparam.TestNet3Params); err != nil {
+			return
+		}
 
-	// make keygen the same
-	var kg portxo.KeyGen
-	kg.Depth = 5
-	kg.Step[0] = 44 | 1<<31
-	kg.Step[1] = 513 | 1<<31
-	kg.Step[2] = 9 | 1<<31
-	kg.Step[3] = 0 | 1<<31
-	kg.Step[4] = 0 | 1<<31
-	if cl.RPCClient.PrivKey, err = kg.DerivePrivateKey(rootPrivKey); err != nil {
-		return
+		// make keygen the same
+		var kg portxo.KeyGen
+		kg.Depth = 5
+		kg.Step[0] = 44 | 1<<31
+		kg.Step[1] = 513 | 1<<31
+		kg.Step[2] = 9 | 1<<31
+		kg.Step[3] = 0 | 1<<31
+		kg.Step[4] = 0 | 1<<31
+		if cl.RPCClient.PrivKey, err = kg.DerivePrivateKey(rootPrivKey); err != nil {
+			return
+		}
+		cl.unlocked = true
+	} else {
+		logging.Infof("Using already unlocked key")
 	}
 
 	return
@@ -152,7 +176,11 @@ func (cl *ocxClient) SignBytes(bytes []byte) (signature []byte, err error) {
 }
 
 // RetreivePublicKey returns the public key if it's been unlocked.
-func (cl *ocxClient) RetreivePublicKey() (pubkey *koblitz.PublicKey) {
+func (cl *ocxClient) RetreivePublicKey() (pubkey *koblitz.PublicKey, err error) {
+	if !cl.unlocked {
+		err = fmt.Errorf("Key not unlocked, cannot retreive pubkey")
+		return
+	}
 	pubkey = cl.RPCClient.PrivKey.PubKey()
 	return
 }
