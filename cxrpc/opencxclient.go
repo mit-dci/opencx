@@ -120,7 +120,11 @@ func (cl *OpencxNoiseClient) Call(serviceMethod string, args interface{}, reply 
 }
 
 // SetKey sets the private key for the noise client.
-func (cl *OpencxNoiseClient) SetKey(privkey *koblitz.PrivateKey) {
+func (cl *OpencxNoiseClient) SetKey(privkey *koblitz.PrivateKey) (err error) {
+	if privkey == nil {
+		err = fmt.Errorf("Cannot set nil key")
+		return
+	}
 	cl.key = privkey
 	return
 }

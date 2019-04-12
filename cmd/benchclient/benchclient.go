@@ -32,7 +32,9 @@ func (cl *BenchClient) SetupBenchNoiseClient(server string, port uint16) (err er
 
 	// Authenticate with the same key that BenchClient uses for signatures
 	noiseClient := new(cxrpc.OpencxNoiseClient)
-	noiseClient.SetKey(cl.PrivKey)
+	if err = noiseClient.SetKey(cl.PrivKey); err != nil {
+		return
+	}
 
 	// Now that the key is set we can start doing stuff.
 	cl.RPCClient = noiseClient

@@ -3,6 +3,7 @@ package cxbenchmark
 import (
 	"log"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/cmd/benchclient"
 	"github.com/mit-dci/opencx/logging"
 )
@@ -14,15 +15,37 @@ var (
 )
 
 // SetupBenchmark sets up the benchmark and returns the client
-func SetupBenchmark() *benchclient.BenchClient {
+func SetupBenchmark() (client *benchclient.BenchClient) {
 	var err error
 
 	logging.SetLogLevel(2)
 
-	client := new(benchclient.BenchClient)
+	client = new(benchclient.BenchClient)
 	if err = client.SetupBenchClient(defaultServer, defaultPort); err != nil {
 		log.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
 	}
 
-	return client
+	return
+}
+
+// SetupNoiseBenchmark sets up the benchmark and returns the client
+func SetupNoiseBenchmark() (client *benchclient.BenchClient) {
+	var err error
+
+	logging.SetLogLevel(2)
+
+	var clientPrivKey *koblitz.PrivateKey
+	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		log.Fatalf("Error setting key for client: \n%s", err)
+	}
+
+	client = &benchclient.BenchClient{
+		PrivKey: clientPrivKey,
+	}
+
+	if err = client.SetupBenchNoiseClient(defaultServer, defaultPort); err != nil {
+		log.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
+	}
+
+	return
 }
