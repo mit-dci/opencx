@@ -119,14 +119,25 @@ func (cl *OpencxNoiseClient) Call(serviceMethod string, args interface{}, reply 
 	return
 }
 
+// SetKey sets the private key for the noise client.
+func (cl *OpencxNoiseClient) SetKey(privkey *koblitz.PrivateKey) {
+	cl.key = privkey
+	return
+}
+
 // SetupConnection creates a new RPC client
 func (cl *OpencxNoiseClient) SetupConnection(server string, port uint16) (err error) {
+
+	if cl.key == nil {
+		err = fmt.Errorf("Please set the key for the noise client to create a connection")
+		return
+	}
 
 	// Create a map of chan objects to receive returned responses on. These channels
 	// are sent to from the ReceiveLoop, and awaited in the Call method.
 	cl.responseChannels = make(map[uint64]chan lnutil.RemoteControlRpcResponseMsg)
 
-	// Dial a connection to the lit node
+	// Dial a connection to the server
 	if cl.Conn, err = cxnoise.Dial(cl.key, server, []byte("opencx"), net.Dial); err != nil {
 		return
 	}
@@ -141,7 +152,6 @@ func (cl *OpencxNoiseClient) SetupConnection(server string, port uint16) (err er
 func (cl *OpencxNoiseClient) ReceiveLoop() {
 	for {
 		msg := make([]byte, 1<<24)
-		//	log.Printf("read message from %x\n", l.RemoteLNId)
 		n, err := cl.Conn.Read(msg)
 		if err != nil {
 			logging.Warnf("Error reading message from CXNOISE: %s\n", err.Error())

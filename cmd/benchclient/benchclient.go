@@ -9,7 +9,7 @@ import (
 type BenchClient struct {
 	hostname  string
 	port      uint16
-	RPCClient *cxrpc.OpencxRPCClient
+	RPCClient cxrpc.OpencxClient
 	PrivKey   *koblitz.PrivateKey
 }
 
@@ -24,7 +24,27 @@ func (cl *BenchClient) SetupBenchClient(server string, port uint16) (err error) 
 		return
 	}
 
-	return nil
+	return
+}
+
+// SetupBenchNoiseClient create a new BenchClient for use as an RPC-Noise Client
+func (cl *BenchClient) SetupBenchNoiseClient(server string, port uint16) (err error) {
+
+	// Authenticate with the same key that BenchClient uses for signatures
+	noiseClient := new(cxrpc.OpencxNoiseClient)
+	noiseClient.SetKey(cl.PrivKey)
+
+	// Now that the key is set we can start doing stuff.
+	cl.RPCClient = noiseClient
+	cl.hostname = server
+	cl.port = port
+
+	// we set the privkey here because we aren't using a command line to send orders
+	if err = cl.RPCClient.SetupConnection(server, port); err != nil {
+		return
+	}
+
+	return
 }
 
 // Call calls a method from the rpc client
