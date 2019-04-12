@@ -13,7 +13,7 @@ import (
 	"github.com/mit-dci/opencx/logging"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/lit/lndc"
+	"github.com/mit-dci/opencx/cxnoise"
 )
 
 // OpencxClient is an interface defining the methods a client should implement.
@@ -31,7 +31,7 @@ type OpencxRPCClient struct {
 
 // OpencxNoiseClient is an authenticated RPC Client for the opencx Server
 type OpencxNoiseClient struct {
-	Conn               *lndc.Conn
+	Conn               *cxnoise.Conn
 	key                *koblitz.PrivateKey
 	requestNonce       uint64
 	requestNonceMtx    sync.Mutex
@@ -127,7 +127,7 @@ func (cl *OpencxNoiseClient) SetupConnection(server string, port uint16) (err er
 	cl.responseChannels = make(map[uint64]chan lnutil.RemoteControlRpcResponseMsg)
 
 	// Dial a connection to the lit node
-	if cl.Conn, err = lndc.Dial(cl.key, server, "", net.Dial); err != nil {
+	if cl.Conn, err = cxnoise.Dial(cl.key, server, []byte("opencx"), net.Dial); err != nil {
 		return
 	}
 
@@ -136,7 +136,7 @@ func (cl *OpencxNoiseClient) SetupConnection(server string, port uint16) (err er
 	return
 }
 
-// ReceiveLoop reads messages from the LNDC connection and check if they are
+// ReceiveLoop reads messages from the CXNOISE connection and check if they are
 // RPC responses
 func (cl *OpencxNoiseClient) ReceiveLoop() {
 	for {
@@ -144,7 +144,7 @@ func (cl *OpencxNoiseClient) ReceiveLoop() {
 		//	log.Printf("read message from %x\n", l.RemoteLNId)
 		n, err := cl.Conn.Read(msg)
 		if err != nil {
-			logging.Warnf("Error reading message from LNDC: %s\n", err.Error())
+			logging.Warnf("Error reading message from CXNOISE: %s\n", err.Error())
 			cl.Conn.Close()
 			return
 		}
