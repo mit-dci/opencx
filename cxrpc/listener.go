@@ -7,7 +7,7 @@ import (
 	"net/rpc"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/lit/lndc"
+	"github.com/mit-dci/opencx/cxnoise"
 	"github.com/mit-dci/opencx/logging"
 )
 
@@ -34,7 +34,7 @@ func NoiseListenAsync(doneChan chan bool, privkey *koblitz.PrivateKey, rpc1 *Ope
 	logging.Infof("Starting RPC Server over noise protocol")
 	// Start RPC Server
 	var listener net.Listener
-	if listener, err = lndc.NewListener(privkey, int(port)); err != nil {
+	if listener, err = cxnoise.NewListener(privkey, int(port)); err != nil {
 		logging.Fatal("listen error:", err)
 	}
 	logging.Infof("Running RPC-Noise server on %s\n", listener.Addr().String())
