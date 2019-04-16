@@ -143,6 +143,9 @@ It's also imperative for any decentralized exchange that doesn't rely on redunda
 The idea of a publicly auditable exchange is good, but they still have all of the control.
 The idea of a decentralized exchange is good, but it's really hard to prove that you provide the correct service without trust.
 
+### Quantify Optionality
+Figure out, maybe based on historical data, see how much it matters / how much you could make based on price. Could simulate these.
+
 #### Decentralization notes
 
 One note for decentralization: This is a really good reason why orderbooks shouldn't be kept on blockchains (like some people would want). The occasional 1 or 2 block reorg would screw everything up even if you got everything else solved & right.
