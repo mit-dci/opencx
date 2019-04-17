@@ -3,7 +3,6 @@ package cxrpc
 import (
 	"fmt"
 	"net"
-	"net/http"
 	"net/rpc"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -39,6 +38,8 @@ func NoiseListenAsync(doneChan chan bool, privkey *koblitz.PrivateKey, rpc1 *Ope
 	}
 	logging.Infof("Running RPC-Noise server on %s\n", listener.Addr().String())
 
+	go rpc.Accept(listener)
+
 	OffButtonCloseListener(rpc1, listener)
 	doneChan <- true
 	return
@@ -72,8 +73,7 @@ func RPCListenAsync(doneChan chan bool, rpc1 *OpencxRPC, host string, port uint1
 	}
 	logging.Infof("Running RPC server on %s\n", listener.Addr().String())
 
-	rpc.HandleHTTP()
-	go http.Serve(listener, nil)
+	go rpc.Accept(listener)
 
 	OffButtonCloseListener(rpc1, listener)
 	doneChan <- true

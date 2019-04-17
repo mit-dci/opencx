@@ -71,6 +71,7 @@ func (cl *OpencxNoiseClient) Call(serviceMethod string, args interface{}, reply 
 
 	// send the message in a goroutine
 	go func() {
+
 		msg := new(lnutil.RemoteControlRpcRequestMsg)
 		msg.Args, err = json.Marshal(args)
 		msg.Idx = nonce
@@ -137,12 +138,13 @@ func (cl *OpencxNoiseClient) SetupConnection(server string, port uint16) (err er
 		return
 	}
 
+	serverAddr := server + ":" + fmt.Sprintf("%d", port)
 	// Create a map of chan objects to receive returned responses on. These channels
 	// are sent to from the ReceiveLoop, and awaited in the Call method.
 	cl.responseChannels = make(map[uint64]chan lnutil.RemoteControlRpcResponseMsg)
 
 	// Dial a connection to the server
-	if cl.Conn, err = cxnoise.Dial(cl.key, server, []byte("opencx"), net.Dial); err != nil {
+	if cl.Conn, err = cxnoise.Dial(cl.key, serverAddr, []byte("opencx"), net.Dial); err != nil {
 		return
 	}
 
