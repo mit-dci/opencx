@@ -42,7 +42,9 @@ func (server *OpencxServer) SetupWallet(errChan chan error, subDirName string, p
 		return
 	}
 
+	server.walletMtx.Lock()
 	server.WalletMap[param] = wallet
+	server.walletMtx.Unlock()
 
 	logging.Infof("%s wallet Started, cointype: %d\n", param.Name, coinType)
 	// figure out whether or not to do this if merged

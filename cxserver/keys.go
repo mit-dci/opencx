@@ -34,7 +34,9 @@ func (server *OpencxServer) SetupSingleKey(privkey *[32]byte, param *coinparam.P
 		err = fmt.Errorf("Error creating master %s key from private key: \n%s", param.Name, err)
 		return
 	}
+	server.privKeyMtx.Lock()
 	server.PrivKeyMap[param] = rootKey
+	server.privKeyMtx.Unlock()
 
 	return
 }

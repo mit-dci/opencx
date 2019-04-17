@@ -92,6 +92,7 @@ func (cl *OpencxNoiseClient) Call(serviceMethod string, args interface{}, reply 
 		if n < len(rawMsg) {
 			logging.Fatal(fmt.Errorf("Did not write entire message to peer"))
 		}
+		logging.Infof("Wrote entire message to peer")
 	}()
 
 	// If reply is nil the caller apparently doesn't care about the results. So we shouldn't wait for it
@@ -101,6 +102,7 @@ func (cl *OpencxNoiseClient) Call(serviceMethod string, args interface{}, reply 
 		select {
 		case receivedReply := <-cl.responseChannels[nonce]:
 			{
+				logging.Infof("Got a response!")
 				if receivedReply.Error {
 					err = errors.New(string(receivedReply.Result))
 					return

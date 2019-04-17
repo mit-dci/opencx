@@ -39,6 +39,7 @@ func NoiseListenAsync(doneChan chan bool, privkey *koblitz.PrivateKey, rpc1 *Ope
 	logging.Infof("Running RPC-Noise server on %s\n", listener.Addr().String())
 
 	go rpc.Accept(listener)
+	logging.Infof("Starting rpc accept using listener")
 
 	OffButtonCloseListener(rpc1, listener)
 	doneChan <- true

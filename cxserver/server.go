@@ -41,8 +41,11 @@ type OpencxServer struct {
 	// All you should need to add a new coin to the exchange is the correct coin params to connect
 	// to nodes and (if it works), do proof of work and such.
 	HookMap    map[*coinparam.Params]*uspv.ChainHook
+	hookMtx    *sync.Mutex
 	WalletMap  map[*coinparam.Params]*wallit.Wallit
+	walletMtx  *sync.Mutex
 	PrivKeyMap map[*coinparam.Params]*hdkeychain.ExtendedKey
+	privKeyMtx *sync.Mutex
 
 	// This is how we're going to easily add multiple coins
 	CoinList []*coinparam.Params
@@ -84,6 +87,10 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []
 		WalletMap:  make(map[*coinparam.Params]*wallit.Wallit),
 		PrivKeyMap: make(map[*coinparam.Params]*hdkeychain.ExtendedKey),
 
+		hookMtx:    new(sync.Mutex),
+		walletMtx:  new(sync.Mutex),
+		privKeyMtx: new(sync.Mutex),
+
 		CoinList:        coinList,
 		defaultCapacity: 1000000,
 	}
@@ -95,7 +102,9 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []
 func (server *OpencxServer) StartChainhookHandlers(wallet *wallit.Wallit) {
 	hook := wallet.ExportHook()
 
+	server.hookMtx.Lock()
 	server.HookMap[wallet.Param] = &hook
+	server.hookMtx.Unlock()
 
 	hookBlockChan := hook.NewRawBlocksChannel()
 	currentHeightChan := hook.NewHeightChannel()
