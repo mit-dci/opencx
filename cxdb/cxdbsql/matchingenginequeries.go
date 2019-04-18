@@ -235,11 +235,13 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 
 	var sellOrders []*match.LimitOrder
 	for sellRows.Next() {
+		var pubkeyBytes []byte
 		sellOrder := new(match.LimitOrder)
-		if err = sellRows.Scan(sellOrder.Pubkey[:], &sellOrder.OrderID, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
+		if err = sellRows.Scan(&pubkeyBytes, &sellOrder.OrderID, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
 			return
 		}
 
+		copy(sellOrder.Pubkey[:], pubkeyBytes)
 		sellOrders = append(sellOrders, sellOrder)
 	}
 	if err = sellRows.Close(); err != nil {
@@ -255,11 +257,13 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 
 	var buyOrders []*match.LimitOrder
 	for buyRows.Next() {
+		var pubkeyBytes []byte
 		buyOrder := new(match.LimitOrder)
-		if err = buyRows.Scan(buyOrder.Pubkey[:], &buyOrder.OrderID, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
+		if err = buyRows.Scan(&pubkeyBytes, &buyOrder.OrderID, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
 			return
 		}
 
+		copy(buyOrder.Pubkey[:], pubkeyBytes)
 		buyOrders = append(buyOrders, buyOrder)
 	}
 	if err = buyRows.Close(); err != nil {

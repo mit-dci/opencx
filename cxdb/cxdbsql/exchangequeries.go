@@ -302,11 +302,14 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 
 		var sellOrders []*match.LimitOrder
 		for sellRows.Next() {
-
+			var pubkeyBytes []byte
 			sellOrder := new(match.LimitOrder)
-			if err = sellRows.Scan(sellOrder.Pubkey[:], &sellOrder.OrderID, &sellOrder.Side, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
+			if err = sellRows.Scan(&pubkeyBytes, &sellOrder.OrderID, &sellOrder.Side, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
 				return
 			}
+
+			// copy pubkey bytes into 33 order byte arr
+			copy(sellOrder.Pubkey[:], pubkeyBytes)
 
 			// set price to return to clients
 			sellOrder.OrderbookPrice = price
@@ -326,11 +329,14 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 
 		var buyOrders []*match.LimitOrder
 		for buyRows.Next() {
-
+			var pubkeyBytes []byte
 			buyOrder := new(match.LimitOrder)
-			if err = buyRows.Scan(buyOrder.Pubkey[:], &buyOrder.OrderID, &buyOrder.Side, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
+			if err = buyRows.Scan(&pubkeyBytes, &buyOrder.OrderID, &buyOrder.Side, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
 				return
 			}
+
+			// copy pubkey bytes into 33 order byte arr
+			copy(buyOrder.Pubkey[:], pubkeyBytes)
 
 			// set price to return to clients
 			buyOrder.OrderbookPrice = price
@@ -377,9 +383,13 @@ func (db *DB) GetOrder(orderID string) (order *match.LimitOrder, err error) {
 		}
 
 		if rows.Next() {
-			if err = rows.Scan(order.Pubkey[:], &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp, &order.OrderbookPrice); err != nil {
+			var pubkeyBytes []byte
+			if err = rows.Scan(&pubkeyBytes, &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp, &order.OrderbookPrice); err != nil {
 				return
 			}
+
+			// copy pubkey bytes into 33 order byte arr
+			copy(order.Pubkey[:], pubkeyBytes)
 
 			order.TradingPair = *pair
 			order.OrderID = orderID
@@ -434,6 +444,7 @@ func (db *DB) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders []*match.Lim
 				return
 			}
 
+			// copy pubkey bytes into 33 order byte arr
 			copy(order.Pubkey[:], pubkey.SerializeCompressed())
 			order.TradingPair = *pair
 

@@ -87,6 +87,7 @@ func (cl *OpencxRPC) ViewOrderBook(args ViewOrderBookArgs, reply *ViewOrderBookR
 
 	cl.Server.LockIngests()
 	if reply.SellOrderBook, reply.BuyOrderBook, err = cl.Server.OpencxDB.ViewOrderBook(args.TradingPair); err != nil {
+		cl.Server.UnlockIngests()
 		return
 	}
 	cl.Server.UnlockIngests()
