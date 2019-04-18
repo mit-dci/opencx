@@ -1,6 +1,6 @@
 # opencx
-[![Build Status](https://travis-ci.com/mit-dci/opencx.svg?branch=master&style=flat-square)](https://travis-ci.com/mit-dci/opencx)
-[![License](http://img.shields.io/:license-mit-blue.svg?style=flat-square)](http://mit-dci.mit-license.org)
+[![Build Status](https://img.shields.io/travis/com/mit-dci/opencx.svg?style=flat-square)](https://travis-ci.com/mit-dci/opencx)
+[![License](http://img.shields.io/:license-MIT-000.svg?style=flat-square)](http://mit-dci.mit-license.org)
 
 A centralized exchange to help understand what a DEX should be.
 
