@@ -72,8 +72,9 @@ func RPCListenAsync(doneChan chan bool, rpc1 *OpencxRPC, host string, port uint1
 
 	logging.Infof("Starting RPC Server")
 	// Start RPC Server
+	serverAddr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	var listener net.Listener
-	if listener, err = net.Listen("tcp", host+":"+fmt.Sprintf("%d", port)); err != nil {
+	if listener, err = net.Listen("tcp", serverAddr); err != nil {
 		logging.Fatal("listen error:", err)
 	}
 	logging.Infof("Running RPC server on %s\n", listener.Addr().String())

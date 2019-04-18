@@ -7,8 +7,6 @@ import (
 	"math"
 	"math/rand"
 	"time"
-
-	"github.com/mit-dci/lit/crypto/koblitz"
 )
 
 // Order is a struct that represents a stored side of a trade
@@ -19,9 +17,9 @@ type Order interface {
 
 // LimitOrder represents a limit order, implementing the order interface
 type LimitOrder struct {
-	Pubkey      *koblitz.PublicKey `json:"pubkey"`
-	Side        string             `json:"side"`
-	TradingPair Pair               `json:"pair"`
+	Pubkey      [33]byte `json:"pubkey"`
+	Side        string   `json:"side"`
+	TradingPair Pair     `json:"pair"`
 	// amount of assetHave the user would like to trade
 	AmountHave uint64 `json:"amounthave"`
 	// amount of assetWant the user wants for their assetHave
@@ -43,13 +41,13 @@ func (l *LimitOrder) IsSellSide() bool {
 }
 
 // OppositeSide is a helper to get the opposite side of the order
-func (l *LimitOrder) OppositeSide() string {
+func (l *LimitOrder) OppositeSide() (sideStr string) {
 	if l.IsBuySide() {
-		return "sell"
+		sideStr = "sell"
 	} else if l.IsSellSide() {
-		return "buy"
+		sideStr = "buy"
 	}
-	return ""
+	return
 }
 
 // Price gets a float price for the order. This determines how it will get matched. The exchange should figure out if it can take some of the
@@ -94,7 +92,7 @@ func (l *LimitOrder) Serialize() (buf []byte) {
 	// amounthave [8 bytes
 	// amountwant [8 bytes]
 	buf = make([]byte, 33+26+len(l.Side))
-	buf = append(buf, l.Pubkey.SerializeCompressed()...)
+	buf = append(buf, l.Pubkey[:]...)
 	buf = append(buf, l.TradingPair.Serialize()...)
 	binary.LittleEndian.PutUint64(buf, l.AmountHave)
 	binary.LittleEndian.PutUint64(buf, l.AmountWant)

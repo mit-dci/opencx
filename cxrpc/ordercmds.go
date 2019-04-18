@@ -29,13 +29,22 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	sha3.Write(args.Order.Serialize())
 	e := sha3.Sum(nil)
 
-	pubkey, _, err := koblitz.RecoverCompact(koblitz.S256(), args.Signature, e)
-	if err != nil {
-		return fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
+	logging.Infof("Checking order signature")
+	var sigPubKey *koblitz.PublicKey
+	if sigPubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), args.Signature, e); err != nil {
+		err = fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
+		return
+	}
+
+	// try to parse the order pubkey into koblitz
+	var orderPubkey *koblitz.PublicKey
+	if orderPubkey, err = koblitz.ParsePubKey(args.Order.Pubkey[:], koblitz.S256()); err != nil {
+		err = fmt.Errorf("Public Key failed parsing check: \n%s", err)
+		return
 	}
 
 	// TODO: make sure this is a valid way of doing stuff
-	if !pubkey.IsEqual(args.Order.Pubkey) {
+	if !sigPubKey.IsEqual(orderPubkey) {
 		err = fmt.Errorf("Pubkey used with signature not equal to the one passed")
 	}
 
@@ -43,13 +52,13 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	// place an order on their exchange, even with a nonce, and then send it over to the other exchange. When you submit an order on one exchange,
 	// you essentially submit an order to all of them. But like once we have channels for orders then this isn't a thing anymore because the channel
 	// tx's are signed and funding stuff is published on chain
-	logging.Infof("Pubkey %x submitted order", pubkey.SerializeUncompressed())
+	logging.Infof("Pubkey %x submitted order", sigPubKey.SerializeUncompressed())
 
 	cl.Server.LockIngests()
 	var id string
 	if id, err = cl.Server.OpencxDB.PlaceOrder(args.Order); err != nil {
 		// gotta put these here cause if it errors out then oops just locked everything
-		// logging.Errorf("Error with matching: \n%s", err)
+		logging.Errorf("Error with matching: \n%s", err)
 		cl.Server.UnlockIngests()
 		err = fmt.Errorf("Error placing order while submitting order: \n%s", err)
 		return
@@ -57,6 +66,7 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	cl.Server.UnlockIngests()
 
 	reply.OrderID = id
+	logging.Infof("The order id is %s, cool!", id)
 
 	return
 }
@@ -77,11 +87,11 @@ func (cl *OpencxRPC) ViewOrderBook(args ViewOrderBookArgs, reply *ViewOrderBookR
 
 	cl.Server.LockIngests()
 	if reply.SellOrderBook, reply.BuyOrderBook, err = cl.Server.OpencxDB.ViewOrderBook(args.TradingPair); err != nil {
-		return err
+		return
 	}
 	cl.Server.UnlockIngests()
 
-	return nil
+	return
 }
 
 // GetPriceArgs holds the args for the GetPrice command
@@ -129,9 +139,11 @@ func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) 
 	sha3.Write([]byte(args.OrderID))
 	e := sha3.Sum(nil)
 
-	pubkey, _, err := koblitz.RecoverCompact(koblitz.S256(), args.Signature, e)
-	if err != nil {
-		return fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
+	logging.Infof("Checking cancel signature")
+	var sigPubKey *koblitz.PublicKey
+	if sigPubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), args.Signature, e); err != nil {
+		err = fmt.Errorf("Error verifying cancel, invalid signature: \n%s", err)
+		return
 	}
 
 	cl.Server.LockIngests()
@@ -141,8 +153,16 @@ func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) 
 	}
 	cl.Server.LockIngests()
 
-	if order.Pubkey != pubkey {
-		err = fmt.Errorf("Invalid cancel, unauthorized to delete this order")
+	// try to parse the order pubkey into koblitz
+	var orderPubKey *koblitz.PublicKey
+	if orderPubKey, err = koblitz.ParsePubKey(order.Pubkey[:], koblitz.S256()); err != nil {
+		err = fmt.Errorf("Public Key failed parsing check: \n%s", err)
+		return
+	}
+
+	// TODO: make sure this is a valid way of doing stuff
+	if !sigPubKey.IsEqual(orderPubKey) {
+		err = fmt.Errorf("Pubkey used with signature not equal to the one passed")
 		return
 	}
 
@@ -194,9 +214,10 @@ func (cl *OpencxRPC) GetOrder(args GetOrderArgs, reply *GetOrderReply) (err erro
 	sha3.Write([]byte(args.OrderID))
 	e := sha3.Sum(nil)
 
-	pubkey, _, err := koblitz.RecoverCompact(koblitz.S256(), args.Signature, e)
-	if err != nil {
-		err = fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
+	logging.Infof("Checking getorder signature")
+	var sigPubKey *koblitz.PublicKey
+	if sigPubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), args.Signature, e); err != nil {
+		err = fmt.Errorf("Error verifying getorder, invalid signature: \n%s", err)
 		return
 	}
 
@@ -206,8 +227,16 @@ func (cl *OpencxRPC) GetOrder(args GetOrderArgs, reply *GetOrderReply) (err erro
 	}
 	cl.Server.UnlockIngests()
 
-	if reply.Order.Pubkey != pubkey {
-		err = fmt.Errorf("Invalid cancel, unauthorized to delete this order")
+	// try to parse the order pubkey into koblitz
+	var orderPubKey *koblitz.PublicKey
+	if orderPubKey, err = koblitz.ParsePubKey(reply.Order.Pubkey[:], koblitz.S256()); err != nil {
+		err = fmt.Errorf("Public Key failed parsing check: \n%s", err)
+		return
+	}
+
+	// TODO: make sure this is a valid way of doing stuff
+	if !sigPubKey.IsEqual(orderPubKey) {
+		err = fmt.Errorf("Pubkey used with signature not equal to the one passed")
 		return
 	}
 

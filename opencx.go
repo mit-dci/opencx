@@ -231,8 +231,9 @@ func main() {
 		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
 		// this tells us when the rpclisten is done
 		doneChan := make(chan bool, 1)
-		logging.Infof(" === will start to listen on rpc ===")
+		logging.Infof(" === will start to listen on noise-rpc ===")
 		go cxrpc.NoiseListenAsync(doneChan, privkey, rpc1, conf.Rpchost, conf.Rpcport)
+		// block until noiselisten is done
 		<-doneChan
 
 	}

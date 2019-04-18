@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/mit-dci/lit/crypto/koblitz"
+
 	"github.com/mit-dci/opencx/util"
 
 	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/crypto/koblitz"
 
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
@@ -235,12 +236,7 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 	var sellOrders []*match.LimitOrder
 	for sellRows.Next() {
 		sellOrder := new(match.LimitOrder)
-		var pubkeyBytes []byte
-		if err = sellRows.Scan(&pubkeyBytes, &sellOrder.OrderID, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
-			return
-		}
-
-		if sellOrder.Pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
+		if err = sellRows.Scan(sellOrder.Pubkey[:], &sellOrder.OrderID, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
 			return
 		}
 
@@ -259,13 +255,8 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 
 	var buyOrders []*match.LimitOrder
 	for buyRows.Next() {
-		var pubkeyBytes []byte
 		buyOrder := new(match.LimitOrder)
-		if err = buyRows.Scan(&pubkeyBytes, &buyOrder.OrderID, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
-			return
-		}
-
-		if buyOrder.Pubkey, err = koblitz.ParsePubKey(pubkeyBytes, koblitz.S256()); err != nil {
+		if err = buyRows.Scan(buyOrder.Pubkey[:], &buyOrder.OrderID, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
 			return
 		}
 
@@ -310,12 +301,22 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 				return
 			}
 
+			var buyOrderPubkey *koblitz.PublicKey
+			if buyOrderPubkey, err = koblitz.ParsePubKey(currBuyOrder.Pubkey[:], koblitz.S256()); err != nil {
+				return
+			}
+
+			var sellOrderPubkey *koblitz.PublicKey
+			if sellOrderPubkey, err = koblitz.ParsePubKey(currSellOrder.Pubkey[:], koblitz.S256()); err != nil {
+				return
+			}
+
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.AddToBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountHave, tx, assetWantCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(buyOrderPubkey, prevAmountHave, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.AddToBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountWant, tx, assetHaveCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(sellOrderPubkey, prevAmountWant, tx, assetHaveCoinType); err != nil {
 				return
 			}
 
@@ -355,12 +356,22 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 				return
 			}
 
+			var buyOrderPubkey *koblitz.PublicKey
+			if buyOrderPubkey, err = koblitz.ParsePubKey(currBuyOrder.Pubkey[:], koblitz.S256()); err != nil {
+				return
+			}
+
+			var sellOrderPubkey *koblitz.PublicKey
+			if sellOrderPubkey, err = koblitz.ParsePubKey(currSellOrder.Pubkey[:], koblitz.S256()); err != nil {
+				return
+			}
+
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.AddToBalanceWithinTransaction(currBuyOrder.Pubkey, prevAmountWant, tx, assetWantCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(buyOrderPubkey, prevAmountWant, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.AddToBalanceWithinTransaction(currSellOrder.Pubkey, prevAmountHave, tx, assetHaveCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(sellOrderPubkey, prevAmountHave, tx, assetHaveCoinType); err != nil {
 				return
 			}
 
@@ -392,12 +403,22 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 				return
 			}
 
+			var buyOrderPubkey *koblitz.PublicKey
+			if buyOrderPubkey, err = koblitz.ParsePubKey(currBuyOrder.Pubkey[:], koblitz.S256()); err != nil {
+				return
+			}
+
+			var sellOrderPubkey *koblitz.PublicKey
+			if sellOrderPubkey, err = koblitz.ParsePubKey(currSellOrder.Pubkey[:], koblitz.S256()); err != nil {
+				return
+			}
+
 			// credit buyOrder client with sellOrder amountHave
-			if err = db.AddToBalanceWithinTransaction(currBuyOrder.Pubkey, currBuyOrder.AmountWant, tx, assetWantCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(buyOrderPubkey, currBuyOrder.AmountWant, tx, assetWantCoinType); err != nil {
 				return
 			}
 			// credit sellOrder client with buyorder amountWant
-			if err = db.AddToBalanceWithinTransaction(currSellOrder.Pubkey, currBuyOrder.AmountHave, tx, assetHaveCoinType); err != nil {
+			if err = db.AddToBalanceWithinTransaction(sellOrderPubkey, currBuyOrder.AmountHave, tx, assetHaveCoinType); err != nil {
 				return
 			}
 

@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
-	"sync"
-
-	"github.com/mit-dci/lit/lnutil"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/cxnoise"
@@ -27,13 +24,8 @@ type OpencxRPCClient struct {
 
 // OpencxNoiseClient is an authenticated RPC Client for the opencx Server
 type OpencxNoiseClient struct {
-	Conn               *cxnoise.Conn
-	key                *koblitz.PrivateKey
-	requestNonce       uint64
-	requestNonceMtx    sync.Mutex
-	responseChannelMtx sync.Mutex
-	responseChannels   map[uint64]chan lnutil.RemoteControlRpcResponseMsg
-	conMtx             sync.Mutex
+	Conn *cxnoise.Conn
+	key  *koblitz.PrivateKey
 }
 
 // Call calls the servicemethod with name string, args args, and reply reply
@@ -44,7 +36,9 @@ func (cl *OpencxRPCClient) Call(serviceMethod string, args interface{}, reply in
 // SetupConnection creates a new RPC client
 func (cl *OpencxRPCClient) SetupConnection(server string, port uint16) (err error) {
 
-	if cl.Conn, err = rpc.Dial("tcp", server+":"+fmt.Sprintf("%d", port)); err != nil {
+	serverAddr := net.JoinHostPort(server, fmt.Sprintf("%d", port))
+
+	if cl.Conn, err = rpc.Dial("tcp", serverAddr); err != nil {
 		return
 	}
 
@@ -84,10 +78,7 @@ func (cl *OpencxNoiseClient) SetupConnection(server string, port uint16) (err er
 		return
 	}
 
-	serverAddr := server + ":" + fmt.Sprintf("%d", port)
-	// Create a map of chan objects to receive returned responses on. These channels
-	// are sent to from the ReceiveLoop, and awaited in the Call method.
-	cl.responseChannels = make(map[uint64]chan lnutil.RemoteControlRpcResponseMsg)
+	serverAddr := net.JoinHostPort(server, fmt.Sprintf("%d", port))
 
 	// Dial a connection to the server
 	if cl.Conn, err = cxnoise.Dial(cl.key, serverAddr, []byte("opencx"), net.Dial); err != nil {
