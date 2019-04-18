@@ -1,19 +1,19 @@
-package ocxredis
+package cxdbredis
 
 // unfinished
 
 // Buyer is a struct containing information needed for a buyer
 type Buyer struct {
-	username   string
-	haveAsset  byte
+	username  string
+	haveAsset byte
 	// I think 51 bits is enough to store all the satoshis cause 21,000,000 * 10^8 = a 51 bit number
 	amountHave int64
 }
 
 // Seller is a struct containing information needed for a seller
 type Seller struct {
-	username   string
-	haveAsset  byte
+	username  string
+	haveAsset byte
 	// I think 51 bits is enough to store all the satoshis cause 21,000,000 * 10^8 = a 51 bit number
 	amountHave int64
 }

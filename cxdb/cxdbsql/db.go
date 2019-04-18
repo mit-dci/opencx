@@ -1,8 +1,10 @@
-package ocxsql
+package cxdbsql
 
 import (
 	"database/sql"
 	"fmt"
+	"net"
+	"sync"
 
 	"github.com/mit-dci/lit/coinparam"
 
@@ -14,9 +16,6 @@ import (
 
 // turn into config options
 var (
-	defaultUsername = "opencx"
-	defaultPassword = "testpass"
-
 	// definitely move this to a config file
 	balanceSchema        = "balances"
 	depositSchema        = "deposit"
@@ -36,6 +35,12 @@ var (
 type DB struct {
 	// the SQL handler for the db
 	DBHandler *sql.DB
+
+	// db username and password
+	dbUsername string
+	dbPassword string
+	// db host and port
+	dbAddr net.Addr
 
 	// name of balance schema
 	balanceSchema string
@@ -62,25 +67,42 @@ type DB struct {
 
 	// pricemap for pair that we manually add to
 	gPriceMap map[string]float64
+	// priceMapMtx is a lock for gPriceMap
+	priceMapMtx *sync.Mutex
 }
 
 // SetPrice sets the price, uses a lock since it will be written to and read from possibly at the same time (written to by server, read by client)
 func (db *DB) SetPrice(newPrice float64, pairString string) {
+	db.priceMapMtx.Lock()
 	db.gPriceMap[pairString] = newPrice
+	db.priceMapMtx.Unlock()
 }
 
 // GetPrice returns the price and side of the last transacted price
-func (db *DB) GetPrice(pairString string) (price float64) {
-	price, found := db.gPriceMap[pairString]
-	if !found {
-		return float64(0)
+func (db *DB) GetPrice(pairString string) (price float64, err error) {
+	var found bool
+	if price, found = db.gPriceMap[pairString]; !found {
+		err = fmt.Errorf("Could not get price, pair not found")
 	}
-	return price
+	return
 }
 
 // GetPairs returns the pairs list
 func (db *DB) GetPairs() (pairArray []*match.Pair) {
 	pairArray = db.pairsArray
+	return
+}
+
+// InitializeDB initializes the db so the client is ready to be set up. We use TCP by default
+func (db *DB) InitializeDB(username string, password string, host string, port uint16) (err error) {
+	portString := fmt.Sprintf("%d", port)
+	if db.dbAddr, err = net.ResolveTCPAddr(host, portString); err != nil {
+		err = fmt.Errorf("Error resolving database address: \n%s", err)
+		return
+	}
+
+	db.dbUsername = username
+	db.dbPassword = password
 	return
 }
 
@@ -94,13 +116,14 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	db.peerSchema = peerSchema
 	db.peerTableName = peerTableName
 	// Create users and schemas and assign permissions to opencx
-	if err = db.RootInitSchemas(); err != nil {
+	if err = db.rootInitSchemas(); err != nil {
 		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
 		return
 	}
 
 	// open db handle
-	dbHandle, err := sql.Open("mysql", defaultUsername+":"+defaultPassword+"@/")
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String())
+	dbHandle, err := sql.Open("mysql", openString)
 	if err != nil {
 		err = fmt.Errorf("Error opening database: \n%s", err)
 		return
@@ -241,12 +264,15 @@ func (db *DB) InitializePairTables(schemaName string, schemaSpec string) (err er
 	return
 }
 
-// RootInitSchemas initalizes the schemas, creates users, and grants permissions to those users
-func (db *DB) RootInitSchemas() (err error) {
-	// Log in to root
-	rootHandler, err := sql.Open("mysql", defaultUsername+":"+defaultPassword+"@/")
-	if err != nil {
-		return fmt.Errorf("Error opening root db: \n%s", err)
+// rootInitSchemas initalizes the schemas, creates users, and grants permissions to those users
+func (db *DB) rootInitSchemas() (err error) {
+
+	// open db handle
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String())
+	var rootHandler *sql.DB
+	if rootHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening database: \n%s", err)
+		return
 	}
 
 	// When the method is done, close the root connection
@@ -257,29 +283,20 @@ func (db *DB) RootInitSchemas() (err error) {
 		return
 	}
 
-	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.balanceSchema); err != nil {
-		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
-		return
+	schemasToCreate := []string{
+		db.balanceSchema,
+		db.depositSchema,
+		db.pendingDepositSchema,
+		db.orderSchema,
+		db.peerSchema,
 	}
 
-	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.depositSchema); err != nil {
-		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
-		return
-	}
+	for _, schema := range schemasToCreate {
+		if err = rootCreateSchemaForUser(rootHandler, db.dbUsername, schema); err != nil {
+			err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
+			return
+		}
 
-	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.pendingDepositSchema); err != nil {
-		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
-		return
-	}
-
-	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.orderSchema); err != nil {
-		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
-		return
-	}
-
-	if err = rootCreateSchemaForUser(rootHandler, defaultUsername, db.peerSchema); err != nil {
-		err = fmt.Errorf("Error calling rootCreateSchemaForUser helper: \n%s", err)
-		return
 	}
 
 	return

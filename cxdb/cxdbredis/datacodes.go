@@ -1,4 +1,4 @@
-package ocxredis
+package cxdbredis
 
 const (
 	// Token is used as a prefix for queries for auth tokens

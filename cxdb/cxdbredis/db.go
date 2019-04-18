@@ -1,4 +1,4 @@
-package ocxredis
+package cxdbredis
 
 import (
 	"fmt"

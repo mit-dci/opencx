@@ -1,4 +1,4 @@
-package ocxsql
+package cxdbsql
 
 import (
 	"database/sql"

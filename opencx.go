@@ -9,9 +9,9 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	flags "github.com/jessevdk/go-flags"
+	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
-	"github.com/mit-dci/opencx/db/ocxsql"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/util"
 )
@@ -47,7 +47,7 @@ type opencxConfig struct {
 	Litereghost string `long:"litereg" description:"Connect to litecoin regtest. Specify a socket address."`
 	Rtvtchost   string `long:"rtvtc" description:"Connect to Vertcoin regtest node. Specify a socket address."`
 
-	// Configuration for concurrent RPC users.
+	// configuration for concurrent RPC users.
 	MaxPeers    uint16 `long:"numpeers" description:"Maximum number of peers that you'd like to support"`
 	MinPeerPort uint16 `long:"minpeerport" description:"Port to start creating ports for peers at"`
 	Lithost     string `long:"lithost" description:"Host for the lightning node on the exchange to run"`
@@ -58,6 +58,15 @@ type opencxConfig struct {
 
 	// auth or unauth rpc?
 	AuthenticatedRPC bool `long:"authrpc" description:"Whether or not to use authenticated RPC"`
+
+	// support lightning or not to support lightning?
+	LightningSupport bool `long:"lightning" description:"Whether or not to support lightning on the exchange"`
+
+	// database information
+	DBUsername string `long:"dbuser" description:"database username"`
+	DBPassword string `long:"dbpassword" description:"database password"`
+	DBHost     string `long:"dbhost" description:"Host for the database connection"`
+	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
 }
 
 var (
@@ -72,8 +81,17 @@ var (
 	defaultLithost           = "localhost"
 	defaultLitport           = uint16(12346)
 
-	// Auth rpc
+	// Yes we want to use noise-rpc
 	defaultAuthenticatedRPC = true
+
+	// Yes we want lightning
+	defaultLightningSupport = true
+
+	// default database stuff
+	defaultDBUsername = "opencx"
+	defaultDBPassword = "testpass"
+	defaultDBHost     = "localhost"
+	defaultDBPort     = uint16(3306)
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -94,12 +112,20 @@ func main() {
 		Lithost:          defaultLithost,
 		Litport:          defaultLitport,
 		AuthenticatedRPC: defaultAuthenticatedRPC,
+		LightningSupport: defaultLightningSupport,
+		DBUsername:       defaultDBUsername,
+		DBPassword:       defaultDBPassword,
+		DBHost:           defaultDBHost,
+		DBPort:           defaultDBPort,
 	}
 
 	// Check and load config params
 	key := opencxSetup(&conf)
 
-	db := new(ocxsql.DB)
+	var db *cxdbsql.DB
+	if err = db.InitializeDB(conf.DBUsername, conf.DBPassword, conf.DBHost, conf.DBPort); err != nil {
+		logging.Fatalf("Error initializing Database: \n%s", err)
+	}
 
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
@@ -120,54 +146,60 @@ func main() {
 		logging.Fatalf("Error setting up server keys: \n%s", err)
 	}
 
-	// start the lit node for the exchange
-	if err = ocxServer.SetupLitNode(key, "lit", "http://hubris.media.mit.edu:46580", "", ""); err != nil {
-		logging.Fatalf("Error starting lit node: \n%s", err)
-	}
+	if conf.LightningSupport {
+		// start the lit node for the exchange
+		if err = ocxServer.SetupLitNode(key, "lit", "http://hubris.media.mit.edu:46580", "", ""); err != nil {
+			logging.Fatalf("Error starting lit node: \n%s", err)
+		}
 
-	logging.Infof("registering sigproof handler")
-	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.sigproof", ocxServer.GetSigProofHandler())
-	logging.Infof("done registering sigproof handler")
+		// register important event handlers -- figure out something better with lightning connection interface
+		logging.Infof("registering sigproof handler")
+		ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.sigproof", ocxServer.GetSigProofHandler())
+		logging.Infof("done registering sigproof handler")
 
-	logging.Infof("registering opconfirm handler")
-	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.opconfirm", ocxServer.GetOPConfirmHandler())
-	logging.Infof("done registering opconfirm handler")
+		logging.Infof("registering opconfirm handler")
+		ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.opconfirm", ocxServer.GetOPConfirmHandler())
+		logging.Infof("done registering opconfirm handler")
 
-	logging.Infof("registering push handler")
-	ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.push", ocxServer.GetPushHandler())
-	logging.Infof("done registering push handler")
+		logging.Infof("registering push handler")
+		ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.push", ocxServer.GetPushHandler())
+		logging.Infof("done registering push handler")
 
-	// Generate the host param list
-	hpList := util.HostParamList(generateHostParams(&conf))
+		// Generate the host param list
+		// the host params are all of the coinparams / coins we support
+		// this coinparam list is generated from the configuration file with generateHostParams
+		hpList := util.HostParamList(generateHostParams(&conf))
 
-	// Set up all chain hooks and wallets
-	if err = ocxServer.SetupAllWallets(hpList, "wallit/", conf.Resync); err != nil {
-		logging.Fatalf("Error setting up wallets: \n%s", err)
-		return
-	}
-
-	// Waited until the wallets are started, time to link them!
-	if err = ocxServer.LinkAllWallets(); err != nil {
-		logging.Fatalf("Could not link wallets: \n%s", err)
-	}
-
-	// Listen on a bunch of ports according to the number of peers you want to support.
-	for portNum := conf.MinPeerPort; portNum < conf.MinPeerPort+conf.MaxPeers; portNum++ {
-		var _ string
-		if _, err = ocxServer.ExchangeNode.TCPListener(int(portNum)); err != nil {
+		// Set up all chain hooks and wallets
+		if err = ocxServer.SetupAllWallets(hpList, "wallit/", conf.Resync); err != nil {
+			logging.Fatalf("Error setting up wallets: \n%s", err)
 			return
 		}
 
-		// logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
+		// Waited until the wallets are started, time to link them!
+		if err = ocxServer.LinkAllWallets(); err != nil {
+			logging.Fatalf("Could not link wallets: \n%s", err)
+		}
+
+		// Listen on a bunch of ports according to the number of peers you want to support.
+		for portNum := conf.MinPeerPort; portNum < conf.MinPeerPort+conf.MaxPeers; portNum++ {
+			var _ string
+			if _, err = ocxServer.ExchangeNode.TCPListener(int(portNum)); err != nil {
+				return
+			}
+
+			// logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
+		}
+
+		// Setup lit node rpc
+		go ocxServer.SetupLitRPCConnect(conf.Lithost, conf.Litport)
+
 	}
 
 	// Register RPC Commands and set server
 	rpc1 := new(cxrpc.OpencxRPC)
 	rpc1.OffButton = make(chan bool, 1)
 	rpc1.Server = ocxServer
-
-	// Setup lit node rpc
-	go ocxServer.SetupLitRPCConnect(conf.Lithost, conf.Litport)
 
 	// SIGINT and SIGTERM and SIGQUIT handler for CTRL-c, KILL, CTRL-/, etc.
 	go func() {
