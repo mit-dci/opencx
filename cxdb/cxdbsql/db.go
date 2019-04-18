@@ -93,16 +93,19 @@ func (db *DB) GetPairs() (pairArray []*match.Pair) {
 	return
 }
 
-// InitializeDB initializes the db so the client is ready to be set up. We use TCP by default
-func (db *DB) InitializeDB(username string, password string, host string, port uint16) (err error) {
-	portString := fmt.Sprintf("%d", port)
-	if db.dbAddr, err = net.ResolveTCPAddr(host, portString); err != nil {
+// CreateDBConnection initializes the db so the client is ready to be set up. We use TCP by default
+func CreateDBConnection(username string, password string, host string, port uint16) (dbconn *DB, err error) {
+	var dbAddr net.Addr
+	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", port))); err != nil {
 		err = fmt.Errorf("Error resolving database address: \n%s", err)
 		return
 	}
 
-	db.dbUsername = username
-	db.dbPassword = password
+	dbconn = &DB{
+		dbAddr:     dbAddr,
+		dbUsername: username,
+		dbPassword: password,
+	}
 	return
 }
 

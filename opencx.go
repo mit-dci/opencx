@@ -123,7 +123,7 @@ func main() {
 	key := opencxSetup(&conf)
 
 	var db *cxdbsql.DB
-	if err = db.InitializeDB(conf.DBUsername, conf.DBPassword, conf.DBHost, conf.DBPort); err != nil {
+	if db, err = cxdbsql.CreateDBConnection(conf.DBUsername, conf.DBPassword, conf.DBHost, conf.DBPort); err != nil {
 		logging.Fatalf("Error initializing Database: \n%s", err)
 	}
 
