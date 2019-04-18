@@ -6,7 +6,7 @@ I'm going to try to review as much as possible about decentralized exchange tech
 It's good to get a survey of the research and not-yet-implemented solutions to problems that people supposedly have with exchange. Some things here are DEXes, some are techniques used to maybe decrease trust needed in exchange, but most are not formal and not peer reviewed.
  - [x] Arwen
  - [x] Nash / NEX
-   - [x] [NEX Whitepaper](assets/whitepaper_v2.pdf)
+   - [x] NEX Whitepaper
    - [x] [The heart of Nash: Our off-chain matching engine](https://medium.com/nashsocial/the-heart-of-nash-our-off-chain-matching-engine-499cf2c23670)
  - [x] [gnosis/dex-research](https://github.com/gnosis/dex-research)
    - [x] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
@@ -117,12 +117,10 @@ Finally, there are a lot of diagrams about their implementation of limit orders 
 
 Also in the arwen paper there's a mistake, on the last page it says that "Plasma [28] is a proposal for a layer-two decentralized exchange protocol on Ethereum", which is blatantly false. Plasma is a proposal for layer-two off-chain transactions on ethereum, much like lightning but for ethereum. 
 
-**Opinion warning:** I don't think this paper should have been this long. It overcomplicates extremely simple ideas and the idea of arwen, even the "advanced" stuff like limit orders and bidirectional RFQ, is super simple. It seems like lightning but you know the person on the other side is an exchange, and the exchange assumes you're a client that wants to use the exchange, so you have a protocol for talking to each other. Compared to the level of ideas that have been discussed on the #bitcoin-wizards IRC, this definitely didn't need to be 21 pages.
-
 ## Nash / NEX
 
 ### NEX Whitepaper Review
-Their whitepaper is now off of their site, but luckily I had it downloaded so it's linked in the checklist.
+Their whitepaper is now off of their site, but luckily I had it downloaded so I can review it.
 
 NEX does a good job in summing up the Decentralized Exchange space, tradeoffs, and earlier approaches. They point out that decentralized exchanges that place orderbooks directly on the blockchain run price-time priority matching redundantly across all machines on the network, and run very slowly as a result. Here are some of the points about decentralized exchange taken from the paper:
  - On-chain orderbooks and matching contracts or matching validation logic is very slow and very redundant.

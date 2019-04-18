@@ -1,17 +1,19 @@
 # opencx
-[![Build Status](https://travis-ci.com/mit-dci/opencx.svg?branch=master)](https://travis-ci.com/mit-dci/opencx)
+[![Build Status](https://travis-ci.com/mit-dci/opencx.svg?branch=master&style=flat-square)](https://travis-ci.com/mit-dci/opencx)
 [![License](http://img.shields.io/:license-mit-blue.svg?style=flat-square)](http://mit-dci.mit-license.org)
 
-A centralized exchange to help understand what a DEX should be
+A centralized exchange to help understand what a DEX should be.
+
+## Documentation
+[You can see the godoc documentation here!](https://godoc.org/github.com/mit-dci/opencx)
 
 ## Security note
-Gosec still detects a bunch of stuff and I need more configuration and documentation for database username and password.
+Gosec still detects a bunch of stuff.
 
 # Requirements
  - Go 1.11+
  - [MariaDB](https://mariadb.org) (not needed for client)
 
-By default the exchange connects to bitcoin, litecoin, and vertcoin testnet nodes.
 There are configuration files that will let you run more than just bitcoin, litecoin, and vertcoin testnet.
 You can now start an exchange that is running bitcoin, litecoin, and vertcoin mainnet alongside regtest and testnet.
 I'm working on adding in lightning compatibility for all of this.
@@ -25,7 +27,7 @@ cd opencx
 go get
 ```
 
-Then start MariaDB:
+Then start MariaDB, or any other MYSQL database:
 ```sh
 sudo systemctl start mariadb
 ```
@@ -36,7 +38,7 @@ go build opencx
 ./opencx
 ```
 
-# How to run opencx Client
+# How to run the opencx command line client
 Clone the repo and install dependencies as in the steps above:
 ```sh
 git clone git@github.com/mit-dci/opencx
@@ -50,6 +52,9 @@ go build
 ```
 
 You can now issue any of the commands in the cxrpc README.md file.
+
+# Configuration
+There are configuration options (both command line and .conf) for the client and the server, and by default home folders for these files will be created at `~/.opencx` and `~/.ocx` respectively. You can decide whether or not to use the NOISE protocol for authentication, which hostnames and ports to use for connecting to certain clients
 
 ---
 Image of normal use:

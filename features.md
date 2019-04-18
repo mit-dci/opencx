@@ -42,6 +42,8 @@ def oppositeSide(order):
     raise Exception("Order does not have a compatible side")
 
 def IncomingOrderEventHandler(incomingOrder):
+    # db.GetSortedOrders(price, side) gets all orders in queue order less than price for buy, and greater than price for sell. 
+    # I know I'm appending to it but nobody actually runs python code in a markdown file anyways. 
     thisSideOrders = append(db.GetSortedOrders(incomingOrder.price, incomingOrder.side), incomingOrder)
     oppositeSideOrders = db.GetSortedOrders(incomingOrder.price, oppositeSide(incomingOrder))
 
@@ -73,7 +75,7 @@ def IncomingOrderEventHandler(incomingOrder):
 
  - [x] RPC Interface
  - [x] DB Interface
- - [x] Tesnet interface
+ - [x] Testnet interface
  - [x] Wallets
    - [x] Withdrawal
    - [x] Test on testnet - debug transaction sending / pushing
@@ -119,7 +121,7 @@ def IncomingOrderEventHandler(incomingOrder):
    - [x] Lightning fund and push deposit
    - [ ] Lightning withdrawal
    - [ ] Lightning push back on withdrawal channel as deposit
-   - [ ] Magic: fully non custodial exchange
+   - [ ] Magic: fully non custodial exchange without the free option problem
 
 ## Note on phishing
 If people were to tell other people "send me bitcoin and I'll credit you on my OpenCX exchange" that's ripe for phishing. 
@@ -144,31 +146,9 @@ The idea of a publicly auditable exchange is good, but they still have all of th
 The idea of a decentralized exchange is good, but it's really hard to prove that you provide the correct service without trust.
 
 ### Quantify Optionality
-Figure out, maybe based on historical data, see how much it matters / how much you could make based on price. Could simulate these.
-
-#### Decentralization notes
-
-One note for decentralization: This is a really good reason why orderbooks shouldn't be kept on blockchains (like some people would want). The occasional 1 or 2 block reorg would screw everything up even if you got everything else solved & right.
-We care about the order of orders for matching and matching only, the validity of the orders and settlement can be done elsewhere, like with bitcoin. 
-So no reason TO use a blockchain as an orderbook. 
-One could make the argument that it's not fair because there isn't time priority, but with blockchains you have transaction fees as priority anyways and all these orderbook-on-blockchain "DEX"es have no issue with using that.
-So maybe price/fee priority is the way to go. This at least creates a market for getting an order matched I guess.
-Trying to fairly match orders without regarding order they came in is something that would solve a lot of the problems I think. We do want every order to be in the same network / same place though. 
-Orderbooks and matching engines exist because we don't know how to do this, maybe the order doesn't really matter, or maybe it does. Figuring out _whether or not_ the order that orders come in matter for fairness of matching is also an interesting problem. 
-I've only seen 2 different matching algorithms and they're pretty simple. We can do all the money stuff with bitcoin, so half the battle is done right there. 
-We just need to figure out what's a trustless way to store orders all in one place, and how to fairly match them. 
-Also, if two people in some sort of DEX network match the same order, only one of them is gonna end up working, and this matters a lot, since if we treated all matched orders as valid, we care which one gets executed since the same buy order could have 2 different sell recipients, and the same sell order could have 2 different buy recipients. This is all assuming there's gossip matching or something super decentralized. It just has so many cases.
-
-#### Notes on arwen
-
-Arwen is actually pretty simple. First you create a user escrow (basically a lightning payment channel) with the exchange, then you tell the exchange what you want and how much they should fund their side. This can be small, this can be large, but the exchange will say yes or no to how much they will fund their channel. This is not the trade, but this is how the exchange shows that they have the funds to trade with you. Then you request for the exchange to give you a quote on the asset in their escrow. If you have bitcoin and told them to open a vertcoin escrow, you could ask them "how many vertcoin can I get for 10BTC?" and they would respond with something like "20000VTC". This can be accepted or denied by you. All of this is pretty simple and it's no different from current exchanges. What's different is settlement. Rather than trading with other people directly, you're trading with the exchange. The actual settlement is a simple atomic swap using HTLC's. 
-
-The exchange needs a lot of funds to work correctly, since someone with a similar amount of money to the exchange can just open up a very large, or very many exchange escrows and user escrows.
-
+Figure out, maybe based on historical data, see how much the optionality in the free option problem matters / how much you could make based on price and time. Could simulate these.
 
 ### Architecture notes
 I've realized that the wallet should probably be decoupled. As the exchange, we just rely on something that takes in transactions and tells us if we've received the money yet, so basically a wallet. We should be able to just connect to that thing, ask it about what addresses it has and has been sent to.
 
 Key management has always been an issue but I'd like to just keep one thing synced up and connect to that, and lit is the most compatible with the chainhook and stuff. I'm sure I'm storing like 3 copies of everything. 
-
-Soo much engineering work that could be done to make this like a robust way of setting up and exchange. Lots of moving parts.
