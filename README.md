@@ -1,11 +1,10 @@
 # opencx
-[![Build Status](https://img.shields.io/travis/com/mit-dci/opencx.svg?style=flat-square)](https://travis-ci.com/mit-dci/opencx)
-[![License](http://img.shields.io/:license-MIT-000.svg?style=flat-square)](http://mit-dci.mit-license.org)
+[![Build Status](https://travis-ci.org/mit-dci/opencx.svg?branch=master)](https://travis-ci.org/mit-dci/opencx)
+[![License](http://img.shields.io/:license-MIT-000.svg)](http://mit-dci.mit-license.org)
+[![GoReport](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/badge/github.com/mit-dci/opencx)
+[![GoDoc](https://godoc.org/github.com/mit-dci/opencx?status.svg)](https://godoc.org/github.com/mit-dci/opencx)
 
 A centralized exchange to help understand what a DEX should be.
-
-## Documentation
-[You can see the godoc documentation here!](https://godoc.org/github.com/mit-dci/opencx)
 
 ## Security note
 Gosec still detects a bunch of stuff.

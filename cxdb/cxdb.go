@@ -35,10 +35,6 @@ type OpencxStore interface {
 	CalculatePrice(*match.Pair) (float64, error)
 	// Withdraw checks the user's balance against the amount and if valid, reduces the balance by that amount.
 	Withdraw(*koblitz.PublicKey, string, uint64) error
-	// RunMatching runs the matching logic for all prices in the exchange. Matching is less abstracted because it is done very often, so the overhead makes a difference.
-	RunMatching(*match.Pair) error
-	// RunMatchingForPrice runs matching only for a specific price, likely the price that an order is coming in
-	RunMatchingForPrice(*match.Pair, float64) error
 	// UpdateDeposits updates the deposits when a block comes in
 	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
 	// AddToBalance adds to the balance of a user

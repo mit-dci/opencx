@@ -19,7 +19,6 @@ import (
 
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
-	"github.com/mit-dci/opencx/match"
 )
 
 // OpencxServer is what orchestrates the exchange. It's where you plug everything into basically.
@@ -50,23 +49,10 @@ type OpencxServer struct {
 	// This is how we're going to easily add multiple coins
 	CoinList []*coinparam.Params
 
-	orderMutex *sync.Mutex
-	OrderMap   map[match.Pair][]*match.LimitOrder
-
 	// default Capacity is the default capacity that we send back to people.
 	// remove this when we have some sense of how much money the exchange has and/or some fancy
 	// algorithms to determine this number based on reputation or something
 	defaultCapacity int64
-}
-
-// LockOrders locks the order mutex
-func (server *OpencxServer) LockOrders() {
-	server.orderMutex.Lock()
-}
-
-// UnlockOrders unlocks the order mutex
-func (server *OpencxServer) UnlockOrders() {
-	server.orderMutex.Unlock()
 }
 
 // InitServer creates a new server
@@ -77,8 +63,6 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []
 		OpencxRoot:         homedir,
 		registrationString: "opencx-register",
 		getOrdersString:    "opencx-getorders",
-		orderMutex:         new(sync.Mutex),
-		OrderMap:           make(map[match.Pair][]*match.LimitOrder),
 		ingestMutex:        *new(sync.Mutex),
 		BlockChanMap:       make(map[int]chan *wire.MsgBlock),
 		HeightEventChanMap: make(map[int]chan lnutil.HeightEvent),
@@ -112,18 +96,6 @@ func (server *OpencxServer) StartChainhookHandlers(wallet *wallit.Wallit) {
 	logging.Infof("Successfully set up chainhook from wallet, starting handlers")
 	go server.ChainHookHeightHandler(currentHeightChan, hookBlockChan, wallet.Param)
 
-}
-
-// MatchingRoutine is supposed to be run as a goroutine from placeorder so we can wait a bit while we run an order
-func (server *OpencxServer) MatchingRoutine(started chan bool, pair *match.Pair, price float64) {
-	server.LockIngests()
-	started <- true
-	if err := server.OpencxDB.RunMatchingForPrice(pair, price); err != nil {
-		logging.Errorf("Error running matching while doing matching routine: \n%s")
-		server.UnlockIngests()
-	}
-
-	server.UnlockIngests()
 }
 
 // GetRegistrationString gets a string that should be signed in order for a client to be registered

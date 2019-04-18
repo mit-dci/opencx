@@ -18,16 +18,16 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 
 	// Check that they have the balance for the order
 	// if they do, place the order and update their balance
-	err = order.SetID()
-	if err != nil {
+	if err = order.SetID(); err != nil {
 		return
 	}
 
-	tx, err := db.DBHandler.Begin()
-	if err != nil {
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
 		err = fmt.Errorf("Error beginning transaction while placing order: \n%s", err)
 		return
 	}
+
 	defer func() {
 		if err != nil {
 			tx.Rollback()
@@ -91,9 +91,6 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 				return
 			}
 
-			//debug
-			// logging.Infof("Price for %s side: %f\n", order.Side, realPrice)
-
 			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Pubkey.SerializeCompressed(), order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
 			if _, err = tx.Exec(placeOrderQuery); err != nil {
 				return
@@ -108,11 +105,12 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 		return
 	}
 
-	//debug
-	// logging.Infof("done")
 	orderid = order.OrderID
 
-	// when placing an order subtract from the balance
+	if err = db.RunMatchingBestPricesWithinTransaction(&order.TradingPair, tx); err != nil {
+		return
+	}
+
 	return
 }
 

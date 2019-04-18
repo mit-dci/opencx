@@ -56,18 +56,7 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	}
 	cl.Server.UnlockIngests()
 
-	cl.Server.LockOrders()
-	cl.Server.OrderMap[args.Order.TradingPair] = append(cl.Server.OrderMap[args.Order.TradingPair], args.Order)
-	cl.Server.UnlockOrders()
-
 	reply.OrderID = id
-	orderPrice, err := args.Order.Price()
-	if err != nil {
-		return fmt.Errorf("Error submitting order and calculating price: \n%s", err)
-	}
-
-	startedChan := make(chan bool, 1)
-	go cl.Server.MatchingRoutine(startedChan, &args.Order.TradingPair, orderPrice)
 
 	return
 }
