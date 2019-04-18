@@ -24,9 +24,12 @@ func NoiseListen(rpc1 *OpencxRPC, privkey *koblitz.PrivateKey, host string, port
 func NoiseListenAsync(doneChan chan bool, privkey *koblitz.PrivateKey, rpc1 *OpencxRPC, host string, port uint16) {
 	var err error
 
+	// Start noise rpc server (need to do this since the client is a rpc newclient)
+	noiseRPCServer := rpc.NewServer()
+
 	logging.Infof("Registering RPC API over Noise protocol ...")
 	// Register rpc
-	if err = rpc.Register(rpc1); err != nil {
+	if err = noiseRPCServer.Register(rpc1); err != nil {
 		logging.Fatalf("Error registering RPC Interface:\n%s", err)
 	}
 
@@ -38,8 +41,9 @@ func NoiseListenAsync(doneChan chan bool, privkey *koblitz.PrivateKey, rpc1 *Ope
 	}
 	logging.Infof("Running RPC-Noise server on %s\n", listener.Addr().String())
 
-	go rpc.Accept(listener)
-	logging.Infof("Starting rpc accept using listener")
+	// We don't need to do anything fancy here either because the noise protocol
+	// is built in to the listener as well.
+	go noiseRPCServer.Accept(listener)
 
 	OffButtonCloseListener(rpc1, listener)
 	doneChan <- true
