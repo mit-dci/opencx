@@ -20,6 +20,16 @@ func PlaceAndFill(client1 *benchclient.BenchClient, client2 *benchclient.BenchCl
 		go client2.OrderAsync(client2.PrivKey.PubKey(), "buy", pair, 1000, 2.0, orderChan, bufErrChan)
 
 		for i := 0; i < cap(bufErrChan); i++ {
+			select {
+			case err := <-bufErrChan:
+				if err != nil {
+					logging.Errorf("Error placing and filling")
+				}
+			case order := <-orderChan:
+				if order != nil {
+					logging.Infof("Placed order %s", order.OrderID)
+				}
+			}
 			if err := <-bufErrChan; err != nil {
 				logging.Errorf("Error placing and filling: %s", err)
 			}
@@ -35,11 +45,20 @@ func PlaceManyBuy(client *benchclient.BenchClient, pair string, howMany int) {
 	for i := 0; i < howMany; i++ {
 		go client.OrderAsync(client.PrivKey.PubKey(), "buy", pair, 1000, 1.0, orderChan, bufErrChan)
 	}
+
 	for i := 0; i < cap(bufErrChan); i++ {
-		if err := <-bufErrChan; err != nil {
-			logging.Errorf("Error placing many: %s", err)
+		select {
+		case err := <-bufErrChan:
+			if err != nil {
+				logging.Errorf("Error placing many: %s", err)
+			}
+		case order := <-orderChan:
+			if order != nil {
+				logging.Infof("Placed order %s", order.OrderID)
+			}
 		}
 	}
+
 	return
 }
 
@@ -50,11 +69,20 @@ func PlaceManySell(client *benchclient.BenchClient, pair string, howMany int) {
 	for i := 0; i < howMany; i++ {
 		go client.OrderAsync(client.PrivKey.PubKey(), "sell", pair, 1000, 1.0, orderChan, bufErrChan)
 	}
+
 	for i := 0; i < cap(bufErrChan); i++ {
-		if err := <-bufErrChan; err != nil {
-			logging.Errorf("Error placing many: %s", err)
+		select {
+		case err := <-bufErrChan:
+			if err != nil {
+				logging.Errorf("Error placing many: %s", err)
+			}
+		case order := <-orderChan:
+			if order != nil {
+				logging.Infof("Placed order %s", order.OrderID)
+			}
 		}
 	}
+
 	return
 }
 

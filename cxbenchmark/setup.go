@@ -2,7 +2,6 @@ package cxbenchmark
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/btcsuite/golangcrypto/sha3"
 	"github.com/mit-dci/lit/coinparam"
@@ -21,15 +20,15 @@ var (
 )
 
 // SetupBenchmarkClient sets up the benchmark and returns the client
-func SetupBenchmarkClient() (client *benchclient.BenchClient) {
-	var err error
+func SetupBenchmarkClient() (client *benchclient.BenchClient, err error) {
 
 	logging.SetLogLevel(3)
 
 	// have to set this for non noise client because while we don't use thigns for authentication we do use it for signing
 	var clientPrivKey *koblitz.PrivateKey
 	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
-		log.Fatalf("Error setting key for client: \n%s", err)
+		err = fmt.Errorf("Error setting key for client: \n%s", err)
+		return
 	}
 
 	client = &benchclient.BenchClient{
@@ -37,21 +36,22 @@ func SetupBenchmarkClient() (client *benchclient.BenchClient) {
 	}
 
 	if err = client.SetupBenchClient(defaultServer, defaultPort); err != nil {
-		log.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
+		err = fmt.Errorf("Error setting up OpenCX RPC Client: \n%s", err)
+		return
 	}
 
 	return
 }
 
 // SetupNoiseBenchmarkClient sets up the benchmark and returns the client
-func SetupNoiseBenchmarkClient() (client *benchclient.BenchClient) {
-	var err error
+func SetupNoiseBenchmarkClient() (client *benchclient.BenchClient, err error) {
 
 	logging.SetLogLevel(3)
 
 	var clientPrivKey *koblitz.PrivateKey
 	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
-		log.Fatalf("Error setting key for client: \n%s", err)
+		err = fmt.Errorf("Error setting key for client: \n%s", err)
+		return
 	}
 
 	client = &benchclient.BenchClient{
@@ -59,7 +59,8 @@ func SetupNoiseBenchmarkClient() (client *benchclient.BenchClient) {
 	}
 
 	if err = client.SetupBenchNoiseClient(defaultServer, defaultPort); err != nil {
-		log.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
+		err = fmt.Errorf("Error setting up OpenCX RPC Client: \n%s", err)
+		return
 	}
 
 	return
@@ -75,7 +76,7 @@ func signBytes(client *benchclient.BenchClient, bytes []byte) (signature []byte,
 	e := sha.Sum(nil)
 
 	if signature, err = koblitz.SignCompact(koblitz.S256(), client.PrivKey, e, false); err != nil {
-		logging.Errorf("Failed to sign bytes.")
+		err = fmt.Errorf("Failed to sign bytes : \n%s", err)
 		return
 	}
 
@@ -103,7 +104,7 @@ func registerClient(client *benchclient.BenchClient) (err error) {
 }
 
 // createFullServer creates a server after starting the database with a bunch of parameters
-func createFullServer(dbuser string, dbpass string, dbhost string, dbport uint16, coinList []*coinparam.Params, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, err error) {
+func createFullServer(dbuser string, dbpass string, dbhost string, dbport uint16, coinList []*coinparam.Params, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
 
 	// Create db connection
 	var db *cxdbsql.DB
@@ -118,8 +119,8 @@ func createFullServer(dbuser string, dbpass string, dbhost string, dbport uint16
 		return
 	}
 
-	// defer the db closing to when we stop
-	defer db.DBHandler.Close()
+	// first add closeDB to the stack of things we're deferring until we're out of the scope of this function
+	// functionCloser(closeFunc, db.DBHandler.Close)
 
 	// Anyways, here's where we set the server
 	ocxServer = cxserver.InitServer(db, "", serverport, coinList)
@@ -151,11 +152,42 @@ func createFullServer(dbuser string, dbpass string, dbhost string, dbport uint16
 		go cxrpc.NoiseListenAsync(doneChan, privkey, rpc1, serverhost, serverport)
 	}
 
+	offChan = rpc1.OffButton
+	// // create function and add it to closing stack that we made ourselves.
+	// closeListeners := func() (err error) {
+	// 	// lol just turn it off
+	// 	rpc1.OffButton <- true
+	// 	return
+	// }
+	// functionCloser(closeFunc, closeListeners)
+
+	return
+}
+
+// functionCloser modifies the original function to add another one on to its stack. Uses function pointers. Honestly just having fun here to see what compiles, might not even work. This is the most impure thing I've ever written.
+func functionCloser(original func() error, additionalCloser func() error) {
+	original = func() (newErr error) {
+		err := original()
+		newErr = additionalCloser()
+		if err != nil {
+			if newErr != nil {
+				newErr = fmt.Errorf("Two errors: error when calling original function: %s\nOriginal errors: %s", err, newErr)
+				return
+			}
+			err = fmt.Errorf("One original error: %s", err)
+			return
+		}
+		if newErr != nil {
+			newErr = fmt.Errorf("New error after calling additional closer: \n%s", newErr)
+			return
+		}
+		return
+	}
 	return
 }
 
 // createDefaultParamServerWithKey creates a server with a bunch of default params minus privkey and authrpc
-func createDefaultParamServerWithKey(privkey *koblitz.PrivateKey, authrpc bool) (server *cxserver.OpencxServer, err error) {
+func createDefaultParamServerWithKey(privkey *koblitz.PrivateKey, authrpc bool) (server *cxserver.OpencxServer, offChan chan bool, err error) {
 	return createFullServer("opencx", "testpass", "localhost", uint16(3306), []*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, "localhost", uint16(12346), privkey, authrpc)
 }
 
@@ -163,14 +195,17 @@ func createDefaultParamServerWithKey(privkey *koblitz.PrivateKey, authrpc bool) 
 func prepareBalances(client *benchclient.BenchClient, server *cxserver.OpencxServer) (err error) {
 
 	if err = server.OpencxDB.AddToBalance(client.PrivKey.PubKey(), 1000000000, &coinparam.RegressionNetParams); err != nil {
+		err = fmt.Errorf("Error adding a bunch of regtest to client: \n%s", err)
 		return
 	}
 
 	if err = server.OpencxDB.AddToBalance(client.PrivKey.PubKey(), 1000000000, &coinparam.LiteRegNetParams); err != nil {
+		err = fmt.Errorf("Error adding a bunch of litereg to client: \n%s", err)
 		return
 	}
 
 	if err = server.OpencxDB.AddToBalance(client.PrivKey.PubKey(), 1000000000, &coinparam.VertcoinRegTestParams); err != nil {
+		err = fmt.Errorf("Error adding a bunch of vtcreg to client: \n%s", err)
 		return
 	}
 
@@ -178,29 +213,25 @@ func prepareBalances(client *benchclient.BenchClient, server *cxserver.OpencxSer
 }
 
 // setupBenchmarkDualClient sets up an environment where we can test two very well funded clients client1 and client2 with configurable authrpc
-func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, err error) {
+func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, offChan chan bool, err error) {
 	var serverKey *koblitz.PrivateKey
 	if serverKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
 		err = fmt.Errorf("Could not get new private key: \n%s", err)
 		return
 	}
 
+	// set the closing function here as well
 	var server *cxserver.OpencxServer
-	if server, err = createDefaultParamServerWithKey(serverKey, authrpc); err != nil {
+	if server, offChan, err = createDefaultParamServerWithKey(serverKey, authrpc); err != nil {
 		err = fmt.Errorf("Could not create default server with key: \n%s", err)
 	}
 
-	client1 = SetupBenchmarkClient()
-	client2 = SetupBenchmarkClient()
-
-	if err = prepareBalances(client1, server); err != nil {
-		err = fmt.Errorf("Could not add balances to client1: \n%s", err)
+	if client1, err = SetupBenchmarkClient(); err != nil {
+		err = fmt.Errorf("Error setting up benchmark client for client 1: \n%s", err)
 		return
 	}
-
-	if err = prepareBalances(client2, server); err != nil {
-		err = fmt.Errorf("Could not add balances to client2: \n%s", err)
-		return
+	if client2, err = SetupBenchmarkClient(); err != nil {
+		err = fmt.Errorf("Error setting up benchmark cient for client 2: \n%s", err)
 	}
 
 	if err = registerClient(client1); err != nil {
@@ -210,6 +241,16 @@ func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, c
 
 	if err = registerClient(client2); err != nil {
 		err = fmt.Errorf("Could not register client2: \n%s", err)
+		return
+	}
+
+	if err = prepareBalances(client1, server); err != nil {
+		err = fmt.Errorf("Could not add balances to client1: \n%s", err)
+		return
+	}
+
+	if err = prepareBalances(client2, server); err != nil {
+		err = fmt.Errorf("Could not add balances to client2: \n%s", err)
 		return
 	}
 

@@ -157,12 +157,10 @@ func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblit
 
 // LockIngests makes the ingest wait for whatever is happening on the outside, probably creating accounts and such
 func (server *OpencxServer) LockIngests() {
-	logging.Debugf("Locking ingest mutex!")
 	server.ingestMutex.Lock()
 }
 
 // UnlockIngests releases the ingest wait for whatever is happening on the outside
 func (server *OpencxServer) UnlockIngests() {
-	logging.Debugf("Unlocking ingest mutex!")
 	server.ingestMutex.Unlock()
 }
