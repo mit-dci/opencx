@@ -18,9 +18,18 @@ var (
 func SetupBenchmark() (client *benchclient.BenchClient) {
 	var err error
 
-	logging.SetLogLevel(2)
+	logging.SetLogLevel(3)
 
-	client = new(benchclient.BenchClient)
+	// have to set this for non noise client because while we don't use thigns for authentication we do use it for signing
+	var clientPrivKey *koblitz.PrivateKey
+	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		log.Fatalf("Error setting key for client: \n%s", err)
+	}
+
+	client = &benchclient.BenchClient{
+		PrivKey: clientPrivKey,
+	}
+
 	if err = client.SetupBenchClient(defaultServer, defaultPort); err != nil {
 		log.Fatalf("Error setting up OpenCX RPC Client: \n%s", err)
 	}
@@ -32,7 +41,7 @@ func SetupBenchmark() (client *benchclient.BenchClient) {
 func SetupNoiseBenchmark() (client *benchclient.BenchClient) {
 	var err error
 
-	logging.SetLogLevel(2)
+	logging.SetLogLevel(3)
 
 	var clientPrivKey *koblitz.PrivateKey
 	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {

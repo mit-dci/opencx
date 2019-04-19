@@ -13,7 +13,9 @@ import (
 // This could be changed, but right now this is what a client is, and this is what benchclient supports.
 // This abstraction only allows us to use either authenticated or unauthenticated clients.
 type OpencxClient interface {
+	// Call calls the service method with a name, arguments, and reply
 	Call(string, interface{}, interface{}) error
+	// SetupConnection sets up a connection with the server
 	SetupConnection(string, uint16) error
 }
 

@@ -78,12 +78,12 @@ func PlaceBuySellX(client *benchclient.BenchClient, varRuns int) {
 	testerPubKey := testerPrivKey.PubKey()
 	otherTesterPubKey := otherTesterPrivKey.PubKey()
 
-	PlaceManyBuy(client, testerPubKey, otherTesterPubKey, "btc/ltc", varRuns)
-	PlaceManyBuy(client, testerPubKey, otherTesterPubKey, "btc/vtc", varRuns)
-	PlaceManyBuy(client, testerPubKey, otherTesterPubKey, "vtc/ltc", varRuns)
-	PlaceManySell(client, testerPubKey, otherTesterPubKey, "btc/ltc", varRuns)
-	PlaceManySell(client, testerPubKey, otherTesterPubKey, "btc/vtc", varRuns)
-	PlaceManySell(client, testerPubKey, otherTesterPubKey, "vtc/ltc", varRuns)
+	PlaceManyBuy(client, testerPubKey, otherTesterPubKey, "regtest/litereg", varRuns)
+	PlaceManyBuy(client, testerPubKey, otherTesterPubKey, "regtest/vtcreg", varRuns)
+	PlaceManyBuy(client, testerPubKey, otherTesterPubKey, "vtcreg/litereg", varRuns)
+	PlaceManySell(client, testerPubKey, otherTesterPubKey, "regtest/litereg", varRuns)
+	PlaceManySell(client, testerPubKey, otherTesterPubKey, "regtest/vtcreg", varRuns)
+	PlaceManySell(client, testerPubKey, otherTesterPubKey, "vtcreg/litreg", varRuns)
 	return
 }
 
@@ -105,7 +105,7 @@ func PlaceFillX(client *benchclient.BenchClient, varRuns int) {
 
 	testerPubKey := testerPrivKey.PubKey()
 	otherTesterPubKey := otherTesterPrivKey.PubKey()
-	PlaceAndFill(client, testerPubKey, otherTesterPubKey, "btc/ltc", varRuns)
-	PlaceAndFill(client, testerPubKey, otherTesterPubKey, "btc/vtc", varRuns)
-	PlaceAndFill(client, testerPubKey, otherTesterPubKey, "vtc/ltc", varRuns)
+	PlaceAndFill(client, testerPubKey, otherTesterPubKey, "regtest/litereg", varRuns)
+	PlaceAndFill(client, testerPubKey, otherTesterPubKey, "regtest/vtcreg", varRuns)
+	PlaceAndFill(client, testerPubKey, otherTesterPubKey, "vtcreg/litereg", varRuns)
 }

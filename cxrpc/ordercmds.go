@@ -45,6 +45,7 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	// TODO: make sure this is a valid way of doing stuff
 	if !sigPubKey.IsEqual(orderPubkey) {
 		err = fmt.Errorf("Pubkey used with signature not equal to the one passed")
+		return
 	}
 
 	// possible replay attack: if we're using the same pubkey for two exchanges and this is like a feature on the exchange, then an exchange could have you
