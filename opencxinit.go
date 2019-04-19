@@ -129,7 +129,7 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	keyPath := filepath.Join(conf.OpencxHomeDir, defaultKeyFileName)
 	privkey, err := lnutil.ReadKeyFile(keyPath)
 	if err != nil {
-		logging.Errorf("Error reading key from file: \n%s", err)
+		logging.Fatalf("Error reading key from file: \n%s", err)
 	}
 
 	return privkey

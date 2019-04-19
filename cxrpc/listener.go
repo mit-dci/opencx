@@ -44,7 +44,6 @@ func NoiseListenAsync(doneChan chan bool, privkey *koblitz.PrivateKey, rpc1 *Ope
 	// We don't need to do anything fancy here either because the noise protocol
 	// is built in to the listener as well.
 	go noiseRPCServer.Accept(listener)
-
 	OffButtonCloseListener(rpc1, listener)
 	doneChan <- true
 	return
