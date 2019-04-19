@@ -29,7 +29,6 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	sha3.Write(args.Order.Serialize())
 	e := sha3.Sum(nil)
 
-	logging.Infof("Checking order signature")
 	var sigPubKey *koblitz.PublicKey
 	if sigPubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), args.Signature, e); err != nil {
 		err = fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
@@ -52,21 +51,16 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	// place an order on their exchange, even with a nonce, and then send it over to the other exchange. When you submit an order on one exchange,
 	// you essentially submit an order to all of them. But like once we have channels for orders then this isn't a thing anymore because the channel
 	// tx's are signed and funding stuff is published on chain
-	logging.Infof("Pubkey %x submitted order", sigPubKey.SerializeUncompressed())
-
 	cl.Server.LockIngests()
-	var id string
-	if id, err = cl.Server.OpencxDB.PlaceOrder(args.Order); err != nil {
+	if reply.OrderID, err = cl.Server.OpencxDB.PlaceOrder(args.Order); err != nil {
 		// gotta put these here cause if it errors out then oops just locked everything
-		logging.Errorf("Error with matching: \n%s", err)
 		cl.Server.UnlockIngests()
 		err = fmt.Errorf("Error placing order while submitting order: \n%s", err)
 		return
 	}
 	cl.Server.UnlockIngests()
 
-	reply.OrderID = id
-	logging.Infof("The order id is %s, cool!", id)
+	logging.Infof("User %x submitted OrderID %s", sigPubKey.SerializeCompressed(), reply.OrderID)
 
 	return
 }

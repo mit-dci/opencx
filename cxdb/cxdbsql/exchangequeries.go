@@ -2,6 +2,7 @@ package cxdbsql
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/mit-dci/opencx/util"
@@ -308,6 +309,11 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 				return
 			}
 
+			// we have to do this because ugh they return my byte arrays as hex strings...
+			if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
+				return
+			}
+
 			// copy pubkey bytes into 33 order byte arr
 			copy(sellOrder.Pubkey[:], pubkeyBytes)
 
@@ -332,6 +338,11 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 			var pubkeyBytes []byte
 			buyOrder := new(match.LimitOrder)
 			if err = buyRows.Scan(&pubkeyBytes, &buyOrder.OrderID, &buyOrder.Side, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
+				return
+			}
+
+			// we have to do this because ugh they return my byte arrays as hex strings...
+			if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
 				return
 			}
 
@@ -385,6 +396,11 @@ func (db *DB) GetOrder(orderID string) (order *match.LimitOrder, err error) {
 		if rows.Next() {
 			var pubkeyBytes []byte
 			if err = rows.Scan(&pubkeyBytes, &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp, &order.OrderbookPrice); err != nil {
+				return
+			}
+
+			// we have to do this because ugh they return my byte arrays as hex strings...
+			if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
 				return
 			}
 

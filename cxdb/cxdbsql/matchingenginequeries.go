@@ -2,6 +2,7 @@ package cxdbsql
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -241,6 +242,11 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 			return
 		}
 
+		// we have to do this because ugh they return my byte arrays as hex strings...
+		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
+			return
+		}
+
 		copy(sellOrder.Pubkey[:], pubkeyBytes)
 		sellOrders = append(sellOrders, sellOrder)
 	}
@@ -260,6 +266,11 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 		var pubkeyBytes []byte
 		buyOrder := new(match.LimitOrder)
 		if err = buyRows.Scan(&pubkeyBytes, &buyOrder.OrderID, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
+			return
+		}
+
+		// we have to do this because ugh they return my byte arrays as hex strings...
+		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
 			return
 		}
 

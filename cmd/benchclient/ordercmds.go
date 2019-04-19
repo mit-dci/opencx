@@ -7,7 +7,6 @@ import (
 	"golang.org/x/crypto/sha3"
 
 	"github.com/mit-dci/opencx/cxrpc"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -15,16 +14,14 @@ import (
 func (cl *BenchClient) OrderCommand(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64) (reply *cxrpc.SubmitOrderReply, err error) {
 	errorChannel := make(chan error, 1)
 	replyChannel := make(chan *cxrpc.SubmitOrderReply, 1)
-	logging.Infof("Placing order")
-	cl.OrderAsync(pubkey, side, pair, amountHave, price, replyChannel, errorChannel)
+	go cl.OrderAsync(pubkey, side, pair, amountHave, price, replyChannel, errorChannel)
 	// wait on either the reply or error, whichever comes first. If error is nil wait for reply. That's why the for loop is there. We don't care if the reply is nil, it shouldn't be, but that's sort of just so go-vet doesn't yell at us for having an unreachable return.
-	for reply != nil {
+	for reply == nil {
 		select {
 		case reply = <-replyChannel:
 			return
 		case err = <-errorChannel:
 			if err != nil {
-				logging.Errorf("Woah error came first and its not nil")
 				return
 			}
 		}
