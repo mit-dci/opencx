@@ -4,19 +4,15 @@
 [![GoReport](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/badge/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx?status.svg)](https://godoc.org/github.com/mit-dci/opencx)
 
-A centralized exchange to help understand what a DEX should be.
-
-## Security note
-Gosec still detects a bunch of stuff.
+OpenCX stands for Open Cryptocurrency eXchange, it's an open-source cryptocurrency exchange toolkit originally built to help understand what a decentralized exchange should be. It's meant to be modular enough so features that increase trustlessness in cryptocurrency exchange can be implemented and experimented with. Included are packages for lightning support, RPC, authentication via the NOISE protocol, and a Gentralizedolang API supporting multiple forms of authentication.
 
 # Requirements
  - Go 1.11+
- - [MariaDB](https://mariadb.org) (not needed for client)
+ - A MySQL Database (not needed for client)
 
-There are configuration files that will let you run more than just bitcoin, litecoin, and vertcoin testnet.
-You can now start an exchange that is running bitcoin, litecoin, and vertcoin mainnet alongside regtest and testnet.
-I'm working on adding in lightning compatibility for all of this.
-If you'd like to add your own coins, just add them to the coinparams in `lit`.
+# Demo
+
+![gif of program in normal use](../assets/opencxdemo.gif?raw=true)
 
 # How to run opencx server / exchange
 First clone the repo and install dependencies:
@@ -53,8 +49,6 @@ go build
 You can now issue any of the commands in the cxrpc README.md file.
 
 # Configuration
-There are configuration options (both command line and .conf) for the client and the server, and by default home folders for these files will be created at `~/.opencx` and `~/.ocx` respectively. You can decide whether or not to use the NOISE protocol for authentication, which hostnames and ports to use for connecting to certain clients
+There are configuration options (both command line and .conf) for the client and the server, and by default home folders for these files will be created at `~/.opencx` and `~/.ocx` respectively. You can decide whether or not to use the NOISE protocol for authentication, which hostnames and ports to use for connecting to certain clients, which coins you would like to support, and whether or not to support lightning.
 
----
-Image of normal use:
-![Picture of normal program use in terminal](../assets/normaluse.png?raw=true)
+If you'd like to add your own coins, just add a coinparam struct like in `lit`.
