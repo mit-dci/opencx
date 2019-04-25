@@ -48,3 +48,25 @@ type OpencxStore interface {
 	// CancelOrder cancels an order with order id
 	CancelOrder(string) error
 }
+
+// TODO: Make all of this make sense with messages, keys, and change LimitOrder to Auction order. Make auction
+// order make more sense with the encryption stuff.
+
+// OpencxAuctionStore should define all the functions that are required for an implementation of a
+// front-running resistant auction exchange that uses any sort of I/O to store its information.
+// If you wanted you could implement everything entirely in golang's allocated memory, with built in data structures (not that it is advised). The datastore layer
+// should not check validity of the things it is doing, just update or insert or return whatever.
+type OpencxAuctionStore interface {
+	// SetupClient makes sure that whatever things need to be done before we use the datastore can be done before we need to use the datastore.
+	SetupClient([]*coinparam.Params) error
+	// RegisterUser takes in a pubkey, and a map of asset to addresses for the pubkey. It inserts the necessary information in databases to register the pubkey.
+	RegisterUser(*koblitz.PublicKey, map[*coinparam.Params]string) error
+	// GetBalance gets the balance for a pubkey and an asset.
+	GetBalance(*koblitz.PublicKey, *coinparam.Params) (uint64, error)
+	// AddToBalance adds to the balance of a user
+	AddToBalance(*koblitz.PublicKey, uint64, *coinparam.Params) error
+	// PlaceAuctionOrder places an order in the datastore.
+	PlaceAuctionOrder(*match.LimitOrder) (string, error)
+	// ViewAuctionOrderBook takes in a trading pair and auction ID, and returns encrypted auction orders
+	ViewAuctionOrderBook(*match.Pair, []byte) ([]*match.LimitOrder, []*match.LimitOrder, error)
+}

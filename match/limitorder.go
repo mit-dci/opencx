@@ -102,9 +102,10 @@ func (l *LimitOrder) Serialize() (buf []byte) {
 }
 
 // SetAmountWant sets the amountwant value of the limit order according to a price
-func (l *LimitOrder) SetAmountWant(price float64) error {
+func (l *LimitOrder) SetAmountWant(price float64) (err error) {
 	if price <= 0 {
-		return fmt.Errorf("Price can't be less than or equal to 0")
+		err = fmt.Errorf("Price can't be less than or equal to 0")
+		return
 	}
 
 	// Rules for all of this amountHave / amountWant confusing stuff because I'm bad at naming variables:
@@ -123,7 +124,8 @@ func (l *LimitOrder) SetAmountWant(price float64) error {
 	} else if l.IsSellSide() {
 		l.AmountWant = uint64(float64(l.AmountHave) / price)
 	} else {
-		return fmt.Errorf("Invalid side for order, must be buy or sell")
+		err = fmt.Errorf("Invalid side for order, must be buy or sell")
+		return
 	}
-	return nil
+	return
 }
