@@ -143,6 +143,11 @@ func TestCreateQuintrillion2048A2(t *testing.T) {
 	return
 }
 
+func TestCreateLCSTime2048A2(t *testing.T) {
+	createTest2048A2(79685186856218, t)
+	return
+}
+
 func TestZero2048A2(t *testing.T) {
 	createSolveTest2048A2(0, t)
 	return

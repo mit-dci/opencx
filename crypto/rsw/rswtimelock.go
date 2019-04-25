@@ -5,7 +5,9 @@ import (
 	"crypto/rsa"
 	"fmt"
 
-	big "github.com/ncw/gmp"
+	"math/big"
+
+	gmpbig "github.com/ncw/gmp"
 
 	"github.com/mit-dci/opencx/crypto"
 )
@@ -45,6 +47,7 @@ func New(key []byte, a int64, rsaKeyBits int) (timelock crypto.Timelock, err err
 		err = fmt.Errorf("For some reason the RSA Privkey has != 2 primes, this should not be the case for RSW, we only need p and q")
 		return
 	}
+	// If we ever want to just switch to gmp for all calculations these two lines will fix all of the issues
 	tl.p = new(big.Int).SetBytes(rsaPrivKey.Primes[0].Bytes())
 	tl.q = new(big.Int).SetBytes(rsaPrivKey.Primes[1].Bytes())
 	tl.a = big.NewInt(a)
@@ -200,5 +203,25 @@ func (pz *PuzzleRSW) SolveCkXOR() (answer []byte, err error) {
 
 // Solve solves the puzzle by repeated squarings
 func (pz *PuzzleRSW) Solve() (answer []byte, err error) {
-	return pz.SolveCkXOR()
+	return pz.SolveGMPCkXOR()
+}
+
+// SolveGMPCkXOR solves the puzzle by repeated squarings and xor b with ck using the GMP library
+func (pz *PuzzleRSW) SolveGMPCkXOR() (answer []byte, err error) {
+	// No longer a one liner but many times faster
+	gmpck := new(gmpbig.Int).SetBytes(pz.ck.Bytes())
+	gmpa := new(gmpbig.Int).SetBytes(pz.a.Bytes())
+	gmpt := new(gmpbig.Int).SetBytes(pz.t.Bytes())
+	gmpn := new(gmpbig.Int).SetBytes(pz.n.Bytes())
+	return new(gmpbig.Int).Xor(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
+}
+
+// SolveGMPCkADD solves the puzzle by repeated squarings and xor b with ck using the GMP library
+func (pz *PuzzleRSW) SolveGMPCkADD() (answer []byte, err error) {
+	// No longer a one liner but many times faster
+	gmpck := new(gmpbig.Int).SetBytes(pz.ck.Bytes())
+	gmpa := new(gmpbig.Int).SetBytes(pz.a.Bytes())
+	gmpt := new(gmpbig.Int).SetBytes(pz.t.Bytes())
+	gmpn := new(gmpbig.Int).SetBytes(pz.n.Bytes())
+	return new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
 }
