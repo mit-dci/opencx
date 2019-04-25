@@ -60,3 +60,18 @@ func TestHundredThousand2048A2(t *testing.T) {
 	createTest2048A2(100000, t)
 	return
 }
+
+func TestMillion2048A2(t *testing.T) {
+	createTest2048A2(1000000, t)
+	return
+}
+
+func TestTenMillion2048A2(t *testing.T) {
+	createTest2048A2(10000000, t)
+	return
+}
+
+func TestHundredMillion2048A2(t *testing.T) {
+	createTest2048A2(100000000, t)
+	return
+}

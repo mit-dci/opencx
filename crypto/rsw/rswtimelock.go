@@ -159,6 +159,7 @@ func (tl *TimelockRSW) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answ
 		err = fmt.Errorf("Could not find n: %s", err)
 		return
 	}
+	// if this is xor then the answer = blah line needs to be xor as well
 	var ck *big.Int
 	if ck, err = tl.ckXOR(); err != nil {
 		err = fmt.Errorf("Could not find ck: %s", err)
@@ -178,21 +179,24 @@ func (tl *TimelockRSW) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answ
 		err = fmt.Errorf("Could not find b: %s", err)
 		return
 	}
-	// idk if this is a thing but ok
-	answer = new(big.Int).Sub(ck, b).Bytes()
+
+	// if this is xor then the ck, err = blah like needs to be xor as well
+	answer = new(big.Int).Xor(ck, b).Bytes()
 	return
 }
 
 // SolveCkADD solves the puzzle by repeated squarings and subtracting b from ck
 func (pz *PuzzleRSW) SolveCkADD() (answer []byte, err error) {
-	// One liner!
-	return new(big.Int).Sub(pz.ck, new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)).Bytes(), nil
+	// Two liner!
+	b := new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)
+	return new(big.Int).Sub(pz.ck, b).Bytes(), nil
 }
 
 // SolveCkXOR solves the puzzle by repeated squarings and xor b with ck
 func (pz *PuzzleRSW) SolveCkXOR() (answer []byte, err error) {
-	// One liner!
-	return new(big.Int).Xor(pz.ck, new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)).Bytes(), nil
+	// Two liner!
+	b := new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)
+	return new(big.Int).Xor(pz.ck, b).Bytes(), nil
 }
 
 // Solve solves the puzzle by repeated squarings
