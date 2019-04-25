@@ -1,4 +1,4 @@
-package timelocksolvers
+package timelockencoders
 
 import (
 	"crypto/aes"
