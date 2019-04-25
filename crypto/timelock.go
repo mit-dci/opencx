@@ -2,8 +2,8 @@ package crypto
 
 // Timelock is an interface that all timelock implementations should conform to.
 type Timelock interface {
-	// SetupTimelock sends key k to the future in time t, returning a puzzle and an answer, or fails
-	SetupTimelock(t uint64) (puzzle *Puzzle, answer []byte, err error)
+	// SetupTimelockPuzzle sends key k to the future in time t, returning a puzzle and an answer, or fails
+	SetupTimelockPuzzle(t uint64) (puzzle Puzzle, answer []byte, err error)
 }
 
 // Puzzle is what can actually be solved. It should return the same time t
