@@ -4,7 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
-	"math/big"
+
+	big "github.com/ncw/gmp"
 
 	"github.com/mit-dci/opencx/crypto"
 )
@@ -44,8 +45,8 @@ func New(key []byte, a int64, rsaKeyBits int) (timelock crypto.Timelock, err err
 		err = fmt.Errorf("For some reason the RSA Privkey has != 2 primes, this should not be the case for RSW, we only need p and q")
 		return
 	}
-	tl.p = rsaPrivKey.Primes[0]
-	tl.q = rsaPrivKey.Primes[1]
+	tl.p = new(big.Int).SetBytes(rsaPrivKey.Primes[0].Bytes())
+	tl.q = new(big.Int).SetBytes(rsaPrivKey.Primes[1].Bytes())
 	tl.a = big.NewInt(a)
 	tl.key = key
 
@@ -187,16 +188,14 @@ func (tl *TimelockRSW) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answ
 
 // SolveCkADD solves the puzzle by repeated squarings and subtracting b from ck
 func (pz *PuzzleRSW) SolveCkADD() (answer []byte, err error) {
-	// Two liner!
-	b := new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)
-	return new(big.Int).Sub(pz.ck, b).Bytes(), nil
+	// One liner!
+	return new(big.Int).Sub(pz.ck, new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)).Bytes(), nil
 }
 
 // SolveCkXOR solves the puzzle by repeated squarings and xor b with ck
 func (pz *PuzzleRSW) SolveCkXOR() (answer []byte, err error) {
-	// Two liner!
-	b := new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)
-	return new(big.Int).Xor(pz.ck, b).Bytes(), nil
+	// One liner!
+	return new(big.Int).Xor(pz.ck, new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)).Bytes(), nil
 }
 
 // Solve solves the puzzle by repeated squarings
