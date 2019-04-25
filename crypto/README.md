@@ -1,0 +1,3 @@
+# crypto
+
+The crypto package currently has an interface for Timelock Puzzles, and an implementation of both the RCW96 timelock puzzle and a simple hash-based timelock puzzle. In the case of the hash-based timelock puzzle, it takes just as long to create the puzzle (if you are encrypting information with the result) as it does to solve it. With RCW96, this is not the case. It's supposed to be similar to interact with as the golang built-in `crypto` library.
