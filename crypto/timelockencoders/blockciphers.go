@@ -7,16 +7,222 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/dgryski/go-rc5"
+	"github.com/dgryski/go-rc6"
 	"github.com/mit-dci/opencx/crypto"
 	"github.com/mit-dci/opencx/crypto/rsw"
 )
+
+// CreateRSW2048A2PuzzleRC5 creates a RSW timelock puzzle with time t and encrypts the message using RC5. This is consistent with the scheme described in RSW96.
+func CreateRSW2048A2PuzzleRC5(t uint64, message []byte) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
+	// Generate private key
+	var key []byte
+	if key, err = Generate16ByteKey(rand.Reader); err != nil {
+		err = fmt.Errorf("Could not generate rc5 key for puzzle: %s", err)
+		return
+	}
+
+	// Set up what the puzzle will encrypt
+	var timelock crypto.Timelock
+	if timelock, err = rsw.New2048A2(key); err != nil {
+		err = fmt.Errorf("Error creating new rsw timelock for rc5 puzzle: %s", err)
+		return
+	}
+
+	// Set up the puzzle to send
+	if puzzle, _, err = timelock.SetupTimelockPuzzle(t); err != nil {
+		err = fmt.Errorf("Error setting up timelock while creating rc5 puzzle: %s", err)
+		return
+	}
+
+	// Create the cipher
+	var RC5Cipher cipher.Block
+	if RC5Cipher, err = rc5.New(key); err != nil {
+		err = fmt.Errorf("Error creating cipher for encryption in rc5 puzzle: %s", err)
+		return
+	}
+
+	// check to make sure we're going to succeed when encrypting
+	if len(message) < RC5Cipher.BlockSize() {
+		err = fmt.Errorf("ciphertext less than blocksize, make a bigger ciphertext")
+		return
+	}
+
+	// Generate random initialization vector
+	var iv []byte
+	ciphertext = make([]byte, RC5Cipher.BlockSize()+len(message))
+
+	// The IV needs to be unique, but not secure. Therefore it's common to
+	// include it at the beginning of the ciphertext.
+	iv = ciphertext[:RC5Cipher.BlockSize()]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		err = fmt.Errorf("Error reading random reader for iv: %s", err)
+	}
+
+	// Create encrypter
+	var cfbEncrypter cipher.Stream
+	cfbEncrypter = cipher.NewCFBEncrypter(RC5Cipher, iv)
+
+	// Actually encrypt
+	cfbEncrypter.XORKeyStream(ciphertext[RC5Cipher.BlockSize():], message)
+
+	// We've sent out the puzzle (which is n, a, t, ck). We've also sent out cm. This is now consistent with RSW96.
+
+	return
+}
+
+// SolvePuzzleRC5 solves the timelock puzzle and decrypts the ciphertext using RC5
+func SolvePuzzleRC5(ciphertext []byte, puzzle crypto.Puzzle) (message []byte, err error) {
+	if puzzle == nil {
+		err = fmt.Errorf("Puzzle cannot be nil, what are you solving")
+		return
+	}
+
+	var key []byte
+	if key, err = puzzle.Solve(); err != nil {
+		err = fmt.Errorf("Error solving auction puzzle: %s", err)
+		return
+	}
+
+	var RC5Cipher cipher.Block
+	if RC5Cipher, err = rc5.New(key); err != nil {
+		err = fmt.Errorf("Could not create new rc5 cipher for puzzle: %s", err)
+		return
+	}
+
+	// check to make sure we're going to succeed when decrypting
+	if len(ciphertext) < RC5Cipher.BlockSize() {
+		err = fmt.Errorf("ciphertext less than blocksize, make a bigger ciphertext")
+		return
+	}
+
+	// Split up IV into ciphertext and IV
+	var iv []byte
+	iv = ciphertext[:RC5Cipher.BlockSize()]
+
+	// Don't decrypt the IV
+	ciphertext = ciphertext[RC5Cipher.BlockSize():]
+
+	// Make decrypter
+	var cfbDecrypter cipher.Stream
+	cfbDecrypter = cipher.NewCFBDecrypter(RC5Cipher, iv)
+
+	// make message and then decrypt
+	message = make([]byte, len(ciphertext))
+
+	cfbDecrypter.XORKeyStream(message, ciphertext)
+
+	return
+}
+
+// CreateRSW2048A2PuzzleRC6 creates a RSW timelock puzzle with time t and encrypts the message using RC6. This is consistent with the scheme described in RSW96.
+func CreateRSW2048A2PuzzleRC6(t uint64, message []byte) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
+	// Generate private key
+	var key []byte
+	if key, err = Generate16ByteKey(rand.Reader); err != nil {
+		err = fmt.Errorf("Could not generate rc6 key for puzzle: %s", err)
+		return
+	}
+
+	// Set up what the puzzle will encrypt
+	var timelock crypto.Timelock
+	if timelock, err = rsw.New2048A2(key); err != nil {
+		err = fmt.Errorf("Error creating new rsw timelock for rc6 puzzle: %s", err)
+		return
+	}
+
+	// Set up the puzzle to send
+	if puzzle, _, err = timelock.SetupTimelockPuzzle(t); err != nil {
+		err = fmt.Errorf("Error setting up timelock while creating rc6 puzzle: %s", err)
+		return
+	}
+
+	// Create the cipher
+	var RC6Cipher cipher.Block
+	if RC6Cipher, err = rc6.New(key); err != nil {
+		err = fmt.Errorf("Error creating cipher for encryption in rc6 puzzle: %s", err)
+		return
+	}
+
+	// check to make sure we're going to succeed when encrypting
+	if len(message) < RC6Cipher.BlockSize() {
+		err = fmt.Errorf("ciphertext less than blocksize, make a bigger ciphertext")
+		return
+	}
+
+	// Generate random initialization vector
+	var iv []byte
+	ciphertext = make([]byte, RC6Cipher.BlockSize()+len(message))
+
+	// The IV needs to be unique, but not secure. Therefore it's common to
+	// include it at the beginning of the ciphertext.
+	iv = ciphertext[:RC6Cipher.BlockSize()]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		err = fmt.Errorf("Error reading random reader for iv: %s", err)
+	}
+
+	// Create encrypter
+	var cfbEncrypter cipher.Stream
+	cfbEncrypter = cipher.NewCFBEncrypter(RC6Cipher, iv)
+
+	// Actually encrypt
+	cfbEncrypter.XORKeyStream(ciphertext[RC6Cipher.BlockSize():], message)
+
+	// We've sent out the puzzle (which is n, a, t, ck). We've also sent out cm. This is now consistent with RSW96.
+
+	return
+}
+
+// SolvePuzzleRC6 solves the timelock puzzle and decrypts the ciphertext using RC6
+func SolvePuzzleRC6(ciphertext []byte, puzzle crypto.Puzzle) (message []byte, err error) {
+	if puzzle == nil {
+		err = fmt.Errorf("Puzzle cannot be nil, what are you solving")
+		return
+	}
+
+	var key []byte
+	if key, err = puzzle.Solve(); err != nil {
+		err = fmt.Errorf("Error solving auction puzzle: %s", err)
+		return
+	}
+
+	var RC6Cipher cipher.Block
+	if RC6Cipher, err = rc6.New(key); err != nil {
+		err = fmt.Errorf("Could not create new rc6 cipher for puzzle: %s", err)
+		return
+	}
+
+	// check to make sure we're going to succeed when decrypting
+	if len(ciphertext) < RC6Cipher.BlockSize() {
+		err = fmt.Errorf("ciphertext less than blocksize, make a bigger ciphertext")
+		return
+	}
+
+	// Split up IV into ciphertext and IV
+	var iv []byte
+	iv = ciphertext[:RC6Cipher.BlockSize()]
+
+	// Don't decrypt the IV
+	ciphertext = ciphertext[RC6Cipher.BlockSize():]
+
+	// Make decrypter
+	var cfbDecrypter cipher.Stream
+	cfbDecrypter = cipher.NewCFBDecrypter(RC6Cipher, iv)
+
+	// make message and then decrypt
+	message = make([]byte, len(ciphertext))
+
+	cfbDecrypter.XORKeyStream(message, ciphertext)
+
+	return
+}
 
 // CreateRSW2048A2PuzzleAES creates a RSW timelock puzzle with time t and encrypts the message using AES.
 func CreateRSW2048A2PuzzleAES(t uint64, message []byte) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
 	// Generate private key
 	var key []byte
-	if key, err = GenerateAESKey(rand.Reader); err != nil {
-		err = fmt.Errorf("Could not generate rc5 key for puzzle: %s", err)
+	if key, err = Generate16ByteKey(rand.Reader); err != nil {
+		err = fmt.Errorf("Could not generate key for aes puzzle: %s", err)
 		return
 	}
 
@@ -36,7 +242,7 @@ func CreateRSW2048A2PuzzleAES(t uint64, message []byte) (ciphertext []byte, puzz
 	// Create the cipher
 	var AESCipher cipher.Block
 	if AESCipher, err = aes.NewCipher(key); err != nil {
-		err = fmt.Errorf("Error creating aes cipher for encryption in puzzle: %s", err)
+		err = fmt.Errorf("Error creating cipher for encryption in aes puzzle: %s", err)
 		return
 	}
 
@@ -69,8 +275,8 @@ func CreateRSW2048A2PuzzleAES(t uint64, message []byte) (ciphertext []byte, puzz
 	return
 }
 
-// GenerateAESKey generates a 16 byte long key to be used for AES from a reader
-func GenerateAESKey(rand io.Reader) (key []byte, err error) {
+// Generate16ByteKey generates a 16 byte long key to be used for AES, RC5, or RC6 from a reader
+func Generate16ByteKey(rand io.Reader) (key []byte, err error) {
 	key = make([]byte, 16)
 	if _, err = rand.Read(key); err != nil {
 		err = fmt.Errorf("Error reading from random while generating AES key: %s", err)
