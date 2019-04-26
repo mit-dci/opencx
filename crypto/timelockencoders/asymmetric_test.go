@@ -18,6 +18,7 @@ func TestRSWRSA(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error solving puzzle: %s", err)
 	}
+
 	if !bytes.Equal(newMessage, message) {
 		t.Fatalf("Messages not equal")
 	}
@@ -40,6 +41,7 @@ func TestRSWECIES(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error solving puzzle: %s", err)
 	}
+
 	if !bytes.Equal(newMessage, message) {
 		t.Fatalf("Messages not equal")
 	}

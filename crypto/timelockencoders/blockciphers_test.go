@@ -19,10 +19,11 @@ func TestRSWAES(t *testing.T) {
 		t.Fatalf("Error solving puzzle: %s", err)
 	}
 
-	t.Logf("We got message: %s!", newMessage)
 	if !bytes.Equal(newMessage, message) {
 		t.Fatalf("Messages not equal")
 	}
+
+	t.Logf("We got message: %s!", newMessage)
 
 	return
 }
@@ -41,10 +42,11 @@ func TestRSWRC5(t *testing.T) {
 		t.Fatalf("Error solving puzzle: %s", err)
 	}
 
-	t.Logf("We got message: %s!", newMessage)
 	if !bytes.Equal(newMessage, message) {
 		t.Fatalf("Messages not equal")
 	}
+
+	t.Logf("We got message: %s!", newMessage)
 
 	return
 }
@@ -63,10 +65,11 @@ func TestRSWRC6(t *testing.T) {
 		t.Fatalf("Error solving puzzle: %s", err)
 	}
 
-	t.Logf("We got message: %s!", newMessage)
 	if !bytes.Equal(newMessage, message) {
 		t.Fatalf("Messages not equal")
 	}
+
+	t.Logf("We got message: %s!", newMessage)
 
 	return
 }
