@@ -4,17 +4,55 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"io"
 
 	"github.com/dgryski/go-rc5"
 	"github.com/dgryski/go-rc6"
 	"github.com/mit-dci/opencx/crypto"
+	"github.com/mit-dci/opencx/crypto/hashtimelock"
 	"github.com/mit-dci/opencx/crypto/rsw"
 )
 
+func createSHAPuzzle(t uint64, key []byte) (puzzle crypto.Puzzle, anskey []byte, err error) {
+	// Set up what the puzzle will encrypt
+	var timelock crypto.Timelock
+	timelock = hashtimelock.New(key, sha256.New())
+
+	// Set up the puzzle to send
+	if puzzle, anskey, err = timelock.SetupTimelockPuzzle(t); err != nil {
+		err = fmt.Errorf("Error setting up timelock while creating rsw puzzle: %s", err)
+		return
+	}
+
+	return
+}
+
+func createRSWPuzzle(t uint64, key []byte) (puzzle crypto.Puzzle, anskey []byte, err error) {
+	// Set up what the puzzle will encrypt
+	var timelock crypto.Timelock
+	if timelock, err = rsw.New2048A2(key); err != nil {
+		err = fmt.Errorf("Error creating new rsw timelock for rsw puzzle: %s", err)
+		return
+	}
+
+	// Set up the puzzle to send
+	if puzzle, anskey, err = timelock.SetupTimelockPuzzle(t); err != nil {
+		err = fmt.Errorf("Error setting up timelock while creating rsw puzzle: %s", err)
+		return
+	}
+
+	return
+}
+
 // CreateRSW2048A2PuzzleRC5 creates a RSW timelock puzzle with time t and encrypts the message using RC5. This is consistent with the scheme described in RSW96.
 func CreateRSW2048A2PuzzleRC5(t uint64, message []byte) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
+	return CreatePuzzleRC5(t, message, createRSWPuzzle)
+}
+
+// CreatePuzzleRC5 creates a timelock puzzle with time t and encrypts the message using RC5.
+func CreatePuzzleRC5(t uint64, message []byte, puzzleCreator func(uint64, []byte) (crypto.Puzzle, []byte, error)) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
 	// Generate private key
 	var key []byte
 	if key, err = Generate16ByteKey(rand.Reader); err != nil {
@@ -22,16 +60,8 @@ func CreateRSW2048A2PuzzleRC5(t uint64, message []byte) (ciphertext []byte, puzz
 		return
 	}
 
-	// Set up what the puzzle will encrypt
-	var timelock crypto.Timelock
-	if timelock, err = rsw.New2048A2(key); err != nil {
-		err = fmt.Errorf("Error creating new rsw timelock for rc5 puzzle: %s", err)
-		return
-	}
-
-	// Set up the puzzle to send
-	if puzzle, _, err = timelock.SetupTimelockPuzzle(t); err != nil {
-		err = fmt.Errorf("Error setting up timelock while creating rc5 puzzle: %s", err)
+	if puzzle, key, err = puzzleCreator(t, key); err != nil {
+		err = fmt.Errorf("Error while creating timelock puzzle for rc5: %s", err)
 		return
 	}
 
@@ -115,8 +145,13 @@ func SolvePuzzleRC5(ciphertext []byte, puzzle crypto.Puzzle) (message []byte, er
 	return
 }
 
-// CreateRSW2048A2PuzzleRC6 creates a RSW timelock puzzle with time t and encrypts the message using RC6. This is consistent with the scheme described in RSW96.
+// CreateRSW2048A2PuzzleRC6 creates a RSW timelock puzzle with time t and encrypts the message using RC6.
 func CreateRSW2048A2PuzzleRC6(t uint64, message []byte) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
+	return CreatePuzzleRC6(t, message, createRSWPuzzle)
+}
+
+// CreatePuzzleRC6 creates a timelock puzzle with time t and encrypts the message using RC6.
+func CreatePuzzleRC6(t uint64, message []byte, puzzleCreator func(uint64, []byte) (crypto.Puzzle, []byte, error)) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
 	// Generate private key
 	var key []byte
 	if key, err = Generate16ByteKey(rand.Reader); err != nil {
@@ -124,16 +159,8 @@ func CreateRSW2048A2PuzzleRC6(t uint64, message []byte) (ciphertext []byte, puzz
 		return
 	}
 
-	// Set up what the puzzle will encrypt
-	var timelock crypto.Timelock
-	if timelock, err = rsw.New2048A2(key); err != nil {
-		err = fmt.Errorf("Error creating new rsw timelock for rc6 puzzle: %s", err)
-		return
-	}
-
-	// Set up the puzzle to send
-	if puzzle, _, err = timelock.SetupTimelockPuzzle(t); err != nil {
-		err = fmt.Errorf("Error setting up timelock while creating rc6 puzzle: %s", err)
+	if puzzle, key, err = puzzleCreator(t, key); err != nil {
+		err = fmt.Errorf("Error while creating timelock puzzle for rc6: %s", err)
 		return
 	}
 
@@ -217,8 +244,18 @@ func SolvePuzzleRC6(ciphertext []byte, puzzle crypto.Puzzle) (message []byte, er
 	return
 }
 
+// CreateSHAPuzzleAES creates a hash timelock puzzle with time t and encrypts the message using AES.
+func CreateSHAPuzzleAES(t uint64, message []byte) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
+	return CreatePuzzleAES(t, message, createSHAPuzzle)
+}
+
 // CreateRSW2048A2PuzzleAES creates a RSW timelock puzzle with time t and encrypts the message using AES.
 func CreateRSW2048A2PuzzleAES(t uint64, message []byte) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
+	return CreatePuzzleAES(t, message, createRSWPuzzle)
+}
+
+// CreatePuzzleAES creates a RSW timelock puzzle with time t and encrypts the message using AES.
+func CreatePuzzleAES(t uint64, message []byte, puzzleCreator func(uint64, []byte) (crypto.Puzzle, []byte, error)) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
 	// Generate private key
 	var key []byte
 	if key, err = Generate16ByteKey(rand.Reader); err != nil {
@@ -226,16 +263,8 @@ func CreateRSW2048A2PuzzleAES(t uint64, message []byte) (ciphertext []byte, puzz
 		return
 	}
 
-	// Set up what the puzzle will encrypt
-	var timelock crypto.Timelock
-	if timelock, err = rsw.New2048A2(key); err != nil {
-		err = fmt.Errorf("Error creating new rsw timelock for aes puzzle: %s", err)
-		return
-	}
-
-	// Set up the puzzle to send
-	if puzzle, _, err = timelock.SetupTimelockPuzzle(t); err != nil {
-		err = fmt.Errorf("Error setting up timelock while creating aes puzzle: %s", err)
+	if puzzle, key, err = puzzleCreator(t, key); err != nil {
+		err = fmt.Errorf("Error while creating timelock puzzle for aes: %s", err)
 		return
 	}
 
