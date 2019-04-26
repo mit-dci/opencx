@@ -44,16 +44,12 @@ type DB struct {
 
 	// name of balance schema
 	balanceSchema string
-
 	// name of deposit schema
 	depositSchema string
-
 	// name of pending deposit schema
 	pendingDepositSchema string
-
 	// name of order schema
 	orderSchema string
-
 	// name of peer schema
 	peerSchema string
 	// name of peer table
