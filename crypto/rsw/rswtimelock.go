@@ -1,8 +1,10 @@
 package rsw
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/gob"
 	"fmt"
 
 	"math/big"
@@ -224,4 +226,46 @@ func (pz *PuzzleRSW) SolveGMPCkADD() (answer []byte, err error) {
 	gmpt := new(gmpbig.Int).SetBytes(pz.t.Bytes())
 	gmpn := new(gmpbig.Int).SetBytes(pz.n.Bytes())
 	return new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
+}
+
+// Serialize turns the RSW puzzle into something that can be sent over the wire
+func (pz *PuzzleRSW) Serialize() (raw []byte, err error) {
+	var b bytes.Buffer
+
+	// register puzzleRSW interface
+	gob.Register(PuzzleRSW{})
+
+	// create a new encoder writing to the buffer
+	enc := gob.NewEncoder(&b)
+
+	// encode the puzzle in the buffer
+	if err = enc.Encode(pz); err != nil {
+		err = fmt.Errorf("Error encoding puzzle: %s", err)
+		return
+	}
+
+	// Get the bytes from the buffer
+	raw = b.Bytes()
+
+	return
+}
+
+// Deserialize turns the RSW puzzle into something that can be sent over the wire
+func (pz *PuzzleRSW) Deserialize(raw []byte) (err error) {
+	var b *bytes.Buffer
+	b = bytes.NewBuffer(raw)
+
+	// register puzzleRSW interface
+	gob.Register(PuzzleRSW{})
+
+	// create a new encoder writing to the buffer
+	dec := gob.NewDecoder(b)
+
+	// encode the puzzle in the buffer
+	if err = dec.Decode(pz); err != nil {
+		err = fmt.Errorf("Error encoding puzzle: %s", err)
+		return
+	}
+
+	return
 }

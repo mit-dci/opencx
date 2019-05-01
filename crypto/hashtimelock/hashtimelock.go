@@ -1,6 +1,9 @@
 package hashtimelock
 
 import (
+	"bytes"
+	"encoding/gob"
+	"fmt"
 	"hash"
 
 	"github.com/mit-dci/opencx/crypto"
@@ -57,5 +60,47 @@ func (ht *HashTimelock) Solve() (answer []byte, err error) {
 		copy(answer[:], ht.hashFunction.Sum(nil))
 	}
 	ht.hashFunction.Reset()
+	return
+}
+
+// Serialize turns the hash timelock puzzle into something that can be sent over the wire
+func (ht *HashTimelock) Serialize() (raw []byte, err error) {
+	var b bytes.Buffer
+
+	// register hashTimelock interface
+	gob.Register(HashTimelock{})
+
+	// create a new encoder writing to the buffer
+	enc := gob.NewEncoder(&b)
+
+	// encode the puzzle in the buffer
+	if err = enc.Encode(ht); err != nil {
+		err = fmt.Errorf("Error encoding puzzle: %s", err)
+		return
+	}
+
+	// Get the bytes from the buffer
+	raw = b.Bytes()
+
+	return
+}
+
+// Deserialize turns the hash timelock puzzle into something that can be sent over the wire
+func (ht *HashTimelock) Deserialize(raw []byte) (err error) {
+	var b *bytes.Buffer
+	b = bytes.NewBuffer(raw)
+
+	// register hashTimelock interface
+	gob.Register(HashTimelock{})
+
+	// create a new encoder writing to the buffer
+	dec := gob.NewDecoder(b)
+
+	// encode the puzzle in the buffer
+	if err = dec.Decode(ht); err != nil {
+		err = fmt.Errorf("Error encoding puzzle: %s", err)
+		return
+	}
+
 	return
 }

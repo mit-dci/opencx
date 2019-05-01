@@ -10,4 +10,6 @@ type Timelock interface {
 type Puzzle interface {
 	// Solve solves the puzzle and returns the answer, or fails
 	Solve() (answer []byte, err error)
+	// Serialize turns the puzzle into something that's able to be sent over the wire
+	Serialize() (raw []byte, err error)
 }

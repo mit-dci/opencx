@@ -1,10 +1,12 @@
 package cxauctionserver
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/btcsuite/golangcrypto/sha3"
 	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -22,6 +24,42 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 
 	// send order solving to channel
 	go order.SolveRC5AuctionOrderAsync(s.orderChannel)
+
+	return
+}
+
+// CommitOrdersNewAuction commits to a set of decypted orders and changes the auction ID.
+// TODO: figure out how to broadcast these, and where to store them, if we need to store them
+func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
+
+	// Lock!
+	s.dbLock.Lock()
+
+	// First get the current auction ID
+	var auctionID [32]byte
+	if auctionID, err = s.CurrentAuctionID(); err != nil {
+		s.dbLock.Unlock()
+		err = fmt.Errorf("Eror getting current auction id for commit: %s", err)
+		return
+	}
+
+	// Then get the puzzles
+	var puzzles []*match.EncryptedAuctionOrder
+	if puzzles, err = s.OpencxDB.ViewAuctionPuzzleBook(auctionID); err != nil {
+		s.dbLock.Unlock()
+		err = fmt.Errorf("Error getting auction puzzle book for commit: %s", err)
+		return
+	}
+
+	// Then find the hash of the orders + the previous hash
+	// sha3 := sha3.New256()
+	for _, pz := range puzzles {
+		// 	sha3.Write(pz.Serialize())
+		logging.Infof("intendedauction: %08b", pz.IntendedAuction)
+	}
+
+	// Unlock!
+	s.dbLock.Unlock()
 
 	return
 }
@@ -59,6 +97,11 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 
 	if !recoveredPublickey.IsEqual(orderPublicKey) {
 		err = fmt.Errorf("Recovered public key does not equal to pubkey in order")
+		return
+	}
+
+	if !bytes.Equal(s.auctionID[:], decryptedOrder.AuctionID[:]) {
+		err = fmt.Errorf("Auction ID must equal current auction")
 		return
 	}
 
