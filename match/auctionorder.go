@@ -1,7 +1,9 @@
 package match
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"fmt"
 	"math"
 
@@ -15,14 +17,6 @@ type EncryptedAuctionOrder struct {
 	OrderCiphertext []byte
 	OrderPuzzle     crypto.Puzzle
 	IntendedAuction [32]byte
-}
-
-// OrderPuzzleResult is a struct that is used as the type for a channel so we can atomically
-// receive the original encrypted order, decrypted order, and an error
-type OrderPuzzleResult struct {
-	Encrypted *EncryptedAuctionOrder
-	Auction   *AuctionOrder
-	Err       error
 }
 
 // SolveRC5AuctionOrderAsync solves order puzzles and creates auction orders from them. This should be run in a goroutine.
@@ -49,6 +43,56 @@ func (e *EncryptedAuctionOrder) SolveRC5AuctionOrderAsync(puzzleResChan chan *Or
 	puzzleResChan <- result
 
 	return
+}
+
+// Serialize serializes the encrypted order using gob
+func (e *EncryptedAuctionOrder) Serialize() (raw []byte, err error) {
+	var b bytes.Buffer
+
+	// register the encrypted auction order interface with gob
+	gob.Register(EncryptedAuctionOrder{})
+
+	// create a new encoder writing to our buffer
+	enc := gob.NewEncoder(&b)
+
+	// encode the encrypted auction order in the buffer
+	if err = enc.Encode(e); err != nil {
+		err = fmt.Errorf("Error encoding encrypted auction order :%s", err)
+		return
+	}
+
+	// Get the bytes finally
+	raw = b.Bytes()
+
+	return
+}
+
+// Deserialize deserializes the raw bytes into the encrypted auction order receiver
+func (e *EncryptedAuctionOrder) Deserialize(raw []byte) (err error) {
+	var b *bytes.Buffer
+	b = bytes.NewBuffer(raw)
+
+	// register the encrypted auction order interface
+	gob.Register(EncryptedAuctionOrder{})
+
+	// create a new decoder writing to the buffer
+	dec := gob.NewDecoder(b)
+
+	// decode the encrypted auction order in the buffer
+	if err = dec.Decode(e); err != nil {
+		err = fmt.Errorf("Error decoding encrypted auction order")
+		return
+	}
+
+	return
+}
+
+// OrderPuzzleResult is a struct that is used as the type for a channel so we can atomically
+// receive the original encrypted order, decrypted order, and an error
+type OrderPuzzleResult struct {
+	Encrypted *EncryptedAuctionOrder
+	Auction   *AuctionOrder
+	Err       error
 }
 
 // AuctionOrder represents a batch order

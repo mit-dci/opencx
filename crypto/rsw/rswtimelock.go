@@ -258,12 +258,12 @@ func (pz *PuzzleRSW) Deserialize(raw []byte) (err error) {
 	// register puzzleRSW interface
 	gob.Register(PuzzleRSW{})
 
-	// create a new encoder writing to the buffer
+	// create a new decoder writing to the buffer
 	dec := gob.NewDecoder(b)
 
-	// encode the puzzle in the buffer
+	// decode the puzzle in the buffer
 	if err = dec.Decode(pz); err != nil {
-		err = fmt.Errorf("Error encoding puzzle: %s", err)
+		err = fmt.Errorf("Error decoding puzzle: %s", err)
 		return
 	}
 
