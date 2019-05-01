@@ -3,7 +3,6 @@ package cxdb
 import (
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/opencx/crypto"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -66,8 +65,8 @@ type OpencxAuctionStore interface {
 	GetBalance(*koblitz.PublicKey, *coinparam.Params) (uint64, error)
 	// AddToBalance adds to the balance of a user
 	AddToBalance(*koblitz.PublicKey, uint64, *coinparam.Params) error
-	// PlaceAuctionPuzzle puts a puzzle and ciphertext in the datastore.
-	PlaceAuctionPuzzle(crypto.Puzzle, []byte) error
+	// PlaceAuctionPuzzle puts an encrypted auction order in the datastore.
+	PlaceAuctionPuzzle(*match.EncryptedAuctionOrder) error
 	// PlaceAuctionOrder places an order in the unencrypted datastore.
 	PlaceAuctionOrder(*match.AuctionOrder) error
 	// ViewAuctionOrderBook takes in a trading pair and auction ID, and returns auction orders.

@@ -9,10 +9,11 @@ import (
 	"github.com/mit-dci/opencx/crypto"
 )
 
-// EncryptedAuctionOrder represents an encrypted Auction Order, so a ciphertext and a puzzle whos solution is a key
+// EncryptedAuctionOrder represents an encrypted Auction Order, so a ciphertext and a puzzle whos solution is a key, and an intended auction.
 type EncryptedAuctionOrder struct {
 	OrderCiphertext []byte
 	OrderPuzzle     crypto.Puzzle
+	IntendedAuction [32]byte
 }
 
 // SolveRC5AuctionOrderAsync solves order puzzles and creates auction orders from them. This should be run in a goroutine.
@@ -47,8 +48,9 @@ type AuctionOrder struct {
 	AmountWant uint64 `json:"amountwant"`
 	// only exists for returning orders back
 	OrderbookPrice float64 `json:"orderbookprice"`
-	// specify which auction you'd like it to be in
-	AuctionID [32]byte `json:"auctionid"`
+	// specify which auction you'd like it to be in. This is commented out because we use the
+	// IntendedAuction as the auctionID this should be in.
+	// AuctionID [32]byte `json:"auctionid"`
 }
 
 // IsBuySide returns true if the limit order is buying
@@ -72,8 +74,6 @@ func (a *AuctionOrder) OppositeSide() (sideStr string) {
 }
 
 // Price gets a float price for the order. This determines how it will get matched. The exchange should figure out if it can take some of the
-// pennies off the dollar for things that request a certain amount but the amount they get (according to price and what the other side would be willing
-// to give) is less than they officially requested. But tough luck to them we're taking fees anyways
 func (a *AuctionOrder) Price() (price float64, err error) {
 	if a.AmountWant == 0 {
 		err = fmt.Errorf("The amount requested in the order is 0, so no price can be calculated. Consider it a donation")
@@ -99,7 +99,6 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	// amountwant [8 bytes]
 	// len side [8 bytes]
 	// side [len side]
-	// auctionID [33 bytes]
 	buf = make([]byte, 32+33+26+len(a.Side))
 	buf = append(buf, a.Pubkey[:]...)
 	buf = append(buf, a.TradingPair.Serialize()...)
@@ -107,14 +106,16 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	binary.LittleEndian.PutUint64(buf, a.AmountWant)
 	binary.LittleEndian.PutUint64(buf, uint64(len(a.Side)))
 	buf = append(buf, []byte(a.Side)...)
-	buf = append(buf, a.AuctionID[:]...)
+	// Again, commented out because it's now higher up.
+	// auctionID [32 bytes]
+	// buf = append(buf, a.AuctionID[:]...)
 	return
 }
 
 // Deserialize deserializes an order into the struct ptr it's being called on
 func (a *AuctionOrder) Deserialize(data []byte) (err error) {
-	// 32 is for auctionid, 33 for pubkey, 26 for the rest, 8 for len side, 4 for min side ("sell" is 4 bytes)
-	if len(data) < 102 {
+	// 33 for pubkey, 26 for the rest, 8 for len side, 4 for min side ("sell" is 4 bytes)
+	if len(data) < 70 {
 		err = fmt.Errorf("Auction order cannot be less than 94 bytes: %s", err)
 		return
 	}
@@ -133,8 +134,9 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	sideLen := binary.LittleEndian.Uint64(data[:8])
 	data = data[8:]
 	a.Side = string(data[:sideLen])
-	data = data[sideLen:]
-	copy(a.AuctionID[:], data[:32])
+	// If this is to be uncommented then add 32 to the line asserting length
+	// data = data[sideLen:]
+	// copy(a.AuctionID[:], data[:32])
 
 	return
 }

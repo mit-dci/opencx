@@ -15,7 +15,7 @@ type CXDBMemory struct {
 	balancesMtx *sync.Mutex
 	puzzles     map[[32]byte][]*match.EncryptedAuctionOrder
 	puzzleMtx   *sync.Mutex
-	orders      map[[32]byte][]*match.EncryptedAuctionOrder
+	orders      map[[32]byte][]*match.AuctionOrder
 	ordersMtx   *sync.Mutex
 }
 
@@ -33,7 +33,7 @@ func (db *CXDBMemory) SetupClient(coins []*coinparam.Params) (err error) {
 	db.balances = make(map[*pubkeyCoinPair]uint64)
 	db.balancesMtx = new(sync.Mutex)
 
-	db.orders = make(map[[32]byte][]*match.EncryptedAuctionOrder)
+	db.orders = make(map[[32]byte][]*match.AuctionOrder)
 	db.ordersMtx = new(sync.Mutex)
 
 	return

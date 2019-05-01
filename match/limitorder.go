@@ -51,8 +51,6 @@ func (l *LimitOrder) OppositeSide() (sideStr string) {
 }
 
 // Price gets a float price for the order. This determines how it will get matched. The exchange should figure out if it can take some of the
-// pennies off the dollar for things that request a certain amount but the amount they get (according to price and what the other side would be willing
-// to give) is less than they officially requested. But tough luck to them we're taking fees anyways
 func (l *LimitOrder) Price() (float64, error) {
 	if l.AmountWant == 0 {
 		return 0, fmt.Errorf("The amount requested in the order is 0, so no price can be calculated. Consider it a donation")
