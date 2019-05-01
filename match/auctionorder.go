@@ -51,7 +51,7 @@ func (e *EncryptedAuctionOrder) SolveRC5AuctionOrderAsync(puzzleResChan chan *Or
 	return
 }
 
-// AuctionOrder represents a limit order, implementing the order interface
+// AuctionOrder represents a batch order
 type AuctionOrder struct {
 	Pubkey      [33]byte `json:"pubkey"`
 	Side        string   `json:"side"`
@@ -69,6 +69,18 @@ type AuctionOrder struct {
 	// This is used to protect against the exchange trying to replay a bunch of orders
 	Nonce     [2]byte `json:"nonce"`
 	Signature []byte  `json:"signature"`
+}
+
+// TurnIntoEncryptedOrder creates a puzzle for this auction order given the time. We make no assumptions about whether or not the order is signed.
+func (a *AuctionOrder) TurnIntoEncryptedOrder(t uint64) (encrypted *EncryptedAuctionOrder, err error) {
+	encrypted = new(EncryptedAuctionOrder)
+	if encrypted.OrderCiphertext, encrypted.OrderPuzzle, err = timelockencoders.CreateRSW2048A2PuzzleRC5(t, a.Serialize()); err != nil {
+		err = fmt.Errorf("Error creating puzzle from auction order: %s", err)
+		return
+	}
+	// make sure they match
+	encrypted.IntendedAuction = a.AuctionID
+	return
 }
 
 // IsBuySide returns true if the limit order is buying

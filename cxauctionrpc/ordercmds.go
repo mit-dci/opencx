@@ -12,7 +12,9 @@ type SubmitPuzzledOrderArgs struct {
 }
 
 // SubmitPuzzledOrderReply holds the reply for the submitpuzzledorder command
-type SubmitPuzzledOrderReply struct{}
+type SubmitPuzzledOrderReply struct {
+	// empty
+}
 
 // SubmitPuzzledOrder submits an order to the order book or throws an error
 func (cl *OpencxAuctionRPC) SubmitPuzzledOrder(args SubmitPuzzledOrderArgs, reply *SubmitPuzzledOrderReply) (err error) {

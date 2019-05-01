@@ -3,6 +3,8 @@ package cxauctionserver
 import (
 	"fmt"
 
+	"github.com/btcsuite/golangcrypto/sha3"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -24,12 +26,6 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 	return
 }
 
-// decryptPlaceOrder is what we call after committing to an order
-func (s *OpencxAuctionServer) decryptPlaceOrder(order *match.EncryptedAuctionOrder) (err error) {
-
-	return
-}
-
 // validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
 func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, encryptedOrder *match.EncryptedAuctionOrder) (valid bool, err error) {
 
@@ -43,5 +39,29 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 		return
 	}
 
+	// We could use pub key hashes here but there might not be any reason for it
+	var orderPublicKey *koblitz.PublicKey
+	if orderPublicKey, err = koblitz.ParsePubKey(decryptedOrder.Pubkey[:], koblitz.S256()); err != nil {
+		err = fmt.Errorf("Orders with a public key that cannot be parsed are invalid: %s", err)
+		return
+	}
+
+	// e = h(asset)
+	sha3 := sha3.New256()
+	sha3.Write(decryptedOrder.SerializeSignable())
+	e := sha3.Sum(nil)
+
+	var recoveredPublickey *koblitz.PublicKey
+	if recoveredPublickey, _, err = koblitz.RecoverCompact(koblitz.S256(), decryptedOrder.Signature, e); err != nil {
+		err = fmt.Errorf("Orders whose signature cannot be verified with pubkey recovery are invalid: %s", err)
+		return
+	}
+
+	if !recoveredPublickey.IsEqual(orderPublicKey) {
+		err = fmt.Errorf("Recovered public key does not equal to pubkey in order")
+		return
+	}
+
+	valid = true
 	return
 }

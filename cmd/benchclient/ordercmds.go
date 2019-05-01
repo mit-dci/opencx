@@ -6,6 +6,7 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"golang.org/x/crypto/sha3"
 
+	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/match"
 )
@@ -168,6 +169,90 @@ func (cl *BenchClient) GetPairs() (getPairsReply *cxrpc.GetPairsReply, err error
 	if err = cl.Call("OpencxRPC.GetPairs", getPairsArgs, getPairsReply); err != nil {
 		return
 	}
+
+	return
+}
+
+// AuctionOrderCommand submits an order synchronously. Uses asynchronous order function
+func (cl *BenchClient) AuctionOrderCommand(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64, t uint64, auctionID [32]byte) (reply *cxauctionrpc.SubmitPuzzledOrderReply, err error) {
+	errorChannel := make(chan error, 1)
+	replyChannel := make(chan *cxauctionrpc.SubmitPuzzledOrderReply, 1)
+	go cl.AuctionOrderAsync(pubkey, side, pair, amountHave, price, t, auctionID, replyChannel, errorChannel)
+	// wait on either the reply or error, whichever comes first. If error is nil wait for reply. That's why the for loop is there. We don't care if the reply is nil, it shouldn't be, but that's sort of just so go-vet doesn't yell at us for having an unreachable return.
+	for reply == nil {
+		select {
+		case reply = <-replyChannel:
+			return
+		case err = <-errorChannel:
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	return
+}
+
+// AuctionOrderAsync is supposed to be run in a separate goroutine, AuctionOrderCommand makes this synchronous however
+func (cl *BenchClient) AuctionOrderAsync(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64, t uint64, auctionID [32]byte, replyChan chan *cxauctionrpc.SubmitPuzzledOrderReply, errChan chan error) {
+
+	if cl.PrivKey == nil {
+		errChan <- fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
+		return
+	}
+
+	errChan <- func() (err error) {
+		// TODO: this can be refactored to look more like the rest of the code, it's just using channels and works really well so I don't want to mess with it rn
+		orderArgs := new(cxauctionrpc.SubmitPuzzledOrderArgs)
+		orderReply := new(cxauctionrpc.SubmitPuzzledOrderReply)
+
+		var newAuctionOrder match.AuctionOrder
+		copy(newAuctionOrder.Pubkey[:], pubkey.SerializeCompressed())
+		newAuctionOrder.Side = side
+
+		// check that the sides are correct
+		if newAuctionOrder.Side != "buy" && newAuctionOrder.Side != "sell" {
+			err = fmt.Errorf("AuctionOrder's side isn't buy or sell, try again")
+			return
+		}
+
+		// get the trading pair string from the shell input - third parameter
+		if err = newAuctionOrder.TradingPair.FromString(pair); err != nil {
+			err = fmt.Errorf("Error getting asset pair from string: \n%s", err)
+			return
+		}
+
+		newAuctionOrder.AmountHave = amountHave
+		newAuctionOrder.AuctionID = auctionID
+
+		newAuctionOrder.SetAmountWant(price)
+
+		// create e = hash(m)
+		sha3 := sha3.New256()
+		sha3.Write(newAuctionOrder.SerializeSignable())
+		e := sha3.Sum(nil)
+
+		// Sign order
+		var compactSig []byte
+		if compactSig, err = koblitz.SignCompact(koblitz.S256(), cl.PrivKey, e, false); err != nil {
+			return
+		}
+
+		newAuctionOrder.Signature = compactSig
+		if orderArgs.Order, err = newAuctionOrder.TurnIntoEncryptedOrder(t); err != nil {
+			err = fmt.Errorf("Error turning order into puzzle before submitting: %s", err)
+			return
+		}
+
+		if err = cl.Call("OpencxRPC.SubmitPuzzledOrder", orderArgs, orderReply); err != nil {
+			err = fmt.Errorf("Error calling 'SubmitPuzzledOrder' service method:\n%s", err)
+			return
+		}
+
+		replyChan <- orderReply
+
+		return
+	}()
 
 	return
 }
