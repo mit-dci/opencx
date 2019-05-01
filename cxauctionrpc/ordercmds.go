@@ -17,7 +17,7 @@ type SubmitPuzzledOrderReply struct{}
 // SubmitPuzzledOrder submits an order to the order book or throws an error
 func (cl *OpencxAuctionRPC) SubmitPuzzledOrder(args SubmitPuzzledOrderArgs, reply *SubmitPuzzledOrderReply) (err error) {
 
-	if err = cl.Server.OpencxDB.PlaceAuctionPuzzle(args.Order.OrderPuzzle, args.Order.OrderCiphertext); err != nil {
+	if err = cl.Server.OpencxDB.PlaceAuctionPuzzle(args.Order); err != nil {
 		err = fmt.Errorf("Error placing order while submitting order: \n%s", err)
 		return
 	}

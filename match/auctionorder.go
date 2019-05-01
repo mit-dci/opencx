@@ -16,23 +16,36 @@ type EncryptedAuctionOrder struct {
 	IntendedAuction [32]byte
 }
 
+// OrderPuzzleResult is a struct that is used as the type for a channel so we can atomically
+// receive the original encrypted order, decrypted order, and an error
+type OrderPuzzleResult struct {
+	Encrypted *EncryptedAuctionOrder
+	Auction   *AuctionOrder
+	Err       error
+}
+
 // SolveRC5AuctionOrderAsync solves order puzzles and creates auction orders from them. This should be run in a goroutine.
-func (e *EncryptedAuctionOrder) SolveRC5AuctionOrderAsync(orderChan chan *AuctionOrder, errChan chan error) {
+func (e *EncryptedAuctionOrder) SolveRC5AuctionOrderAsync(puzzleResChan chan *OrderPuzzleResult) {
 	var err error
+	var result *OrderPuzzleResult
+	result.Encrypted = e
 
 	var orderBytes []byte
 	if orderBytes, err = timelockencoders.SolvePuzzleRC5(e.OrderCiphertext, e.OrderPuzzle); err != nil {
-		errChan <- fmt.Errorf("Error solving RC5 puzzle for auction order: %s", err)
+		result.Err = fmt.Errorf("Error solving RC5 puzzle for auction order: %s", err)
+		puzzleResChan <- result
 		return
 	}
 
 	auctionOrder := new(AuctionOrder)
 	if err = auctionOrder.Deserialize(orderBytes); err != nil {
-		errChan <- fmt.Errorf("Error deserializing order gotten from puzzle: %s", err)
+		result.Err = fmt.Errorf("Error deserializing order gotten from puzzle: %s", err)
+		puzzleResChan <- result
 		return
 	}
 
-	orderChan <- auctionOrder
+	result.Auction = auctionOrder
+	puzzleResChan <- result
 
 	return
 }
@@ -48,9 +61,9 @@ type AuctionOrder struct {
 	AmountWant uint64 `json:"amountwant"`
 	// only exists for returning orders back
 	OrderbookPrice float64 `json:"orderbookprice"`
-	// specify which auction you'd like it to be in. This is commented out because we use the
-	// IntendedAuction as the auctionID this should be in.
-	// AuctionID [32]byte `json:"auctionid"`
+	// IntendedAuction as the auctionID this should be in. We need this to protect against
+	// the exchange withholding an order.
+	AuctionID [32]byte `json:"auctionid"`
 }
 
 // IsBuySide returns true if the limit order is buying
@@ -99,6 +112,7 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	// amountwant [8 bytes]
 	// len side [8 bytes]
 	// side [len side]
+	// auctionID [32 bytes]
 	buf = make([]byte, 32+33+26+len(a.Side))
 	buf = append(buf, a.Pubkey[:]...)
 	buf = append(buf, a.TradingPair.Serialize()...)
@@ -106,16 +120,14 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	binary.LittleEndian.PutUint64(buf, a.AmountWant)
 	binary.LittleEndian.PutUint64(buf, uint64(len(a.Side)))
 	buf = append(buf, []byte(a.Side)...)
-	// Again, commented out because it's now higher up.
-	// auctionID [32 bytes]
-	// buf = append(buf, a.AuctionID[:]...)
+	buf = append(buf, a.AuctionID[:]...)
 	return
 }
 
 // Deserialize deserializes an order into the struct ptr it's being called on
 func (a *AuctionOrder) Deserialize(data []byte) (err error) {
-	// 33 for pubkey, 26 for the rest, 8 for len side, 4 for min side ("sell" is 4 bytes)
-	if len(data) < 70 {
+	// 33 for pubkey, 26 for the rest, 8 for len side, 4 for min side ("sell" is 4 bytes), 32 for auctionID
+	if len(data) < 102 {
 		err = fmt.Errorf("Auction order cannot be less than 94 bytes: %s", err)
 		return
 	}
@@ -134,9 +146,8 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	sideLen := binary.LittleEndian.Uint64(data[:8])
 	data = data[8:]
 	a.Side = string(data[:sideLen])
-	// If this is to be uncommented then add 32 to the line asserting length
-	// data = data[sideLen:]
-	// copy(a.AuctionID[:], data[:32])
+	data = data[sideLen:]
+	copy(a.AuctionID[:], data[:32])
 
 	return
 }

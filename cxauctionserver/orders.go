@@ -6,16 +6,32 @@ import (
 	"github.com/mit-dci/opencx/match"
 )
 
-// PlacePuzzledOrder places a timelock encrypted order.
+// PlacePuzzledOrder places a timelock encrypted order. It also starts to decrypt the order in a goroutine.
 func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrder) (err error) {
 
+	// Placing an auction puzzle is how the exchange will then recall and commit to a set of puzzles.
 	s.dbLock.Lock()
-	if err = s.OpencxDB.PlaceAuctionPuzzle(order.OrderPuzzle, order.OrderCiphertext); err != nil {
+	if err = s.OpencxDB.PlaceAuctionPuzzle(order); err != nil {
 		s.dbLock.Unlock()
 		err = fmt.Errorf("Error placing puzzled order: \n%s", err)
 		return
 	}
 	s.dbLock.Unlock()
+
+	// send order solving to channel
+	go order.SolveRC5AuctionOrderAsync(s.orderChannel)
+
+	return
+}
+
+// decryptPlaceOrder is what we call after committing to an order
+func (s *OpencxAuctionServer) decryptPlaceOrder(order *match.EncryptedAuctionOrder) (err error) {
+
+	return
+}
+
+// validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
+func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, encryptedOrder *match.EncryptedAuctionOrder) (valid bool, err error) {
 
 	return
 }
