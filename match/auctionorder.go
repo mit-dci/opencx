@@ -3,6 +3,7 @@ package match
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
 
@@ -64,6 +65,10 @@ type AuctionOrder struct {
 	// IntendedAuction as the auctionID this should be in. We need this to protect against
 	// the exchange withholding an order.
 	AuctionID [32]byte `json:"auctionid"`
+	// 2 byte nonce (So there can be max 2^16 of the same-looking orders by the same pubkey)
+	// This is used to protect against the exchange trying to replay a bunch of orders
+	Nonce     [2]byte `json:"nonce"`
+	Signature []byte  `json:"signature"`
 }
 
 // IsBuySide returns true if the limit order is buying
@@ -113,6 +118,9 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	// len side [8 bytes]
 	// side [len side]
 	// auctionID [32 bytes]
+	// nonce [2 bytes]
+	// len sig [8 bytes]
+	// sig [len sig bytes]
 	buf = make([]byte, 32+33+26+len(a.Side))
 	buf = append(buf, a.Pubkey[:]...)
 	buf = append(buf, a.TradingPair.Serialize()...)
@@ -121,14 +129,46 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	binary.LittleEndian.PutUint64(buf, uint64(len(a.Side)))
 	buf = append(buf, []byte(a.Side)...)
 	buf = append(buf, a.AuctionID[:]...)
+	buf = append(buf, a.Nonce[:]...)
+	binary.LittleEndian.PutUint64(buf, uint64(len(a.Signature)))
+	buf = append(buf, a.Signature[:]...)
+	return
+}
+
+// SerializeSignable serializes the fields that are hashable, and will be signed. These are also
+// what would get verified.
+func (a *AuctionOrder) SerializeSignable() (buf []byte) {
+	// serializable fields:
+	// public key (compressed) [33 bytes]
+	// trading pair [2 bytes]
+	// amounthave [8 bytes]
+	// amountwant [8 bytes]
+	// len side [8 bytes]
+	// side [len side]
+	// auctionID [32 bytes]
+	// nonce [2 bytes]
+	buf = make([]byte, 32+33+26+len(a.Side))
+	buf = append(buf, a.Pubkey[:]...)
+	buf = append(buf, a.TradingPair.Serialize()...)
+	binary.LittleEndian.PutUint64(buf, a.AmountHave)
+	binary.LittleEndian.PutUint64(buf, a.AmountWant)
+	binary.LittleEndian.PutUint64(buf, uint64(len(a.Side)))
+	buf = append(buf, []byte(a.Side)...)
+	buf = append(buf, a.AuctionID[:]...)
+	buf = append(buf, a.Nonce[:]...)
 	return
 }
 
 // Deserialize deserializes an order into the struct ptr it's being called on
 func (a *AuctionOrder) Deserialize(data []byte) (err error) {
-	// 33 for pubkey, 26 for the rest, 8 for len side, 4 for min side ("sell" is 4 bytes), 32 for auctionID
-	if len(data) < 102 {
-		err = fmt.Errorf("Auction order cannot be less than 94 bytes: %s", err)
+	// 33 for pubkey, 26 for the rest, 8 for len side, 4 for min side ("sell" is 4 bytes), 32 for auctionID, 2 for nonce, 8 for siglen
+	// bucket is where we put all of the non byte stuff so we can get their length
+	var bucket []byte
+
+	// TODO: remove all of this serialization code entirely and use protobufs or something else
+	minimumDataLength := len(a.Nonce) + len(a.AuctionID) + binary.PutUvarint(bucket, math.Float64bits(a.OrderbookPrice)) + binary.PutUvarint(bucket, a.AmountWant) + binary.PutUvarint(bucket, a.AmountHave) + a.TradingPair.Size() + len(a.Pubkey)
+	if len(data) < minimumDataLength {
+		err = fmt.Errorf("Auction order cannot be less than 102 bytes: %s", err)
 		return
 	}
 
@@ -148,6 +188,13 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	a.Side = string(data[:sideLen])
 	data = data[sideLen:]
 	copy(a.AuctionID[:], data[:32])
+	data = data[32:]
+	copy(a.Nonce[:], data[:2])
+	data = data[2:]
+	sigLen := binary.LittleEndian.Uint64(data[:8])
+	data = data[8:]
+	a.Signature = data[:sigLen]
+	data = data[sigLen:]
 
 	return
 }

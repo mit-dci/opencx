@@ -33,5 +33,15 @@ func (s *OpencxAuctionServer) decryptPlaceOrder(order *match.EncryptedAuctionOrd
 // validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
 func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, encryptedOrder *match.EncryptedAuctionOrder) (valid bool, err error) {
 
+	if _, err = decryptedOrder.Price(); err != nil {
+		err = fmt.Errorf("Orders with an indeterminable price are invalid: %s", err)
+		return
+	}
+
+	if !decryptedOrder.IsBuySide() && !decryptedOrder.IsSellSide() {
+		err = fmt.Errorf("Orders that aren't buy or sell side are invalid: %s", err)
+		return
+	}
+
 	return
 }
