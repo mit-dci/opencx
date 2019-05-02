@@ -1,10 +1,15 @@
 package cxserver
 
 import (
+	"crypto/rand"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
+	"github.com/btcsuite/fastsha256"
+	"github.com/mit-dci/lit/lncore"
+	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/lit/portxo"
 
 	"github.com/mit-dci/lit/coinparam"
@@ -64,6 +69,184 @@ func (server *OpencxServer) SetupLitRPCConnect(rpchost string, rpcport uint16) {
 // CreateSwap creates a swap with the user depending on an order specified. This is the main functionality for non custodial exchange.
 func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.LimitOrder) (err error) {
 	// TODO
+
+	// get all the channels
+	var channels []*qln.Qchan
+	if channels, err = server.ExchangeNode.GetAllQchans(); err != nil {
+		err = fmt.Errorf("Error getting channels for swap: %s", err)
+		return
+	}
+
+	// We need to use this address to get a bunch of stuff from the lit node
+	var pubkey33 [33]byte
+
+	copy(pubkey33[:], pubkey.SerializeCompressed())
+	lnAddrString := lnutil.LitAdrFromPubkey(pubkey33)
+
+	var address lncore.LnAddr
+	if address, err = lncore.ParseLnAddr(lnAddrString); err != nil {
+		err = fmt.Errorf("Error parsing ln address for swap: %s", err)
+		return
+	}
+
+	// TODO: do something else to manage peer stuff. We need an identity key to be
+	// associated with a channel somehow, but right now we're just using peers
+
+	// Get this pubkey's peer index.
+	thisPeer := server.ExchangeNode.PeerMan.GetPeer(address).GetIdx()
+
+	// figure out which ones match the coins for this order that we care about
+	var assetWantChannels []*qln.Qchan
+	var assetWantOurCap uint64
+	var assetHaveChannels []*qln.Qchan
+	var assetHaveTheirCap uint64
+
+	// get the coin parameters for the trading pair
+	var wantAsset *coinparam.Params
+	if wantAsset, err = order.TradingPair.AssetWant.CoinParamFromAsset(); err != nil {
+		err = fmt.Errorf("Error getting assetwant coin from order for swap: %s", err)
+		return
+	}
+
+	var haveAsset *coinparam.Params
+	if haveAsset, err = order.TradingPair.AssetHave.CoinParamFromAsset(); err != nil {
+		err = fmt.Errorf("Error getting assethave coin from order for swap: %s", err)
+		return
+	}
+
+	// TODO: This code is the best we have right now as far as optimizing channel
+	// capacity goes. If looking for a place to start, this is it.
+
+	// go through all of the channels, skip the ones that aren't associated with this peer
+	for _, channel := range channels {
+
+		// This is what we're doing to say "does the pubkey match?", the
+		// pubkey that gives commands does not have to be the pubkey for the channel. While
+		// this would probably be ideal if channels already existed, they don't always exist
+		// and sometimes there are multiple channels, each with different channel pubkeys,
+		// that belong to the same user that we need to use. So for this the identity key
+		// is what we should be using.
+		if channel.Peer() == thisPeer {
+
+			myAmt, theirAmt := channel.GetChannelBalances()
+
+			if channel.Coin() == wantAsset.HDCoinType {
+				// count only the coins we would be able to send
+				if myAmt-consts.MinOutput > 0 {
+					assetWantChannels = append(assetWantChannels, channel)
+					// we can't send so much as to bring our output below the minoutput
+					assetWantOurCap += uint64(myAmt - consts.MinOutput)
+				}
+			}
+
+			if channel.Coin() == haveAsset.HDCoinType {
+				// Count only the coins they would be able to send
+				if theirAmt-consts.MinOutput > 0 {
+					assetHaveChannels = append(assetHaveChannels, channel)
+					// they can't send so much as to bring their output below the minoutput
+					assetHaveTheirCap += uint64(theirAmt - consts.MinOutput)
+				}
+			}
+		}
+	}
+
+	// Let's sort the channels according to capacity, lowest first. MyAmt for the channels
+	// we're going to be pushing from (assetWant), and theirAmt for channels we're
+	// receiving from
+
+	// sort assetWantChannels
+	sort.Slice(assetWantChannels, func(i, j int) bool {
+		myAmti, _ := assetWantChannels[i].GetChannelBalances()
+		myAmtj, _ := assetWantChannels[j].GetChannelBalances()
+		return myAmti < myAmtj
+	})
+
+	// sort assetHaveChannels
+	sort.Slice(assetHaveChannels, func(i, j int) bool {
+		_, theirAmti := assetHaveChannels[i].GetChannelBalances()
+		_, theirAmtj := assetHaveChannels[j].GetChannelBalances()
+		return theirAmti < theirAmtj
+	})
+
+	// Create an arbitrary locktime lol
+	locktime := uint32(100)
+	// Create a preimage
+	var R [16]byte
+	// Read random bytes
+	if _, err = rand.Read(R[:]); err != nil {
+		err = fmt.Errorf("Error reading random bytes into preimage: %s", err)
+		return
+	}
+	RHash := fastsha256.Sum256(R[:])
+
+	// Set up HTLCs from us to them. We assume that the channels can be pushed to
+	// since we didn't add the ones that couldn't be pushed from, for either side
+	// Use the channels we have, saving the largest for last, and if we have anything left
+	// we'll then create a new funding transaction pushing funds with an HTLC set up
+	// already.
+	amountRemainingWant := order.AmountWant
+	for i := 0; amountRemainingWant > 0 && i < len(assetWantChannels); i++ {
+		myAmt, _ := assetWantChannels[i].GetChannelBalances()
+
+		// If the amount of this channel is <= the amount remaining, then send the full
+		// available amount (minus minoutput)
+		var avail uint32
+
+		// Cast a bunch, TODO make sure all this casting is safe
+		if uint64(myAmt-consts.MinOutput) < amountRemainingWant {
+			// send as much as we can
+			avail = uint32(myAmt - consts.MinOutput)
+		} else {
+			avail = uint32(amountRemainingWant)
+		}
+		// We don't have any data to send
+		if err = server.ExchangeNode.OfferHTLC(assetWantChannels[i], avail, RHash, locktime, [32]byte{}); err != nil {
+			err = fmt.Errorf("Error offering HTLC for atomic swap: %s", err)
+			return
+		}
+
+		// we sent avail amount, subtract from amount remaining
+		amountRemainingWant -= uint64(avail)
+	}
+
+	// if we still have some left at this point, set up a funding transaction and
+	// push just enough in an HTLC for this swap to work.
+	if amountRemainingWant > 0 {
+		var wallet qln.UWallet
+		var ok bool
+		if wallet, ok = server.ExchangeNode.SubWallet[wantAsset.HDCoinType]; !ok {
+			err = fmt.Errorf("No wallet of the %d type connected", wantAsset.HDCoinType)
+			return
+		}
+		fee := wallet.Fee() * 1000
+		// Set the channel capacity to the amount remaining + fee if they're greater than
+		// the min capacity, otherwise set the capacity to the min capacity
+
+		// we add the min output because when we send, we'll need some left on our side.
+		var newChanIdx uint32
+		desiredChannelCapacity := consts.MinOutput + amountRemainingWant + uint64(fee)
+		if desiredChannelCapacity < uint64(consts.MinChanCapacity) {
+			// no data
+			if newChanIdx, err = server.ExchangeNode.FundChannel(thisPeer, wantAsset.HDCoinType, consts.MinChanCapacity, 0, [32]byte{}); err != nil {
+				err = fmt.Errorf("Could not fund channel for final send: %s", err)
+				return
+			}
+
+		}
+
+		var newlyFundedChannel *qln.Qchan
+		if newlyFundedChannel, err = server.ExchangeNode.GetQchanByIdx(newChanIdx); err != nil {
+			err = fmt.Errorf("Error getting newly funded channel by index for swap: %s", err)
+			return
+		}
+
+		// send amountremainingwant in htlc
+		// We don't have any data to send
+		if err = server.ExchangeNode.OfferHTLC(newlyFundedChannel, uint32(amountRemainingWant), RHash, locktime, [32]byte{}); err != nil {
+			err = fmt.Errorf("Error offering final send HTLC for atomic swap: %s", err)
+			return
+		}
+	}
 
 	return
 }
