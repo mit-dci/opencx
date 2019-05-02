@@ -13,6 +13,7 @@ import (
 	"github.com/mit-dci/lit/litrpc"
 	"github.com/mit-dci/lit/qln"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 // SetupLitNode sets up the lit node for use later, I wanna do this because this really shouldn't be in initialization code? should it be?
@@ -57,6 +58,13 @@ func (server *OpencxServer) SetupLitRPCConnect(rpchost string, rpcport uint16) {
 	<-rpc1.OffButton
 	logging.Infof("Got stop request\n")
 	time.Sleep(time.Second)
+	return
+}
+
+// CreateSwap creates a swap with the user depending on an order specified. This is the main functionality for non custodial exchange.
+func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.LimitOrder) (err error) {
+	// TODO
+
 	return
 }
 

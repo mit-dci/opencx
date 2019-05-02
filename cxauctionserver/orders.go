@@ -6,7 +6,6 @@ import (
 
 	"github.com/btcsuite/golangcrypto/sha3"
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -52,11 +51,19 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 	}
 
 	// Then find the hash of the orders + the previous hash
-	// sha3 := sha3.New256()
+	sha3 := sha3.New256()
 	for _, pz := range puzzles {
-		// 	sha3.Write(pz.Serialize())
-		logging.Infof("intendedauction: %08b", pz.IntendedAuction)
+		var pzRaw []byte
+		if pzRaw, err = pz.Serialize(); err != nil {
+			err = fmt.Errorf("Error serializing puzzle for commitment: %s", err)
+			return
+		}
+		sha3.Write(pzRaw)
 	}
+
+	// Set the new auction ID to the hash of the orders. TODO: figure out if signing the puzzles
+	// instead is a good idea, and if the dependence on the previous commitment is a good idea.
+	copy(s.auctionID[:], sha3.Sum(nil))
 
 	// Unlock!
 	s.dbLock.Unlock()
