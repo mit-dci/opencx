@@ -67,6 +67,7 @@ func (server *OpencxServer) SetupLitRPCConnect(rpchost string, rpcport uint16) {
 }
 
 // CreateSwap creates a swap with the user depending on an order specified. This is the main functionality for non custodial exchange.
+// TODO: check over this code, it's a large function
 func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.LimitOrder) (err error) {
 	// TODO
 
@@ -179,6 +180,9 @@ func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.L
 	}
 	RHash := fastsha256.Sum256(R[:])
 
+	// TODO: Take the below code and abstract it into a method for general spending
+	// and withdraw. The channel selection algorithm applies
+
 	// Set up HTLCs from us to them. We assume that the channels can be pushed to
 	// since we didn't add the ones that couldn't be pushed from, for either side
 	// Use the channels we have, saving the largest for last, and if we have anything left
@@ -231,7 +235,12 @@ func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.L
 				err = fmt.Errorf("Could not fund channel for final send: %s", err)
 				return
 			}
-
+		} else {
+			// no data
+			if newChanIdx, err = server.ExchangeNode.FundChannel(thisPeer, wantAsset.HDCoinType, int64(desiredChannelCapacity), 0, [32]byte{}); err != nil {
+				err = fmt.Errorf("Could not fund channel for final send: %s", err)
+				return
+			}
 		}
 
 		var newlyFundedChannel *qln.Qchan
@@ -247,6 +256,86 @@ func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.L
 			return
 		}
 	}
+
+	// Ask for HTLC's from them to us
+	amountRemainingHave := order.AmountHave
+	for i := 0; amountRemainingHave > 0 && i < len(assetHaveChannels); i++ {
+		_, theirAmt := assetHaveChannels[i].GetChannelBalances()
+
+		// If the amount of this channel is <= the amount remaining, then send the full
+		// available amount (minus minoutput)
+		var avail uint32
+
+		// Cast a bunch, TODO make sure all this casting is safe
+		if uint64(theirAmt-consts.MinOutput) < amountRemainingHave {
+			// send as much as we can
+			avail = uint32(theirAmt - consts.MinOutput)
+		} else {
+			avail = uint32(amountRemainingHave)
+		}
+
+		// TODO: we need a requestHTLC method, sort of like the other side of dual fund
+		// We don't have any data to send
+		// if err = server.ExchangeNode.OfferHTLC(assetHaveChannels[i], avail, RHash, locktime, [32]byte{}); err != nil {
+		// 	err = fmt.Errorf("Error offering HTLC for atomic swap: %s", err)
+		// 	return
+		// }
+
+		// we sent avail amount, subtract from amount remaining
+		amountRemainingHave -= uint64(avail)
+	}
+
+	// if we still have some left at this point, set up a funding transaction and
+	// push just enough in an HTLC for this swap to work.
+	if amountRemainingHave > 0 {
+		var wallet qln.UWallet
+		var ok bool
+		if wallet, ok = server.ExchangeNode.SubWallet[haveAsset.HDCoinType]; !ok {
+			err = fmt.Errorf("No wallet of the %d type connected", haveAsset.HDCoinType)
+			return
+		}
+		fee := wallet.Fee() * 1000
+		// Set the channel capacity to the amount remaining + fee if they're greater than
+		// the min capacity, otherwise set the capacity to the min capacity
+
+		// we add the min output because when we send, we'll need some left on our side.
+		var newChanResult *qln.DualFundingResult
+		desiredChannelCapacity := consts.MinOutput + amountRemainingHave + uint64(fee)
+		if desiredChannelCapacity < uint64(consts.MinChanCapacity) {
+			// no data
+			if newChanResult, err = server.ExchangeNode.DualFundChannel(thisPeer, haveAsset.HDCoinType, 0, consts.MinChanCapacity); err != nil {
+				err = fmt.Errorf("Could not fund channel w/ reason %d for final send: %s", newChanResult.DeclineReason, err)
+				return
+			}
+		} else {
+			if newChanResult, err = server.ExchangeNode.DualFundChannel(thisPeer, haveAsset.HDCoinType, 0, int64(desiredChannelCapacity)); err != nil {
+				err = fmt.Errorf("Could not fund channel w/ reason %d for final send: %s", newChanResult.DeclineReason, err)
+				return
+			}
+		}
+
+		if newChanResult.Error {
+			err = fmt.Errorf("Error creating a dual funding channel. reason: %d. accepted: %t", newChanResult.DeclineReason, newChanResult.Accepted)
+			return
+		}
+
+		// TODO: lit needs request HTLC
+		// var newlyFundedChannel *qln.Qchan
+		// if newlyFundedChannel, err = server.ExchangeNode.GetQchanByIdx(newChanResult.ChannelId); err != nil {
+		// 	err = fmt.Errorf("Error getting newly funded channel by index for swap: %s", err)
+		// 	return
+		// }
+
+		// TODO: we need some sort of request HTLC, like the other side of dualfund
+		// send amountremaininghave in htlc
+		// We don't have any data to send
+		// if err = server.ExchangeNode.OfferHTLC(newlyFundedChannel, uint32(amountRemainingHave), RHash, locktime, [32]byte{}); err != nil {
+		// 	err = fmt.Errorf("Error offering final send HTLC for atomic swap: %s", err)
+		// 	return
+		// }
+	}
+
+	// TODO: once everything is revealed,
 
 	return
 }
