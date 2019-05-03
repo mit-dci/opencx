@@ -63,7 +63,7 @@ func ocxSetup(conf *ocxConfig) (help bool) {
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(conf.OcxHomeDir, "ocx.conf")); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(conf.OcxHomeDir, defaultConfigFilename)); os.IsNotExist(err) {
 		// if there is no config file found over at the directory, create one
 		logging.Infof("Creating a new config file")
 		err := createDefaultConfigFile(filepath.Join(conf.OcxHomeDir)) // Source of error
@@ -71,7 +71,7 @@ func ocxSetup(conf *ocxConfig) (help bool) {
 			logging.Fatal(err)
 		}
 	}
-	conf.ConfigFile = filepath.Join(conf.OcxHomeDir, "ocx.conf")
+	conf.ConfigFile = filepath.Join(conf.OcxHomeDir, defaultConfigFilename)
 	// lets parse the config file provided, if any
 	err = flags.NewIniParser(parser).ParseFile(conf.ConfigFile)
 	if err != nil {

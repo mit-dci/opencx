@@ -52,7 +52,7 @@ type ocxConfig struct {
 var (
 	defaultConfigFilename   = "ocx.conf"
 	defaultLogFilename      = "ocxlog.txt"
-	defaultOcxHomeDirName   = os.Getenv("HOME") + "/.ocx/"
+	defaultOcxHomeDirName   = os.Getenv("HOME") + "/.opencx/ocx/"
 	defaultKeyFileName      = defaultOcxHomeDirName + "privkey.hex"
 	defaultLogLevel         = 0
 	defaultHomeDir          = os.Getenv("HOME")
