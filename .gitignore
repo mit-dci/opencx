@@ -1,3 +1,9 @@
+# Unignore all dirs
+!*.*
+
+# Unignore all files with extensions
+!*/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -16,5 +22,3 @@ opencxd
 ocx
 fred
 
-# Don't include the rpc client binary
-cmd/opencx-cli/opencx-cli

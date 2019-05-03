@@ -9,18 +9,19 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	flags "github.com/jessevdk/go-flags"
-	"github.com/mit-dci/opencx/cxauctionrpc"
-	"github.com/mit-dci/opencx/cxauctionserver"
-	"github.com/mit-dci/opencx/cxdb/cxdbmemory"
+	"github.com/mit-dci/opencx/cxdb/cxdbsql"
+	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/util"
 )
 
-type fredConfig struct {
+type opencxConfig struct {
 	ConfigFile string
 
 	// stuff for files and directories
-	LogFilename string `long:"logFilename" description:"Filename for output log file"`
-	FredHomeDir string `long:"dir" description:"Location of the root directory relative to home directory"`
+	LogFilename   string `long:"logFilename" description:"Filename for output log file"`
+	OpencxHomeDir string `long:"dir" description:"Location of the root directory relative to home directory"`
 
 	// stuff for ports
 	Rpcport uint16 `short:"p" long:"rpcport" description:"Set RPC port to connect to"`
@@ -66,22 +67,19 @@ type fredConfig struct {
 	DBPassword string `long:"dbpassword" description:"database password"`
 	DBHost     string `long:"dbhost" description:"Host for the database connection"`
 	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
-
-	// Auction server options
-	AuctionTime uint64 `long:"auctiontime" description:"Time it should take to generate a timelock puzzle protected order"`
 }
 
 var (
 	defaultHomeDir = os.Getenv("HOME")
 
 	// used as defaults before putting into parser
-	defaultFredHomeDirName = defaultHomeDir + "/.opencx/fred/"
-	defaultRpcport         = uint16(12345)
-	defaultRpchost         = "localhost"
-	defaultMaxPeers        = uint16(64)
-	defaultMinPeerPort     = uint16(25565)
-	defaultLithost         = "localhost"
-	defaultLitport         = uint16(12346)
+	defaultOpencxHomeDirName = defaultHomeDir + "/.opencx/opencxd/"
+	defaultRpcport           = uint16(12345)
+	defaultRpchost           = "localhost"
+	defaultMaxPeers          = uint16(64)
+	defaultMinPeerPort       = uint16(25565)
+	defaultLithost           = "localhost"
+	defaultLitport           = uint16(12346)
 
 	// Yes we want to use noise-rpc
 	defaultAuthenticatedRPC = true
@@ -94,13 +92,10 @@ var (
 	defaultDBPassword = "testpass"
 	defaultDBHost     = "localhost"
 	defaultDBPort     = uint16(3306)
-
-	// default auction options
-	defaultAuctionTime = uint64(10000)
 )
 
 // newConfigParser returns a new command line flags parser.
-func newConfigParser(conf *fredConfig, options flags.Options) *flags.Parser {
+func newConfigParser(conf *opencxConfig, options flags.Options) *flags.Parser {
 	parser := flags.NewParser(conf, options)
 	return parser
 }
@@ -108,8 +103,8 @@ func newConfigParser(conf *fredConfig, options flags.Options) *flags.Parser {
 func main() {
 	var err error
 
-	conf := fredConfig{
-		FredHomeDir:      defaultFredHomeDirName,
+	conf := opencxConfig{
+		OpencxHomeDir:    defaultOpencxHomeDirName,
 		Rpcport:          defaultRpcport,
 		Rpchost:          defaultRpchost,
 		MaxPeers:         defaultMaxPeers,
@@ -122,14 +117,15 @@ func main() {
 		DBPassword:       defaultDBPassword,
 		DBHost:           defaultDBHost,
 		DBPort:           defaultDBPort,
-		AuctionTime:      defaultAuctionTime,
 	}
 
 	// Check and load config params
 	key := opencxSetup(&conf)
 
-	var db *cxdbmemory.CXDBMemory
-	db = new(cxdbmemory.CXDBMemory)
+	var db *cxdbsql.DB
+	if db, err = cxdbsql.CreateDBConnection(conf.DBUsername, conf.DBPassword, conf.DBHost, conf.DBPort); err != nil {
+		logging.Fatalf("Error initializing Database: \n%s", err)
+	}
 
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
@@ -139,16 +135,71 @@ func main() {
 		log.Fatalf("Error setting up sql client: \n%s", err)
 	}
 
+	// defer the db closing to when we stop
+	defer db.DBHandler.Close()
+
 	// Anyways, here's where we set the server
-	var fredServer *cxauctionserver.OpencxAuctionServer
-	if fredServer, err = cxauctionserver.InitServer(db, 100, conf.AuctionTime); err != nil {
-		logging.Fatalf("Error initializing server: \n%s", err)
+	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, coinList)
+
+	// Check that the private key exists and if it does, load it
+	if err = ocxServer.SetupServerKeys(key); err != nil {
+		logging.Fatalf("Error setting up server keys: \n%s", err)
+	}
+
+	if conf.LightningSupport {
+		// start the lit node for the exchange
+		if err = ocxServer.SetupLitNode(key, "lit", "http://hubris.media.mit.edu:46580", "", ""); err != nil {
+			logging.Fatalf("Error starting lit node: \n%s", err)
+		}
+
+		// register important event handlers -- figure out something better with lightning connection interface
+		logging.Infof("registering sigproof handler")
+		ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.sigproof", ocxServer.GetSigProofHandler())
+		logging.Infof("done registering sigproof handler")
+
+		logging.Infof("registering opconfirm handler")
+		ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.opconfirm", ocxServer.GetOPConfirmHandler())
+		logging.Infof("done registering opconfirm handler")
+
+		logging.Infof("registering push handler")
+		ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.push", ocxServer.GetPushHandler())
+		logging.Infof("done registering push handler")
+
+		// Generate the host param list
+		// the host params are all of the coinparams / coins we support
+		// this coinparam list is generated from the configuration file with generateHostParams
+		hpList := util.HostParamList(generateHostParams(&conf))
+
+		// Set up all chain hooks and wallets
+		if err = ocxServer.SetupAllWallets(hpList, "wallit/", conf.Resync); err != nil {
+			logging.Fatalf("Error setting up wallets: \n%s", err)
+			return
+		}
+
+		// Waited until the wallets are started, time to link them!
+		if err = ocxServer.LinkAllWallets(); err != nil {
+			logging.Fatalf("Could not link wallets: \n%s", err)
+		}
+
+		// Listen on a bunch of ports according to the number of peers you want to support.
+		for portNum := conf.MinPeerPort; portNum < conf.MinPeerPort+conf.MaxPeers; portNum++ {
+			var _ string
+			if _, err = ocxServer.ExchangeNode.TCPListener(int(portNum)); err != nil {
+				return
+			}
+
+			// logging.Infof("Listening for connections with address %s on port %d", addr, portNum)
+		}
+
+		// Setup lit node rpc
+		go ocxServer.SetupLitRPCConnect(conf.Lithost, conf.Litport)
+
 	}
 
 	// Register RPC Commands and set server
-	rpc1 := new(cxauctionrpc.OpencxAuctionRPC)
+	rpc1 := new(cxrpc.OpencxRPC)
 	rpc1.OffButton = make(chan bool, 1)
-	rpc1.Server = fredServer
+	rpc1.Server = ocxServer
 
 	// SIGINT and SIGTERM and SIGQUIT handler for CTRL-c, KILL, CTRL-/, etc.
 	go func() {
@@ -172,7 +223,7 @@ func main() {
 		// this tells us when the rpclisten is done
 		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on rpc ===")
-		go cxauctionrpc.RPCListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
+		go cxrpc.RPCListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
 		// block until rpclisten is done
 		<-doneChan
 	} else {
@@ -181,7 +232,7 @@ func main() {
 		// this tells us when the rpclisten is done
 		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on noise-rpc ===")
-		go cxauctionrpc.NoiseListenAsync(doneChan, privkey, rpc1, conf.Rpchost, conf.Rpcport)
+		go cxrpc.NoiseListenAsync(doneChan, privkey, rpc1, conf.Rpchost, conf.Rpcport)
 		// block until noiselisten is done
 		<-doneChan
 
