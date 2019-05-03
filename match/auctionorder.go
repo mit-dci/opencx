@@ -10,7 +10,6 @@ import (
 	"github.com/mit-dci/opencx/crypto/hashtimelock"
 	"github.com/mit-dci/opencx/crypto/rsw"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
-	"github.com/mit-dci/opencx/logging"
 )
 
 // EncryptedAuctionOrder represents an encrypted Auction Order, so a ciphertext and a puzzle whos solution is a key, and an intended auction.
@@ -196,20 +195,24 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	// nonce [2 bytes]
 	// len sig [8 bytes]
 	// sig [len sig bytes]
-	buf = make([]byte, 32+33+26+len(a.Side))
 	buf = append(buf, a.Pubkey[:]...)
 	buf = append(buf, a.TradingPair.Serialize()...)
-	binary.LittleEndian.PutUint64(buf, a.AmountHave)
-	binary.LittleEndian.PutUint64(buf, a.AmountWant)
-	binary.LittleEndian.PutUint64(buf, uint64(len(a.Side)))
+	amountHaveBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(amountHaveBytes, a.AmountHave)
+	buf = append(buf, amountHaveBytes[:]...)
+	amountWantBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(amountWantBytes, a.AmountWant)
+	buf = append(buf, amountWantBytes[:]...)
+	lenSideBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lenSideBytes, uint64(len(a.Side)))
+	buf = append(buf, lenSideBytes[:]...)
 	buf = append(buf, []byte(a.Side)...)
 	buf = append(buf, a.AuctionID[:]...)
-	logging.Infof("Nonce: %08b", a.Nonce)
 	buf = append(buf, a.Nonce[:]...)
-	binary.LittleEndian.PutUint64(buf, uint64(len(a.Signature)))
-	logging.Infof("sig length: %d", len(a.Signature))
+	lenSigBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lenSigBytes, uint64(len(a.Signature)))
+	buf = append(buf, lenSigBytes[:]...)
 	buf = append(buf, a.Signature[:]...)
-	logging.Infof("Encoded auction order: %x", buf)
 	return
 }
 
@@ -225,7 +228,6 @@ func (a *AuctionOrder) SerializeSignable() (buf []byte) {
 	// side [len side]
 	// auctionID [32 bytes]
 	// nonce [2 bytes]
-	buf = make([]byte, 32+33+26+len(a.Side))
 	buf = append(buf, a.Pubkey[:]...)
 	buf = append(buf, a.TradingPair.Serialize()...)
 	binary.LittleEndian.PutUint64(buf, a.AmountHave)
@@ -255,8 +257,6 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 		return
 	}
 
-	logging.Infof("Auction order binary: %x", data)
-
 	copy(a.Pubkey[:], data[:33])
 	data = data[33:]
 	if err = a.TradingPair.Deserialize(data[:2]); err != nil {
@@ -265,10 +265,8 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	}
 	data = data[2:]
 	a.AmountWant = binary.LittleEndian.Uint64(data[:8])
-	logging.Infof("AmountWant: %d", a.AmountWant)
 	data = data[8:]
 	a.AmountHave = binary.LittleEndian.Uint64(data[:8])
-	logging.Infof("AmountHave: %d", a.AmountHave)
 	data = data[8:]
 	sideLen := binary.LittleEndian.Uint64(data[:8])
 	data = data[8:]
@@ -277,10 +275,8 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	copy(a.AuctionID[:], data[:32])
 	data = data[32:]
 	copy(a.Nonce[:], data[:2])
-	logging.Infof("nonce: %08b", a.Nonce)
 	data = data[2:]
 	sigLen := binary.LittleEndian.Uint64(data[:8])
-	logging.Infof("Sig length: %d", sigLen)
 	data = data[8:]
 	a.Signature = data[:sigLen]
 	data = data[sigLen:]
