@@ -110,7 +110,7 @@ func (cl *BenchClient) GetPrice(assetString string) (getPriceReply *cxrpc.GetPri
 	return
 }
 
-// ViewOrderbook return s the orderbook TODO
+// ViewOrderbook returns the orderbook
 func (cl *BenchClient) ViewOrderbook(assetPair string) (viewOrderbookReply *cxrpc.ViewOrderBookReply, err error) {
 	viewOrderbookReply = new(cxrpc.ViewOrderBookReply)
 	viewOrderBookArgs := &cxrpc.ViewOrderBookArgs{
