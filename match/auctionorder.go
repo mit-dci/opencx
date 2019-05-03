@@ -5,11 +5,12 @@ import (
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
-	"math"
-
-	"github.com/mit-dci/opencx/crypto/timelockencoders"
 
 	"github.com/mit-dci/opencx/crypto"
+	"github.com/mit-dci/opencx/crypto/hashtimelock"
+	"github.com/mit-dci/opencx/crypto/rsw"
+	"github.com/mit-dci/opencx/crypto/timelockencoders"
+	"github.com/mit-dci/opencx/logging"
 )
 
 // EncryptedAuctionOrder represents an encrypted Auction Order, so a ciphertext and a puzzle whos solution is a key, and an intended auction.
@@ -20,9 +21,9 @@ type EncryptedAuctionOrder struct {
 }
 
 // SolveRC5AuctionOrderAsync solves order puzzles and creates auction orders from them. This should be run in a goroutine.
-func (e *EncryptedAuctionOrder) SolveRC5AuctionOrderAsync(puzzleResChan chan *OrderPuzzleResult) {
+func SolveRC5AuctionOrderAsync(e *EncryptedAuctionOrder, puzzleResChan chan *OrderPuzzleResult) {
 	var err error
-	var result *OrderPuzzleResult
+	result := new(OrderPuzzleResult)
 	result.Encrypted = e
 
 	var orderBytes []byte
@@ -49,8 +50,17 @@ func (e *EncryptedAuctionOrder) SolveRC5AuctionOrderAsync(puzzleResChan chan *Or
 func (e *EncryptedAuctionOrder) Serialize() (raw []byte, err error) {
 	var b bytes.Buffer
 
+	// register the rsw puzzle and hashtimelock puzzle
+	gob.Register(new(rsw.PuzzleRSW))
+
+	// register the hashtimelock (puzzle and timelock are same thing)
+	gob.Register(new(hashtimelock.HashTimelock))
+
+	// register the puzzle interface
+	gob.RegisterName("puzzle", new(crypto.Puzzle))
+
 	// register the encrypted auction order interface with gob
-	gob.Register(EncryptedAuctionOrder{})
+	gob.RegisterName("order", new(EncryptedAuctionOrder))
 
 	// create a new encoder writing to our buffer
 	enc := gob.NewEncoder(&b)
@@ -72,15 +82,24 @@ func (e *EncryptedAuctionOrder) Deserialize(raw []byte) (err error) {
 	var b *bytes.Buffer
 	b = bytes.NewBuffer(raw)
 
-	// register the encrypted auction order interface
-	gob.Register(EncryptedAuctionOrder{})
+	// register the rsw puzzle and hashtimelock puzzle
+	gob.Register(new(rsw.PuzzleRSW))
+
+	// register the hashtimelock (puzzle and timelock are same thing)
+	gob.Register(new(hashtimelock.HashTimelock))
+
+	// register the puzzle interface
+	gob.RegisterName("puzzle", new(crypto.Puzzle))
+
+	// register the encrypted auction order interface with gob
+	gob.RegisterName("order", new(EncryptedAuctionOrder))
 
 	// create a new decoder writing to the buffer
 	dec := gob.NewDecoder(b)
 
 	// decode the encrypted auction order in the buffer
 	if err = dec.Decode(e); err != nil {
-		err = fmt.Errorf("Error decoding encrypted auction order")
+		err = fmt.Errorf("Error decoding encrypted auction order: %s", err)
 		return
 	}
 
@@ -185,9 +204,12 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	binary.LittleEndian.PutUint64(buf, uint64(len(a.Side)))
 	buf = append(buf, []byte(a.Side)...)
 	buf = append(buf, a.AuctionID[:]...)
+	logging.Infof("Nonce: %08b", a.Nonce)
 	buf = append(buf, a.Nonce[:]...)
 	binary.LittleEndian.PutUint64(buf, uint64(len(a.Signature)))
+	logging.Infof("sig length: %d", len(a.Signature))
 	buf = append(buf, a.Signature[:]...)
+	logging.Infof("Encoded auction order: %x", buf)
 	return
 }
 
@@ -219,14 +241,21 @@ func (a *AuctionOrder) SerializeSignable() (buf []byte) {
 func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	// 33 for pubkey, 26 for the rest, 8 for len side, 4 for min side ("sell" is 4 bytes), 32 for auctionID, 2 for nonce, 8 for siglen
 	// bucket is where we put all of the non byte stuff so we can get their length
-	var bucket []byte
 
 	// TODO: remove all of this serialization code entirely and use protobufs or something else
-	minimumDataLength := len(a.Nonce) + len(a.AuctionID) + binary.PutUvarint(bucket, math.Float64bits(a.OrderbookPrice)) + binary.PutUvarint(bucket, a.AmountWant) + binary.PutUvarint(bucket, a.AmountHave) + a.TradingPair.Size() + len(a.Pubkey)
+	minimumDataLength := len(a.Nonce) +
+		len(a.AuctionID) +
+		binary.Size(a.OrderbookPrice) +
+		binary.Size(a.AmountWant) +
+		binary.Size(a.AmountHave) +
+		a.TradingPair.Size() +
+		len(a.Pubkey)
 	if len(data) < minimumDataLength {
 		err = fmt.Errorf("Auction order cannot be less than 102 bytes: %s", err)
 		return
 	}
+
+	logging.Infof("Auction order binary: %x", data)
 
 	copy(a.Pubkey[:], data[:33])
 	data = data[33:]
@@ -236,8 +265,10 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	}
 	data = data[2:]
 	a.AmountWant = binary.LittleEndian.Uint64(data[:8])
+	logging.Infof("AmountWant: %d", a.AmountWant)
 	data = data[8:]
 	a.AmountHave = binary.LittleEndian.Uint64(data[:8])
+	logging.Infof("AmountHave: %d", a.AmountHave)
 	data = data[8:]
 	sideLen := binary.LittleEndian.Uint64(data[:8])
 	data = data[8:]
@@ -246,8 +277,10 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	copy(a.AuctionID[:], data[:32])
 	data = data[32:]
 	copy(a.Nonce[:], data[:2])
+	logging.Infof("nonce: %08b", a.Nonce)
 	data = data[2:]
 	sigLen := binary.LittleEndian.Uint64(data[:8])
+	logging.Infof("Sig length: %d", sigLen)
 	data = data[8:]
 	a.Signature = data[:sigLen]
 	data = data[sigLen:]

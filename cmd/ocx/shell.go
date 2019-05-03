@@ -187,6 +187,18 @@ func (cl *ocxClient) parseCommands(commands []string) error {
 			return fmt.Errorf("Error getting lit connection: \n%s", err)
 		}
 	}
+	if cmd == "placeauctionorder" {
+		if getHelpForCommand(placeAuctionOrderCommand, args) {
+			return nil
+		}
+		if len(args) != 4 {
+			return fmt.Errorf("Must specify 4 arguments: side, pair, amounthave, price")
+		}
+
+		if err := cl.AuctionOrderCommand(args); err != nil {
+			return fmt.Errorf("Error placing auction order: \n%s", err)
+		}
+	}
 	return nil
 }
 
@@ -200,7 +212,7 @@ func (cl *ocxClient) Help(textArgs []string) error {
 	if len(textArgs) == 0 {
 
 		fmt.Fprintf(color.Output, lnutil.Header("Commands:\n"))
-		listofCommands := []*Command{helpCommand, registerCommand, getBalanceCommand, getDepositAddressCommand, getAllBalancesCommand, withdrawCommand, litWithdrawCommand, getLitConnectionCommand, placeOrderCommand, getPriceCommand, viewOrderbookCommand, cancelOrderCommand, getPairsCommand}
+		listofCommands := []*Command{helpCommand, registerCommand, getBalanceCommand, getDepositAddressCommand, getAllBalancesCommand, withdrawCommand, litWithdrawCommand, getLitConnectionCommand, placeOrderCommand, getPriceCommand, viewOrderbookCommand, cancelOrderCommand, getPairsCommand, placeAuctionOrderCommand}
 		printHelp(listofCommands)
 		return nil
 	}

@@ -239,12 +239,18 @@ func (cl *BenchClient) AuctionOrderAsync(pubkey *koblitz.PublicKey, side string,
 		}
 
 		newAuctionOrder.Signature = compactSig
-		if orderArgs.Order, err = newAuctionOrder.TurnIntoEncryptedOrder(t); err != nil {
+		var order *match.EncryptedAuctionOrder
+		if order, err = newAuctionOrder.TurnIntoEncryptedOrder(t); err != nil {
 			err = fmt.Errorf("Error turning order into puzzle before submitting: %s", err)
 			return
 		}
 
-		if err = cl.Call("OpencxRPC.SubmitPuzzledOrder", orderArgs, orderReply); err != nil {
+		if orderArgs.EncryptedOrderBytes, err = order.Serialize(); err != nil {
+			err = fmt.Errorf("Error when trying to serialize the order: %s", err)
+			return
+		}
+
+		if err = cl.Call("OpencxAuctionRPC.SubmitPuzzledOrder", orderArgs, orderReply); err != nil {
 			err = fmt.Errorf("Error calling 'SubmitPuzzledOrder' service method:\n%s", err)
 			return
 		}

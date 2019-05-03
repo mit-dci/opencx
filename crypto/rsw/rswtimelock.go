@@ -26,11 +26,11 @@ type TimelockRSW struct {
 
 // PuzzleRSW is the puzzle that can be then solved by repeated modular squaring
 type PuzzleRSW struct {
-	n *big.Int
-	a *big.Int
-	t *big.Int
+	N *big.Int
+	A *big.Int
+	T *big.Int
 	// We use C_k = b ⊕ k, I have add functionality but I don't know what's "better"
-	ck *big.Int
+	CK *big.Int
 }
 
 // New creates a new TimelockRSW with p and q generated as per crypto/rsa, and an input a as well as number of bits for the RSA key size.
@@ -173,10 +173,10 @@ func (tl *TimelockRSW) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answ
 	}
 
 	rswPuzzle := &PuzzleRSW{
-		n:  n,
-		a:  tl.a,
-		t:  tl.t,
-		ck: ck,
+		N:  n,
+		A:  tl.a,
+		T:  tl.t,
+		CK: ck,
 	}
 	puzzle = rswPuzzle
 
@@ -194,13 +194,13 @@ func (tl *TimelockRSW) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answ
 // SolveCkADD solves the puzzle by repeated squarings and subtracting b from ck
 func (pz *PuzzleRSW) SolveCkADD() (answer []byte, err error) {
 	// One liner!
-	return new(big.Int).Sub(pz.ck, new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)).Bytes(), nil
+	return new(big.Int).Sub(pz.CK, new(big.Int).Exp(pz.A, new(big.Int).Exp(big.NewInt(2), pz.T, nil), pz.N)).Bytes(), nil
 }
 
 // SolveCkXOR solves the puzzle by repeated squarings and xor b with ck
 func (pz *PuzzleRSW) SolveCkXOR() (answer []byte, err error) {
 	// One liner!
-	return new(big.Int).Xor(pz.ck, new(big.Int).Exp(pz.a, new(big.Int).Exp(big.NewInt(2), pz.t, nil), pz.n)).Bytes(), nil
+	return new(big.Int).Xor(pz.CK, new(big.Int).Exp(pz.A, new(big.Int).Exp(big.NewInt(2), pz.T, nil), pz.N)).Bytes(), nil
 }
 
 // Solve solves the puzzle by repeated squarings
@@ -211,20 +211,20 @@ func (pz *PuzzleRSW) Solve() (answer []byte, err error) {
 // SolveGMPCkXOR solves the puzzle by repeated squarings and xor b with ck using the GMP library
 func (pz *PuzzleRSW) SolveGMPCkXOR() (answer []byte, err error) {
 	// No longer a one liner but many times faster
-	gmpck := new(gmpbig.Int).SetBytes(pz.ck.Bytes())
-	gmpa := new(gmpbig.Int).SetBytes(pz.a.Bytes())
-	gmpt := new(gmpbig.Int).SetBytes(pz.t.Bytes())
-	gmpn := new(gmpbig.Int).SetBytes(pz.n.Bytes())
+	gmpck := new(gmpbig.Int).SetBytes(pz.CK.Bytes())
+	gmpa := new(gmpbig.Int).SetBytes(pz.A.Bytes())
+	gmpt := new(gmpbig.Int).SetBytes(pz.T.Bytes())
+	gmpn := new(gmpbig.Int).SetBytes(pz.N.Bytes())
 	return new(gmpbig.Int).Xor(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
 }
 
 // SolveGMPCkADD solves the puzzle by repeated squarings and xor b with ck using the GMP library
 func (pz *PuzzleRSW) SolveGMPCkADD() (answer []byte, err error) {
 	// No longer a one liner but many times faster
-	gmpck := new(gmpbig.Int).SetBytes(pz.ck.Bytes())
-	gmpa := new(gmpbig.Int).SetBytes(pz.a.Bytes())
-	gmpt := new(gmpbig.Int).SetBytes(pz.t.Bytes())
-	gmpn := new(gmpbig.Int).SetBytes(pz.n.Bytes())
+	gmpck := new(gmpbig.Int).SetBytes(pz.CK.Bytes())
+	gmpa := new(gmpbig.Int).SetBytes(pz.A.Bytes())
+	gmpt := new(gmpbig.Int).SetBytes(pz.T.Bytes())
+	gmpn := new(gmpbig.Int).SetBytes(pz.N.Bytes())
 	return new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
 }
 

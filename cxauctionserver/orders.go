@@ -6,11 +6,14 @@ import (
 
 	"github.com/btcsuite/golangcrypto/sha3"
 	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
 // PlacePuzzledOrder places a timelock encrypted order. It also starts to decrypt the order in a goroutine.
 func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrder) (err error) {
+
+	logging.Infof("Got puzzle with pointer %p", order.OrderPuzzle)
 
 	// Placing an auction puzzle is how the exchange will then recall and commit to a set of puzzles.
 	s.dbLock.Lock()
@@ -22,7 +25,7 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 	s.dbLock.Unlock()
 
 	// send order solving to channel
-	go order.SolveRC5AuctionOrderAsync(s.orderChannel)
+	go match.SolveRC5AuctionOrderAsync(order, s.orderChannel)
 
 	return
 }
