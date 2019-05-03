@@ -1,12 +1,10 @@
 package cxbenchmark
 
 import (
-	"github.com/mit-dci/opencx/cmd/benchclient"
+	"github.com/mit-dci/opencx/benchclient"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"
 )
-
-// TODO: make this work with public keys. Currently doesn't work.
 
 // PlaceAndFill places a whole bunch of orders (in goroutines of course) and fills a whole bunch of orders.
 func PlaceAndFill(client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, pair string, howMany int) {

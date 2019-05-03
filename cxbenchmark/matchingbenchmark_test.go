@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mit-dci/opencx/cmd/benchclient"
+	"github.com/mit-dci/opencx/benchclient"
 	"github.com/mit-dci/opencx/logging"
 )
 

@@ -11,8 +11,10 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-# Don't include the opencx binary
-opencx
+# Don't include the binaries
+opencxd
+ocx
+fred
 
 # Don't include the rpc client binary
 cmd/opencx-cli/opencx-cli

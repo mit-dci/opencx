@@ -6,7 +6,7 @@ import (
 	"github.com/btcsuite/golangcrypto/sha3"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/opencx/cmd/benchclient"
+	"github.com/mit-dci/opencx/benchclient"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"

@@ -21,7 +21,7 @@ var (
 	// used in init file, so separate
 	defaultLogLevel       = 0
 	defaultLitLogLevel    = 0
-	defaultConfigFilename = "opencx.conf"
+	defaultConfigFilename = "fred.conf"
 	defaultLogFilename    = "dblog.txt"
 	defaultKeyFileName    = "privkey.hex"
 )
@@ -47,7 +47,7 @@ func createDefaultConfigFile(destinationPath string) error {
 	return nil
 }
 
-func opencxSetup(conf *opencxConfig) *[32]byte {
+func opencxSetup(conf *fredConfig) *[32]byte {
 	// Pre-parse the command line options to see if an alternative config
 	// file or the version flag was specified. Config file will be read later
 	// and cli options would be parsed again below
@@ -63,29 +63,29 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	logging.SetLogLevel(defaultLogLevel)
 
 	// create home directory
-	_, err := os.Stat(conf.OpencxHomeDir)
+	_, err := os.Stat(conf.FredHomeDir)
 	if err != nil {
 		logging.Errorf("Error while creating a directory")
 	}
 	if os.IsNotExist(err) {
-		os.Mkdir(conf.OpencxHomeDir, 0700)
+		os.Mkdir(conf.FredHomeDir, 0700)
 		logging.Infof("Creating a new config file")
-		err := createDefaultConfigFile(conf.OpencxHomeDir)
+		err := createDefaultConfigFile(conf.FredHomeDir)
 		if err != nil {
-			fmt.Printf("Error creating a default config file: %v", conf.OpencxHomeDir)
+			fmt.Printf("Error creating a default config file: %v", conf.FredHomeDir)
 			logging.Fatal(err)
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(conf.OpencxHomeDir, "opencx.conf")); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(conf.FredHomeDir, defaultConfigFilename)); os.IsNotExist(err) {
 		// if there is no config file found over at the directory, create one
 		logging.Infof("Creating a new config file")
-		err := createDefaultConfigFile(filepath.Join(conf.OpencxHomeDir)) // Source of error
+		err := createDefaultConfigFile(filepath.Join(conf.FredHomeDir)) // Source of error
 		if err != nil {
 			logging.Fatal(err)
 		}
 	}
-	conf.ConfigFile = filepath.Join(conf.OpencxHomeDir, "opencx.conf")
+	conf.ConfigFile = filepath.Join(conf.FredHomeDir, defaultConfigFilename)
 	// lets parse the config file provided, if any
 	err = flags.NewIniParser(parser).ParseFile(conf.ConfigFile)
 	if err != nil {
@@ -101,7 +101,7 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 		logging.Fatal(err)
 	}
 
-	logFilePath := filepath.Join(conf.OpencxHomeDir, conf.LogFilename)
+	logFilePath := filepath.Join(conf.FredHomeDir, conf.LogFilename)
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	defer logFile.Close()
 	logging.SetLogFile(logFile)
@@ -126,7 +126,7 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	}
 	litLogging.SetLogLevel(litLogLevel) // defaults to defaultLitLogLevel
 
-	keyPath := filepath.Join(conf.OpencxHomeDir, defaultKeyFileName)
+	keyPath := filepath.Join(conf.FredHomeDir, defaultKeyFileName)
 	privkey, err := lnutil.ReadKeyFile(keyPath)
 	if err != nil {
 		logging.Fatalf("Error reading key from file: \n%s", err)
@@ -135,11 +135,11 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	return privkey
 }
 
-func generateCoinList(conf *opencxConfig) []*coinparam.Params {
+func generateCoinList(conf *fredConfig) []*coinparam.Params {
 	return util.HostParamList(generateHostParams(conf)).CoinListFromHostParams()
 }
 
-func generateHostParams(conf *opencxConfig) (hostParamList []*util.HostParams) {
+func generateHostParams(conf *fredConfig) (hostParamList []*util.HostParams) {
 	// Regular networks (Just like don't use any of these, I support them though)
 	evalHostParams(&hostParamList, conf.Btchost, &coinparam.BitcoinParams)
 	evalHostParams(&hostParamList, conf.Vtchost, &coinparam.VertcoinParams)

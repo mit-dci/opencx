@@ -2,6 +2,7 @@ package cxdbmemory
 
 import (
 	"fmt"
+
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -15,7 +16,7 @@ func (db *CXDBMemory) PlaceAuctionPuzzle(encryptedOrder *match.EncryptedAuctionO
 }
 
 // PlaceAuctionOrder places an order in the unencrypted datastore.
-func (db *CXDBMemory) PlaceAuctionOrder(order *match.AuctionOrder, auctionID [32]byte) (err error) {
+func (db *CXDBMemory) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 
 	// TODO: Determine where order validation should go if not here
 	// What determines a valid order should be in one place
@@ -25,7 +26,7 @@ func (db *CXDBMemory) PlaceAuctionOrder(order *match.AuctionOrder, auctionID [32
 	}
 
 	db.ordersMtx.Lock()
-	db.orders[auctionID] = append(db.orders[auctionID], order)
+	db.orders[order.AuctionID] = append(db.orders[order.AuctionID], order)
 	db.ordersMtx.Unlock()
 	return
 }

@@ -29,8 +29,8 @@ sudo systemctl start mariadb
 
 Now build and run opencx:
 ```sh
-go build opencx
-./opencx
+go build ./cmd/opencxd/...
+./opencxd
 ```
 
 # How to run the opencx command line client
@@ -42,8 +42,8 @@ go get
 
 Now build the binary:
 ```sh
-cd cmd/ocx
-go build
+go build ./cmd/ocx/...
+./ocx
 ```
 
 You can now issue any of the commands in the cxrpc README.md file.

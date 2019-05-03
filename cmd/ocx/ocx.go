@@ -13,7 +13,7 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/lit/portxo"
 
-	"github.com/mit-dci/opencx/cmd/benchclient"
+	"github.com/mit-dci/opencx/benchclient"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/lit/lnutil"

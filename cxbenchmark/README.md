@@ -47,7 +47,7 @@ All tests are run on the regtest environment as well.
 ### Currently known limits:
 
  - If you try to use SQL injection you will succeed. The honor system is currently in place to protect against that vulnerability.
- - From start to finish, with many thousands of blocks, it takes a while to sync up. It needs to sync up because I have been changing the db stuff so much that it would have been real annoying to actually keep the state and height that we've synced to and such.
+ - From start to finish, with many thousands of blocks, it takes a while to sync up. 
 
 ## Placing orders and matching
 
