@@ -1,7 +1,6 @@
 package cxauctionserver
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/btcsuite/golangcrypto/sha3"
@@ -53,8 +52,10 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 		return
 	}
 
-	// Then find the hash of the orders + the previous hash
 	sha3 := sha3.New256()
+	// Add the current auction ID to be hashed
+	sha3.Write(auctionID[:])
+	// Then find the hash of the orders + the previous hash
 	for _, pz := range puzzles {
 		var pzRaw []byte
 		if pzRaw, err = pz.Serialize(); err != nil {
@@ -107,17 +108,16 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 		return
 	}
 
-	logging.Infof("Pubkey %x apparently have signed hash %x", recoveredPublickey.SerializeCompressed(), e)
-
 	if !recoveredPublickey.IsEqual(orderPublicKey) {
 		err = fmt.Errorf("Recovered public key %x does not equal to pubkey %x in order", recoveredPublickey.SerializeCompressed(), orderPublicKey.SerializeCompressed())
 		return
 	}
 
-	if !bytes.Equal(s.auctionID[:], decryptedOrder.AuctionID[:]) {
-		err = fmt.Errorf("Auction ID must equal current auction")
-		return
-	}
+	// TODO: figure out how to deal with auctionID
+	// if !bytes.Equal(s.auctionID[:], decryptedOrder.AuctionID[:]) {
+	// 	err = fmt.Errorf("Auction ID must equal current auction")
+	// 	return
+	// }
 
 	valid = true
 	return

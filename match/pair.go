@@ -58,17 +58,17 @@ func GenerateAssetPairs(coinList []*coinparam.Params) (pairList []*Pair, err err
 }
 
 // Size returns the size of the pair
-func (p Pair) Size() int {
+func (p *Pair) Size() int {
 	return len([]byte{byte(p.AssetWant)}) + len([]byte{byte(p.AssetHave)})
 }
 
 // Delim is essentially a constant for this struct, I'm sure there are better ways of doing it.
-func (p Pair) Delim() string {
+func (p *Pair) Delim() string {
 	return "_"
 }
 
 // String is the tostring function for a pair
-func (p Pair) String() string {
+func (p *Pair) String() string {
 	return p.AssetWant.String() + p.Delim() + p.AssetHave.String()
 }
 
@@ -88,14 +88,14 @@ func (p *Pair) FromString(pairString string) (err error) {
 }
 
 // Serialize serializes the pair into a byte array
-func (p Pair) Serialize() []byte {
+func (p *Pair) Serialize() []byte {
 	return []byte{byte(p.AssetWant), byte(p.AssetHave)}
 }
 
 // Deserialize deserializes a byte array into a pair
-func (p Pair) Deserialize(buf []byte) (err error) {
+func (p *Pair) Deserialize(buf []byte) (err error) {
 	if len(buf) != 2 {
-		err = fmt.Errorf("Tried to deserialize ")
+		err = fmt.Errorf("Tried to deserialize, byte array length should be 2 but isn't")
 	}
 	p.AssetWant = Asset(buf[0])
 	p.AssetHave = Asset(buf[1])

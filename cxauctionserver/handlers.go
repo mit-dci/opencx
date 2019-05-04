@@ -9,7 +9,6 @@ import (
 func (s *OpencxAuctionServer) AuctionOrderHandler(orderResultChannel chan *match.OrderPuzzleResult) {
 	for {
 		receivedOrder := <-orderResultChannel
-		logging.Infof("Puzzle Result Received!")
 		if receivedOrder.Err != nil {
 			logging.Errorf("Error came in with order solving result: %s", receivedOrder.Err)
 			// if there was an error, don't process the order

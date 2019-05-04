@@ -3,6 +3,7 @@ package cxdbmemory
 import (
 	"fmt"
 
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -58,15 +59,15 @@ func (db *CXDBMemory) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [3
 
 // ViewAuctionPuzzleBook takes in an auction ID, and returns encrypted auction orders, and puzzles.
 // You don't know what auction IDs should be in the orders encrypted in the puzzle book, but this is
-// what was submitted.
+// what was submitted. This also doesn't error out because if there are no orders with the auctionID
+// then it doesn't really matter, we just return an empty list? Maybe we should have an API method
+// to return auctionIDs.
 func (db *CXDBMemory) ViewAuctionPuzzleBook(auctionID [32]byte) (orders []*match.EncryptedAuctionOrder, err error) {
 
 	db.puzzleMtx.Lock()
 	var ok bool
 	if orders, ok = db.puzzles[auctionID]; !ok {
-		db.puzzleMtx.Unlock()
-		err = fmt.Errorf("Could not find auctionID in the puzzle orderbook")
-		return
+		logging.Debugf("Tried to find puzzles matching %x but none were found in DB.", auctionID)
 	}
 	db.puzzleMtx.Unlock()
 	return

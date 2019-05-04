@@ -21,7 +21,7 @@ type SubmitPuzzledOrderReply struct {
 // SubmitPuzzledOrder submits an order to the order book or throws an error
 func (cl *OpencxAuctionRPC) SubmitPuzzledOrder(args SubmitPuzzledOrderArgs, reply *SubmitPuzzledOrderReply) (err error) {
 
-	logging.Infof("Received puzzled order!")
+	logging.Infof("Received timelocked order!")
 
 	order := new(match.EncryptedAuctionOrder)
 	if err = order.Deserialize(args.EncryptedOrderBytes); err != nil {

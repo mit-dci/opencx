@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 
 	"github.com/mit-dci/opencx/crypto"
@@ -197,21 +198,27 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	// sig [len sig bytes]
 	buf = append(buf, a.Pubkey[:]...)
 	buf = append(buf, a.TradingPair.Serialize()...)
+
 	amountHaveBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(amountHaveBytes, a.AmountHave)
 	buf = append(buf, amountHaveBytes[:]...)
+
 	amountWantBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(amountWantBytes, a.AmountWant)
 	buf = append(buf, amountWantBytes[:]...)
+
 	lenSideBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lenSideBytes, uint64(len(a.Side)))
 	buf = append(buf, lenSideBytes[:]...)
+
 	buf = append(buf, []byte(a.Side)...)
 	buf = append(buf, a.AuctionID[:]...)
 	buf = append(buf, a.Nonce[:]...)
+
 	lenSigBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(lenSigBytes, uint64(len(a.Signature)))
 	buf = append(buf, lenSigBytes[:]...)
+
 	buf = append(buf, a.Signature[:]...)
 	return
 }
@@ -230,9 +237,19 @@ func (a *AuctionOrder) SerializeSignable() (buf []byte) {
 	// nonce [2 bytes]
 	buf = append(buf, a.Pubkey[:]...)
 	buf = append(buf, a.TradingPair.Serialize()...)
-	binary.LittleEndian.PutUint64(buf, a.AmountHave)
-	binary.LittleEndian.PutUint64(buf, a.AmountWant)
-	binary.LittleEndian.PutUint64(buf, uint64(len(a.Side)))
+
+	amountHaveBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(amountHaveBytes, a.AmountHave)
+	buf = append(buf, amountHaveBytes[:]...)
+
+	amountWantBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(amountWantBytes, a.AmountWant)
+	buf = append(buf, amountWantBytes[:]...)
+
+	lenSideBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lenSideBytes, uint64(len(a.Side)))
+	buf = append(buf, lenSideBytes[:]...)
+
 	buf = append(buf, []byte(a.Side)...)
 	buf = append(buf, a.AuctionID[:]...)
 	buf = append(buf, a.Nonce[:]...)
@@ -259,14 +276,16 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 
 	copy(a.Pubkey[:], data[:33])
 	data = data[33:]
-	if err = a.TradingPair.Deserialize(data[:2]); err != nil {
+	var tradingPairBytes [2]byte
+	copy(tradingPairBytes[:], data[:2])
+	if err = a.TradingPair.Deserialize(tradingPairBytes[:]); err != nil {
 		err = fmt.Errorf("Could not deserialize trading pair while deserializing auction order: %s", err)
 		return
 	}
 	data = data[2:]
-	a.AmountWant = binary.LittleEndian.Uint64(data[:8])
-	data = data[8:]
 	a.AmountHave = binary.LittleEndian.Uint64(data[:8])
+	data = data[8:]
+	a.AmountWant = binary.LittleEndian.Uint64(data[:8])
 	data = data[8:]
 	sideLen := binary.LittleEndian.Uint64(data[:8])
 	data = data[8:]
@@ -300,4 +319,11 @@ func (a *AuctionOrder) SetAmountWant(price float64) (err error) {
 		return
 	}
 	return
+}
+
+func (a *AuctionOrder) String() string {
+	// we ignore error because there's nothing we can do in a String() method
+	// to pass on the error other than panic, and I don't want to do that?
+	orderMarshalled, _ := json.Marshal(a)
+	return string(orderMarshalled)
 }

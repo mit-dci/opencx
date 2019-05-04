@@ -38,6 +38,9 @@ func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctio
 	// Start the order handler (TODO: is this the right place to put this?)
 	go server.AuctionOrderHandler(server.orderChannel)
 
+	// Start the auction clock (also TODO: is this the right place to put this?)
+	go server.AuctionClock()
+
 	return
 }
 
