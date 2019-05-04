@@ -8,6 +8,7 @@ import (
 
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -231,6 +232,8 @@ func (cl *BenchClient) AuctionOrderAsync(pubkey *koblitz.PublicKey, side string,
 		sha3 := sha3.New256()
 		sha3.Write(newAuctionOrder.SerializeSignable())
 		e := sha3.Sum(nil)
+
+		logging.Infof("Signing hash %x for pubkey %x", e, cl.PrivKey.PubKey().SerializeCompressed())
 
 		// Sign order
 		var compactSig []byte

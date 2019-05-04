@@ -253,7 +253,7 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 		a.TradingPair.Size() +
 		len(a.Pubkey)
 	if len(data) < minimumDataLength {
-		err = fmt.Errorf("Auction order cannot be less than 102 bytes: %s", err)
+		err = fmt.Errorf("Auction order cannot be less than %d bytes: %s", len(data), err)
 		return
 	}
 

@@ -13,7 +13,7 @@ import (
 // PlacePuzzledOrder places a timelock encrypted order. It also starts to decrypt the order in a goroutine.
 func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrder) (err error) {
 
-	logging.Infof("Got puzzle with pointer %p", order.OrderPuzzle)
+	logging.Infof("Got a new puzzle for auction %x", order.IntendedAuction)
 
 	// Placing an auction puzzle is how the exchange will then recall and commit to a set of puzzles.
 	s.dbLock.Lock()
@@ -77,6 +77,8 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 // validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
 func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, encryptedOrder *match.EncryptedAuctionOrder) (valid bool, err error) {
 
+	logging.Infof("Validating order by pubkey %x", decryptedOrder.Pubkey)
+
 	if _, err = decryptedOrder.Price(); err != nil {
 		err = fmt.Errorf("Orders with an indeterminable price are invalid: %s", err)
 		return
@@ -105,8 +107,10 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 		return
 	}
 
+	logging.Infof("Pubkey %x apparently have signed hash %x", recoveredPublickey.SerializeCompressed(), e)
+
 	if !recoveredPublickey.IsEqual(orderPublicKey) {
-		err = fmt.Errorf("Recovered public key does not equal to pubkey in order")
+		err = fmt.Errorf("Recovered public key %x does not equal to pubkey %x in order", recoveredPublickey.SerializeCompressed(), orderPublicKey.SerializeCompressed())
 		return
 	}
 

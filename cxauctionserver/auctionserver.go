@@ -34,6 +34,10 @@ func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctio
 		err = fmt.Errorf("Error getting random auction ID for initializing server: %s", err)
 		return
 	}
+
+	// Start the order handler (TODO: is this the right place to put this?)
+	go server.AuctionOrderHandler(server.orderChannel)
+
 	return
 }
 
