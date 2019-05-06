@@ -26,7 +26,7 @@ type OpencxRPCClient struct {
 
 // OpencxNoiseClient is an authenticated RPC Client for the opencx Server
 type OpencxNoiseClient struct {
-	Conn *cxnoise.Conn
+	Conn *rpc.Client
 	key  *koblitz.PrivateKey
 }
 
@@ -53,9 +53,7 @@ func (cl *OpencxNoiseClient) Call(serviceMethod string, args interface{}, reply 
 	// Create new client because the server is a rpc newserver
 	// we don't need to do anything fancy here because the cl.Conn
 	// already uses the noise protocol.
-	noiseRPCClient := rpc.NewClient(cl.Conn)
-
-	if err = noiseRPCClient.Call(serviceMethod, args, reply); err != nil {
+	if err = cl.Conn.Call(serviceMethod, args, reply); err != nil {
 		return
 	}
 
@@ -83,9 +81,12 @@ func (cl *OpencxNoiseClient) SetupConnection(server string, port uint16) (err er
 	serverAddr := net.JoinHostPort(server, fmt.Sprintf("%d", port))
 
 	// Dial a connection to the server
-	if cl.Conn, err = cxnoise.Dial(cl.key, serverAddr, []byte("opencx"), net.Dial); err != nil {
+	var clientConn *cxnoise.Conn
+	if clientConn, err = cxnoise.Dial(cl.key, serverAddr, []byte("opencx"), net.Dial); err != nil {
 		return
 	}
+
+	cl.Conn = rpc.NewClient(clientConn)
 
 	return
 }

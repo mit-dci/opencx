@@ -127,7 +127,7 @@ func (cl *ocxClient) UnlockKey() (err error) {
 	// if we're not unlocked and the client is fine too then don't bother
 	if !cl.unlocked || cl.RPCClient.PrivKey == nil {
 		var keyFromFile *[32]byte
-		logging.Infof("client keypath: %s", cl.KeyPath)
+		logging.Infof("Client keypath: %s", cl.KeyPath)
 		if keyFromFile, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
 			logging.Errorf("Error reading key from file: \n%s", err)
 			return

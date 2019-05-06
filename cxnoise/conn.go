@@ -37,7 +37,7 @@ func Dial(localPriv *koblitz.PrivateKey, ipAddr string,
 	var conn net.Conn
 	var err error
 	conn, err = dialer("tcp", ipAddr)
-	logging.Info("ipAddr is ", ipAddr)
+	logging.Infof("Connecting to %s", ipAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func Dial(localPriv *koblitz.PrivateKey, ipAddr string,
 	// This is commented out because with OpenCX we don't match the hash of the static pubkey we get with the pubkey
 	// we just want plain old Noise XX Handshake
 
-	logging.Info("Received pubkey", s)
+	logging.Infof("Received pubkey %x", s)
 	// if lnutil.LitAdrFromPubkey(s) != remotePKH {
 	// 	return nil, fmt.Errorf("Remote PKH doesn't match. Quitting")
 	// }
