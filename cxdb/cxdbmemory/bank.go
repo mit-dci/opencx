@@ -64,3 +64,30 @@ func (db *CXDBMemory) AddToBalance(pubkey *koblitz.PublicKey, amount uint64, coi
 
 	return
 }
+
+// Withdraw checks the user's balance against the amount and if valid, reduces the balance by that amount.
+func (db *CXDBMemory) Withdraw(pubkey *koblitz.PublicKey, coin *coinparam.Params, amount uint64) (err error) {
+
+	var pkpair pubkeyCoinPair
+	copy(pkpair.pubkey[:], pubkey.SerializeCompressed())
+	pkpair.coin = coin
+
+	db.balancesMtx.Lock()
+	var found bool
+	var oldAmt uint64
+	if oldAmt, found = db.balances[&pkpair]; !found {
+		db.balancesMtx.Unlock()
+		err = fmt.Errorf("Could not find balance, register please")
+		return
+	}
+
+	if oldAmt < amount {
+		err = fmt.Errorf("You do not have enough balance to withdraw this amount")
+		return
+	}
+
+	db.balances[&pkpair] = oldAmt - amount
+	db.balancesMtx.Unlock()
+
+	return
+}

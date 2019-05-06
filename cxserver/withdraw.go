@@ -91,7 +91,7 @@ func (server *OpencxServer) withdrawFromChain(params *coinparam.Params) (withdra
 		}
 
 		server.LockIngests()
-		if err = server.OpencxDB.Withdraw(pubkey, params.Name, amount); err != nil {
+		if err = server.OpencxDB.Withdraw(pubkey, params, amount); err != nil {
 			// if errors out, unlock
 			server.UnlockIngests()
 			return
@@ -197,7 +197,7 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 		logging.Infof("Checking withdraw lock...")
 		server.LockIngests()
 		logging.Infof("Locked ingests, withdrawing")
-		if err = server.OpencxDB.Withdraw(pubkey, params.Name, uint64(amount)); err != nil {
+		if err = server.OpencxDB.Withdraw(pubkey, params, uint64(amount)); err != nil {
 			// if errors out, unlock
 			logging.Errorf("Error while withdrawing from db: %s\n", err)
 			server.UnlockIngests()

@@ -413,7 +413,7 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 		logging.Debugf("Checking withdraw lock...")
 		server.LockIngests()
 		logging.Debugf("Locked ingests, withdrawing")
-		if err = server.OpencxDB.Withdraw(pubkey, params.Name, uint64(initSend)); err != nil {
+		if err = server.OpencxDB.Withdraw(pubkey, params, uint64(initSend)); err != nil {
 			// if errors out, unlock
 			logging.Errorf("Error while withdrawing from db: %s\n", err)
 			server.UnlockIngests()

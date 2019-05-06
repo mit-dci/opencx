@@ -6,13 +6,6 @@ import (
 	"github.com/mit-dci/opencx/match"
 )
 
-// abstractions to make:
-// - user abstraction
-// - asset abstraction
-// - use real addresses
-// - change limit order to generic order?? Different behavior based on type of order?
-// like what if in matching it checked if it were a market order and just checked the amount put in, and satisfied the amount out on matching. That would work.
-
 // OpencxStore should define all the functions that are required for an implementation of an exchange that uses any sort of I/O to store its information.
 // If you wanted you could implement everything entirely in golang's allocated memory, with built in data structures (not that it is advised). The datastore layer
 // should not check validity of the things it is doing, just update or insert or return whatever.
@@ -34,7 +27,7 @@ type OpencxStore interface {
 	// CalculatePrice returns the calculated price based on the order book.
 	CalculatePrice(*match.Pair) (float64, error)
 	// Withdraw checks the user's balance against the amount and if valid, reduces the balance by that amount.
-	Withdraw(*koblitz.PublicKey, string, uint64) error
+	Withdraw(*koblitz.PublicKey, *coinparam.Params, uint64) error
 	// UpdateDeposits updates the deposits when a block comes in
 	UpdateDeposits([]match.Deposit, uint64, *coinparam.Params) error
 	// AddToBalance adds to the balance of a user
@@ -49,8 +42,8 @@ type OpencxStore interface {
 	CancelOrder(string) error
 }
 
-// TODO: Make all of this make sense with messages, keys, and change LimitOrder to Auction order. Make auction
-// order make more sense with the encryption stuff.
+// TODO: separate out parts of the Store, like many of the account based operations (balance and whatnot), so
+// an auction server and exchange server could share the same account store, but different order stores
 
 // OpencxAuctionStore should define all the functions that are required for an implementation of a
 // front-running resistant auction exchange that uses any sort of I/O to store its information.
@@ -63,6 +56,8 @@ type OpencxAuctionStore interface {
 	RegisterUser(*koblitz.PublicKey, map[*coinparam.Params]string) error
 	// GetBalance gets the balance for a pubkey and an asset.
 	GetBalance(*koblitz.PublicKey, *coinparam.Params) (uint64, error)
+	// Withdraw checks the user's balance against the amount and if valid, reduces the balance by that amount.
+	Withdraw(*koblitz.PublicKey, *coinparam.Params, uint64) error
 	// AddToBalance adds to the balance of a user
 	AddToBalance(*koblitz.PublicKey, uint64, *coinparam.Params) error
 	// PlaceAuctionPuzzle puts an encrypted auction order in the datastore.

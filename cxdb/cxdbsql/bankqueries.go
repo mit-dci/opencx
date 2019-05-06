@@ -414,7 +414,7 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 }
 
 // Withdraw checks that the user has a certain amount of money and removes it if they do
-func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (err error) {
+func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset *coinparam.Params, amount uint64) (err error) {
 	var tx *sql.Tx
 	if tx, err = db.DBHandler.Begin(); err != nil {
 		return
@@ -423,7 +423,7 @@ func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while withdrawing %s using database: \n%s", asset, err)
+			err = fmt.Errorf("Error while withdrawing %s using database: \n%s", asset.Name, err)
 			return
 		}
 		err = tx.Commit()
@@ -436,7 +436,7 @@ func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (
 		return
 	}
 
-	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", asset, pubkey.SerializeCompressed())
+	getBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", asset.Name, pubkey.SerializeCompressed())
 	var rows *sql.Rows
 	if rows, err = tx.Query(getBalanceQuery); err != nil {
 		return
@@ -462,7 +462,7 @@ func (db *DB) Withdraw(pubkey *koblitz.PublicKey, asset string, amount uint64) (
 	}
 
 	updatedBalance := bal - amount
-	reduceBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE pubkey='%x'", asset, updatedBalance, pubkey.SerializeCompressed())
+	reduceBalanceQuery := fmt.Sprintf("UPDATE %s SET balance=%d WHERE pubkey='%x'", asset.Name, updatedBalance, pubkey.SerializeCompressed())
 	if _, err = tx.Exec(reduceBalanceQuery); err != nil {
 		return
 	}
