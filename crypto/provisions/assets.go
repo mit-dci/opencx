@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"sync"
 )
 
 // BalProofMachine represents a single iteration of the proof of assets protocol, and is
@@ -87,6 +88,56 @@ func (machine *BalProofMachine) SResponse(si bool) (rs *big.Int, err error) {
 type AssetsProofMachine struct {
 	curve elliptic.Curve
 	// This is the anonymity set PK in the paper, !(privkey == nil) => s_i = 0
+	// We don't use a privkey set because we are going to want to index by pubkey a lot
 	PubKeyAnonSet    map[*ecdsa.PublicKey]*ecdsa.PrivateKey
+	pkAnonSetMutex   *sync.Mutex
 	BalanceRetreiver func(pubkey *ecdsa.PublicKey) (balance uint64, err error)
+}
+
+// NewAssetsProofMachine creates a new state machine for the asset proof. TODO: Use the anonymity set choosing from
+// the paper to initialize
+func NewAssetsProofMachine(curve elliptic.Curve) (machine *AssetsProofMachine, err error) {
+
+	machine = &AssetsProofMachine{
+		curve:            curve,
+		PubKeyAnonSet:    make(map[*ecdsa.PublicKey]*ecdsa.PrivateKey),
+		pkAnonSetMutex:   new(sync.Mutex),
+		BalanceRetreiver: bal,
+	}
+
+	return
+}
+
+// bal is supposed to find the balance of a pubkey. I'm going to assume that all addresses have 10 bitcoin (1000000000)
+// in them for now. TODO: Make bal() work in a production environment
+func bal(pubkey *ecdsa.PublicKey) (bal uint64, err error) {
+
+	// all pubkeys have 10 btc -- we measure in satoshis
+	bal = 1000000000
+
+	return
+}
+
+// calculateAssets calculates the assets that the exchange owns. This will be committed to.
+func (machine *AssetsProofMachine) calculateAssets() (totalAssets uint64, err error) {
+
+	machine.pkAnonSetMutex.Lock()
+	for pub, priv := range machine.PubKeyAnonSet {
+		// priv == nil => s_i == 0
+		// so if priv != nil then add to the total assets
+		if priv != nil {
+			var currBal uint64
+			if currBal, err = machine.BalanceRetreiver(pub); err != nil {
+				machine.pkAnonSetMutex.Unlock()
+				err = fmt.Errorf("Error getting balance of pubkey while calulating assets: %s", err)
+				return
+			}
+			totalAssets += currBal
+		}
+		// otherwise don't add anything
+	}
+
+	machine.pkAnonSetMutex.Unlock()
+
+	return
 }

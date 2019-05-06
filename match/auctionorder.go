@@ -128,7 +128,7 @@ type AuctionOrder struct {
 	// IntendedAuction as the auctionID this should be in. We need this to protect against
 	// the exchange withholding an order.
 	AuctionID [32]byte `json:"auctionid"`
-	// 2 byte nonce (So there can be max 2^16 of the same-looking orders by the same pubkey)
+	// 2 byte nonce (So there can be max 2^16 of the same-looking orders by the same pubkey in the same batch)
 	// This is used to protect against the exchange trying to replay a bunch of orders
 	Nonce     [2]byte `json:"nonce"`
 	Signature []byte  `json:"signature"`

@@ -35,8 +35,6 @@ These topics are for me to review and asses what the benefits of each are and ho
  - [ ] [Decentralized Cryptocurrency Exchange Security Analysis 6.857 Project](https://courses.csail.mit.edu/6.857/2018/project/Hao-Chang-Lu-Zhang-CCExch.pdf)
    - Written for 6.857 by Parker Hao, Vincent Chang, Shao Lu, and Chenxing Zhang
    - All CSAIL except Shao Lu, who is Harvard.
- - [ ] [Tesseract - Real Time Cryptocurrency Exchange Using Trusted Hardware](https://eprint.iacr.org/2017/1153.pdf)
-   - IC3 Preprint by Cornell, Cornell Tech, SJTU, and Eth Zürich
  - [ ] [Cryptographic Combinatorial Securities Exchanges](http://www.eecs.harvard.edu/~cat/papers/portfolio.pdf)
    - By Christopher Thorpe and David C. Parkes, from EECS at Harvard.
  - [ ] [Cryptographic Rule-Based Trading (Short Paper)](http://www.eecs.harvard.edu/~cat/papers/thorpe_willis.pdf)
@@ -115,7 +113,7 @@ There's a note about unidirectional channels and how publishing the most recent 
 
 Finally, there are a lot of diagrams about their implementation of limit orders and RFQs, and they also explain bidirectional RFQ's, where if you bought one asset then you should be able to also sell it back with another RFQ. It's a very dry paper but it's a very solid idea. It is still a market maker but as far as non custodial exchanges go, this is a good way to do it.
 
-Also in the arwen paper there's a mistake, on the last page it says that "Plasma [28] is a proposal for a layer-two decentralized exchange protocol on Ethereum", which is blatantly false. Plasma is a proposal for layer-two off-chain transactions on ethereum, much like lightning but for ethereum. 
+Also in the arwen paper there's a mistake, on the last page it says that "Plasma [28] is a proposal for a layer-two decentralized exchange protocol on Ethereum", which is false. Plasma is a proposal for layer-two off-chain transactions on ethereum, much like lightning but for ethereum. 
 
 ## Nash / NEX
 
@@ -395,7 +393,8 @@ P2PKH and P2SH addresses can also not be used, only public keys that are on the 
 
 ## TEX - A Securely Scalable Trustless Exchange
 
-The TEX the 
+This paper describes an exchange using timelock puzzles to prevent front-running. This is a good idea, however they use this idea of a "NOCUST" chain to do non-custodial exchange. This part was a bit annoying, as NOCUST is not known at all, its own paper that isn't very reviewed, and not used at all. The idea of sending zero-valued orders and checking latency to score the exchange is a very weak notion of security, and provides no guarantees or dispute resolution. There are many interconnected features in this exchange, based on a lot of prior work by the "Liquidity Network," making a lot of assumptions about primitives available on-chain.
+I've yet to really dissect this paper and point out the *specific* parts that are good and/or bad.
 
 # Centralized Exchanges
 
