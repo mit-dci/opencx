@@ -43,7 +43,7 @@ Much of the repository has named function parameters and return variables, as we
 // AvoidHelloWorld is an example function that errors out when input is "hello world"
 func AvoidHelloWorld(named string) (err error) {
   if named == "hello world" {
-    err = fmt.Errorf("The forbidden string appeared in AvoidHelloWorld")
+    err = fmt.Error("The forbidden string appeared in AvoidHelloWorld")
     return
   }
   return

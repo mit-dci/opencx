@@ -1,6 +1,6 @@
 # opencx
 [![Build Status](https://travis-ci.org/mit-dci/opencx.svg?branch=master)](https://travis-ci.org/mit-dci/opencx)
-[![License](http://img.shields.io/:license-MIT-000.svg)](http://mit-dci.mit-license.org)
+[![License](http://img.shields.io/:license-MIT-000.svg)](./LICENSE)
 [![GoReport](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/badge/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx?status.svg)](https://godoc.org/github.com/mit-dci/opencx)
 
