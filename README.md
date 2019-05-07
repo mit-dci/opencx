@@ -52,6 +52,10 @@ go build ./cmd/ocx/...
 
 You can now issue any of the commands in the cxrpc README.md file.
 
+# Contributing
+
+Please see the [contributing](./CONTRIBUTING.md) file to get started with contributing!
+
 # Configuration
 There are configuration options (both command line and .conf) for the client and the server, and by default home folders for these files will be created at `~/.opencx/opencxd/` and `~/.opencx/ocx/` respectively. You can decide whether or not to use the NOISE protocol for authentication, which hostnames and ports to use for connecting to certain clients, which coins you would like to support, and whether or not to support lightning.
 

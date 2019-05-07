@@ -1,4 +1,4 @@
-# Basic building blocks of a "centralized" (custodial) cryptocurrency exchange
+# Basic building blocks of a cryptocurrency exchange
 
  - Wallets
   - Key management
@@ -7,7 +7,7 @@
   - Order types, database
 
  - Matching engine
-  - Taking orders from above, keep track of sides, always be matching
+  - Price-time priority matching or pro-rata
 
  - Authentication
 
@@ -17,59 +17,15 @@ There are multiple ways to create an "exchange," one of which is what I'm curren
 Another way of doing exchange, like Arwen is doing, is using RFQ, or **request for quote**. Instead of posting orders (though on the backend it works pretty much the same), you request a quote for what you have, and the exchange gives you a price and offer to accept. We're not using RFQ, we're using limit orders.
 
 ## Storage
-~~For now we're using Redis but that may change.~~
-That changed we're using MySQL because it supports transactions (begin, commit, rollback) and I'd have to implement my own locks for redis that would be annoying, and if it were scaled up then it would be .
-
-I would use a database that is able to be started from go without a system call, but I figure speed is more important for an exchange for now, and if this were go peer-to-peer, there would need to be other changes to the database. Also badgerdb is easy enough to use that it can be switched to super easily if necessary
+The supported storage implementation for `opencxd` is MySQL. Other implementations of storage could be written, and would be good content for pull requests.
 
 # Sync
 The exchange needs to be synced to determine the number of confirmations a transaction has, and should be if it wants to send transactions.
 
-I also need to figure out a way to remove deposits stuck in orphan blocks on chains not as long as the confirmation variable. This can also be kept along with the block height and transaction. I'm doing this to make sure I can do variable confirmations (based on size of deposit), which should be easy enough to do.
-Maybe also keep the block header, I need something to check that it's not an orphan block (check block at height x has block header y). Or there's probably a better way to do this that is just available.
+I also need to figure out a way to remove deposits stuck in orphan blocks on chains not as long as the confirmation variable. This can also be kept along with the block height and transaction. I'm doing this to make sure I can do variable confirmations (based on size of deposit), which should be easy enough to do. It used to be a feature but the formula I was using wasn't very good so I switched it to a constant amount. This is something good to look into.
+Keeping the block header, I need something to check that it's not an orphan block (check block at height x has block header y). Or there's probably a better way to do this that is just available.
 
 Only once the current height and height stored in the DB differ by the # of confirmations stored along with the deposit, do we make a DB update on the balances table.
-
-# Matching
-
-Here's a rough draft of the matching algorithm for a specific price:
-```python
-def oppositeSide(order):
-    if order.side == "buy":
-        return "sell"
-    elif order.side == "sell":
-        return "buy"
-    raise Exception("Order does not have a compatible side")
-
-def IncomingOrderEventHandler(incomingOrder):
-    # db.GetSortedOrders(price, side) gets all orders in queue order less than price for buy, and greater than price for sell. 
-    # I know I'm appending to it but nobody actually runs python code in a markdown file anyways. 
-    thisSideOrders = append(db.GetSortedOrders(incomingOrder.price, incomingOrder.side), incomingOrder)
-    oppositeSideOrders = db.GetSortedOrders(incomingOrder.price, oppositeSide(incomingOrder))
-
-    while len(oppositeSideOrders) > 0 and len(thisSideOrders) > 0
-        sideOne = thisSideOrders[0]
-        sideTwo = oppositeSideOrders[0]
-        if sideOne.volume > sideTwo.volume:
-            db.CreditAccount(sideOne.account, sideTwo.volume)
-            db.CreditAccount(sideTwo.account, sideTwo.volume)
-            db.DeleteOrder(sideTwo)
-            thisSideOrders[0].volume -= sideTwo.volume
-        elif sideTwo.volume > sideOne.volume:
-            db.CreditAccount(sideOne.account, sideOne.volume)
-            db.CreditAccount(sideTwo.account, sideOne.volume)
-            db.DeleteOrder(sideOne)
-            oppositeSideOrders[0].volume -= sideOne.volume
-        else:
-            volume = sideOne.volume
-            db.DeleteOrder(sideOne)
-            db.DeleteOrder(sideTwo)
-            db.CreditAccount(sideOne.account, equalVolume)
-            db.CreditAccount(sideTwo.account, equalVolume)
-
-# I think this algorithm is right
-
-```
 
 # Current features
 
@@ -81,12 +37,6 @@ def IncomingOrderEventHandler(incomingOrder):
    - [x] Test on testnet - debug transaction sending / pushing
  - [x] Register
    - [x] RPC Command in interface
-   - [x] Database k/v for username and password
-   - [x] Respond with generated token
- - [x] Login
-   - [x] RPC Command in interface
-   - [x] Database k/v for username and password
-   - [x] Respond with generated token
  - [x] Place order
    - [x] Orders and trading pairs in DB
    - [x] Different coins in DB
@@ -104,7 +54,6 @@ def IncomingOrderEventHandler(incomingOrder):
    - [x] Deposit confirmations variable
    - [x] How to confirm deposit
    - [x] Create master private key
-   - [x] Create derived keys for deposit addresses
  - [x] Signing
    - [x] Sign all messages to/from for identification
  - [x] Matching engine
@@ -115,19 +64,20 @@ def IncomingOrderEventHandler(incomingOrder):
  - [x] ~~Correct dynamic confirmations~~ fixed but I just changed it to 6, but it *could* be made a lot better because I made it easy to do so.
  - [x] **Get robust way of adding multiple tokens**
  - [x] Fix issue with price calculation on sell side
- - [ ] Fix SQL Injection vulnerability lol
+ - [ ] Fix SQL Injection
  - [ ] Lightning Features
    - [ ] Protocol for custodial only-on-orderbook exchange
+   - [ ] Lightning atomic swap
+     - [x] OpenCX code for off-chain HTLC-based atomic swaps and cross-chain channel management
+     - [ ] Lit code for HTLC-based atomic swaps
    - [x] Lightning fund and push deposit
-   - [ ] Lightning withdrawal
-   - [ ] Lightning push back on withdrawal channel as deposit
+   - [x] Lightning withdrawal
+   - [x] Lightning push back on withdrawal channel as deposit
    - [ ] Magic: fully non custodial exchange without the free option problem
 
 ## Note on phishing
 If people were to tell other people "send me bitcoin and I'll credit you on my OpenCX exchange" that's ripe for phishing. 
 It's just a bitcoin/vertcoin/litecoin/lightning node, how do people know that's the service being provided?
-Even if this were "non-custodial," I could be like "oh your funds will be put into an orderbook when you send them," and you'd have no way of knowing if that's true.
-You could put your funds in a "non-custodial smart contract" "DEX" like nash, and I could just take your funds.
 
 ## Note on proofs
 One thing I've been more and more interested in as a research topic has been the idea of a publicly auditable exchange. This means that things like Provisions will be produced.
