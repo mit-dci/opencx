@@ -1,0 +1,13 @@
+language: go
+
+# Force-enable Go modules.
+# This will be unnecessary when Go 1.13 lands.
+env:
+  - GO111MODULE=on
+
+go:
+  - 1.12.x
+
+# script always runs to completion
+script:
+  - go test -v -race ./... # Run all the tests with the race detector enabled

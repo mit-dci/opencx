@@ -9,11 +9,9 @@ import (
 	"time"
 )
 
-// Order is a struct that represents a stored side of a trade
-type Order interface {
-	Type() string
-	Price() (float64, error)
-}
+// TODO: Order, Side, Price, User abstraction: The Price should really be the pair {amountHave,amountWant}, and we should be comparing Prices by doing fraction comparison.
+// TODO: Remove orderbookprice
+// TODO: Create arithmetic for orders, work out decimals, make testable.
 
 // LimitOrder represents a limit order, implementing the order interface
 type LimitOrder struct {
