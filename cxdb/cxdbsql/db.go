@@ -285,7 +285,7 @@ func (db *DB) InitializeTables(schemaName string, schemaSpec string) (err error)
 	return
 }
 
-// InitializeNewTables initalizes tables based on schema and clears them.
+// InitializeNewTables initializes tables based on schema and clears them.
 func (db *DB) InitializeNewTables(schemaName string, schemaSpec string) (err error) {
 	// Use the schema
 	if _, err = db.DBHandler.Exec("USE " + schemaName + ";"); err != nil {
@@ -324,7 +324,7 @@ func (db *DB) InitializePairTables(schemaName string, schemaSpec string) (err er
 	return
 }
 
-// rootInitSchemas initalizes the schemas, creates users, and grants permissions to those users
+// rootInitSchemas initializes the schemas, creates users, and grants permissions to those users
 func (db *DB) rootInitSchemas() (err error) {
 
 	// open db handle

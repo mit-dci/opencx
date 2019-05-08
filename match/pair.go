@@ -7,6 +7,12 @@ import (
 	"github.com/mit-dci/lit/coinparam"
 )
 
+// AssetAmount represents an asset and amount pair.
+type AssetAmount struct {
+	Asset  Asset  `json:"asset"`
+	Amount uint64 `json:"amount"`
+}
+
 // Pair is a struct that represents a trading pair
 type Pair struct {
 	// AssetWant is the asset that buyers want, and that sellers are selling. credit buyers with this.

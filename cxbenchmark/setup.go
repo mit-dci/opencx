@@ -24,7 +24,7 @@ func SetupBenchmarkClient() (client *benchclient.BenchClient, err error) {
 
 	logging.SetLogLevel(3)
 
-	// have to set this for non noise client because while we don't use thigns for authentication we do use it for signing
+	// have to set this for non noise client because while we don't use things for authentication we do use it for signing
 	var clientPrivKey *koblitz.PrivateKey
 	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
 		err = fmt.Errorf("Error setting key for client: \n%s", err)

@@ -438,7 +438,7 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 	noData := new([32]byte)
 
 	logging.Debugf("Trying to fund channel")
-	// retreive chanIdx because we need it for qchan for outpoint hash, if that's not useful anymore just make this chanIdx => _
+	// retrieve chanIdx because we need it for qchan for outpoint hash, if that's not useful anymore just make this chanIdx => _
 	var chanIdx uint32
 	if chanIdx, err = server.ExchangeNode.FundChannel(peerIdx, params.HDCoinType, ccap, initSend, *noData); err != nil {
 		return

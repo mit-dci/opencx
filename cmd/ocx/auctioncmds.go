@@ -41,7 +41,7 @@ func (cl *ocxClient) AuctionOrderCommand(args []string) (err error) {
 	}
 
 	var pubkey *koblitz.PublicKey
-	if pubkey, err = cl.RetreivePublicKey(); err != nil {
+	if pubkey, err = cl.RetrievePublicKey(); err != nil {
 		return
 	}
 

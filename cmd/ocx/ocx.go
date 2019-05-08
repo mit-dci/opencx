@@ -175,10 +175,10 @@ func (cl *ocxClient) SignBytes(bytes []byte) (signature []byte, err error) {
 	return
 }
 
-// RetreivePublicKey returns the public key if it's been unlocked.
-func (cl *ocxClient) RetreivePublicKey() (pubkey *koblitz.PublicKey, err error) {
+// RetrievePublicKey returns the public key if it's been unlocked.
+func (cl *ocxClient) RetrievePublicKey() (pubkey *koblitz.PublicKey, err error) {
 	if !cl.unlocked {
-		err = fmt.Errorf("Key not unlocked, cannot retreive pubkey")
+		err = fmt.Errorf("Key not unlocked, cannot retrieve pubkey")
 		return
 	}
 	pubkey = cl.RPCClient.PrivKey.PubKey()

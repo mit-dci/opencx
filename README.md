@@ -1,7 +1,7 @@
 # opencx
 [![Build Status](https://travis-ci.org/mit-dci/opencx.svg?branch=master)](https://travis-ci.org/mit-dci/opencx)
-[![License](http://img.shields.io/:license-MIT-000.svg)](./LICENSE)
-[![GoReport](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/badge/github.com/mit-dci/opencx)
+[![License](http://img.shields.io/badge/License-MIT-brightgreen.svg)](./LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx?status.svg)](https://godoc.org/github.com/mit-dci/opencx)
 
 OpenCX stands for Open Cryptocurrency eXchange, it's an open-source cryptocurrency exchange toolkit originally built to help understand what a decentralized exchange should be. It's meant to be modular enough so features that increase trustlessness in cryptocurrency exchange can be implemented and experimented with. Included are packages for lightning support, RPC, authentication via the NOISE protocol, and a Golang API supporting multiple forms of authentication. 

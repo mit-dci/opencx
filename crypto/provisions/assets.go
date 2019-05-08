@@ -71,7 +71,7 @@ func (machine *BalProofMachine) SetPrivKey(privkey *ecdsa.PrivateKey) (err error
 // SResponse generates the response r_(s_i) with the balance proof machine and si (s_i). The challenge must be set.
 func (machine *BalProofMachine) SResponse(si bool) (rs *big.Int, err error) {
 	if machine.ci == nil {
-		err = fmt.Errorf("Cannot generate a reponse to a challenge if the challenge has not been set")
+		err = fmt.Errorf("Cannot generate a response to a challenge if the challenge has not been set")
 		return
 	}
 
