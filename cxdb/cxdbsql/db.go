@@ -32,7 +32,7 @@ var (
 	defaultConfigFilename   = "sqldb.conf"
 	defaultDBHomeDirName    = os.Getenv("HOME") + "/.opencx/"
 	defaultHomeDir          = os.Getenv("HOME")
-	defaultDBPort           = uint16()
+	defaultDBPort           = uint16(12345)
 	defaultDBHost           = "localhost"
 	defaultAuthenticatedRPC = true
 
