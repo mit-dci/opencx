@@ -22,7 +22,7 @@ var (
 	defaultLogLevel       = 0
 	defaultLitLogLevel    = 0
 	defaultConfigFilename = "opencx.conf"
-	defaultLogFilename    = "dblog.txt"
+	defaultLogFilename    = "opencxdlog.txt"
 	defaultKeyFileName    = "privkey.hex"
 )
 

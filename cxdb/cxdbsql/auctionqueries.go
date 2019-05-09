@@ -45,7 +45,6 @@ func (db *DB) PlaceAuctionPuzzle(encryptedOrder *match.EncryptedAuctionOrder) (e
 		return
 	}
 
-	// TODO
 	return
 }
 
@@ -123,7 +122,6 @@ func (db *DB) ViewAuctionPuzzleBook(auctionID [32]byte) (orders []*match.Encrypt
 
 	}
 
-	// TODO
 	return
 }
 

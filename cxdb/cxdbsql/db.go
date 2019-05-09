@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 
+	"github.com/jessevdk/go-flags"
 	"github.com/mit-dci/lit/coinparam"
 
 	// mysql is just the driver, always interact with database/sql api
@@ -14,8 +16,26 @@ import (
 	"github.com/mit-dci/opencx/match"
 )
 
-// turn into config options
+type dbsqlConfig struct {
+	// Filename of config file where this stuff can be set as well
+	ConfigFile string
+
+	// database information
+	DBUsername string `long:"dbuser" description:"database username"`
+	DBPassword string `long:"dbpassword" description:"database password"`
+	DBHost     string `long:"dbhost" description:"Host for the database connection"`
+	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
+}
+
+// Let these be turned into config things at some point
 var (
+	defaultConfigFilename   = "sqldb.conf"
+	defaultDBHomeDirName    = os.Getenv("HOME") + "/.opencx/"
+	defaultHomeDir          = os.Getenv("HOME")
+	defaultDBPort           = uint16()
+	defaultDBHost           = "localhost"
+	defaultAuthenticatedRPC = true
+
 	// definitely move this to a config file
 	balanceSchema        = "balances"
 	depositSchema        = "deposit"
@@ -24,6 +44,12 @@ var (
 	peerSchema           = "peers"
 	peerTableName        = "opencxpeers"
 )
+
+// newConfigParser returns a new command line flags parser.
+func newConfigParser(conf *dbsqlConfig, options flags.Options) *flags.Parser {
+	parser := flags.NewParser(conf, options)
+	return parser
+}
 
 // DB contains the sql DB type as well as a logger.
 // The database is a BEHEMOTH, should be refactored. Some examples on how to refactor are cleaning up mutexes, creating config file for all the globals,
@@ -151,6 +177,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	}
 
 	// DEBUGGING
+
 	// Get all the assets
 	for i, asset := range db.coinList {
 		logging.Debugf("Asset %d: %s\n", i, asset.Name)
@@ -174,6 +201,11 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 
 	if err = db.SetupExchangeTables(db.orderSchema); err != nil {
 		err = fmt.Errorf("Error setting up exchange tables: %s", err)
+		return
+	}
+
+	if err = db.SetupAuctionTables(db.auctionSchema, db.puzzleSchema, db.puzzleTable, db.auctionOrderSchema, db.auctionOrderTable); err != nil {
+		err = fmt.Errorf("Error setting up auction tables: %s", err)
 		return
 	}
 

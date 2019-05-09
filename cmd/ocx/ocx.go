@@ -36,7 +36,7 @@ type ocxConfig struct {
 
 	// stuff for ports
 	Rpchost string `long:"rpchost" short:"h" description:"Hostname of OpenCX Server you'd like to connect to"`
-	Rpcport uint16 `long:"rpcport" short:"p" description:"Port of the OpenCX Port you'd like to connect to"`
+	Rpcport uint16 `long:"rpcport" short:"p" description:"Port of the OpenCX Server you'd like to connect to"`
 
 	// filename for key
 	KeyFileName string `long:"keyfilename" short:"k" description:"Filename for private key within root opencx directory used to send transactions"`
