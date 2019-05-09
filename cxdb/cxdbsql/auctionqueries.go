@@ -4,12 +4,48 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/mit-dci/opencx/crypto"
 	"github.com/mit-dci/opencx/match"
 )
 
 // PlaceAuctionPuzzle puts a puzzle and ciphertext in the datastore.
-func (db *DB) PlaceAuctionPuzzle(puzzle crypto.Puzzle, ciphertext []byte) (err error) {
+func (db *DB) PlaceAuctionPuzzle(encryptedOrder *match.EncryptedAuctionOrder) (err error) {
+
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for NewAuction: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while placing puzzle order: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// We don't really care about the result when trying to use a schema
+	if _, err = tx.Exec("USE " + db.puzzleSchema + ";"); err != nil {
+		err = fmt.Errorf("Error trying to use auction schema: %s", err)
+		return
+	}
+
+	var puzzleBytes []byte
+	if puzzleBytes, err = encryptedOrder.OrderPuzzle.Serialize(); err != nil {
+		err = fmt.Errorf("Error serializing puzzle: %s", err)
+		return
+	}
+
+	var concatBytes []byte
+	concatBytes = append(puzzleBytes, encryptedOrder.OrderCiphertext...)
+
+	// We concatenate ciphertext and puzzle and set "selected" to 1 by default
+	placeAuctionPuzzleQuery := fmt.Sprintf("INSERT INTO %s VALUES (%x, %x, 'TRUE');", db.puzzleTable, encryptedOrder.IntendedAuction, concatBytes)
+	if _, err = tx.Exec(placeAuctionPuzzleQuery); err != nil {
+		err = fmt.Errorf("Error adding auction puzzle to puzzle orders: %s", err)
+		return
+	}
 
 	// TODO
 	return
@@ -51,7 +87,7 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while updating deposits: \n%s", err)
+			err = fmt.Errorf("Error while creating new auction: \n%s", err)
 			return
 		}
 		err = tx.Commit()

@@ -69,8 +69,16 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 	// instead is a good idea, and if the dependence on the previous commitment is a good idea.
 	copy(s.auctionID[:], sha3.Sum(nil))
 
+	var height uint64
+	if height, err = s.OpencxDB.NewAuction(s.auctionID); err != nil {
+		err = fmt.Errorf("Error updating auction in DB while committing orders and creating new auction: %s", err)
+		return
+	}
+
 	// Unlock!
 	s.dbLock.Unlock()
+
+	logging.Infof("Done creating new auction %x at height %d", auctionID, height)
 
 	return
 }

@@ -72,3 +72,10 @@ func (db *CXDBMemory) ViewAuctionPuzzleBook(auctionID [32]byte) (orders []*match
 	db.puzzleMtx.Unlock()
 	return
 }
+
+// NewAuction takes in an auction ID, and creates a new auction, returning the "height"
+// of the auction.
+func (db *CXDBMemory) NewAuction(auctionID [32]byte) (height uint64, err error) {
+	// TODO
+	return
+}
