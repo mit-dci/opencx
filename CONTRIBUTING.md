@@ -20,6 +20,7 @@ For security-related issues, please do not file an issue, and instead contact th
 ## Good content for pull requests
 
 If you don't know what to work on, here are some things that generally increase the quality of the codebase:
+ * **TESTS!**
  * Anything that fixes an important issue
  * Anything that increases modularity and/or robustness in some part of the code
  * Documentation for packages and other things

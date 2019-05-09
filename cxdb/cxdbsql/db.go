@@ -2,7 +2,6 @@ package cxdbsql
 
 import (
 	"database/sql"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"sync"
@@ -60,11 +59,13 @@ type DB struct {
 	// auction schema stuff
 	// name of puzzle orderbook schema
 	puzzleSchema string
+	// name of the puzzle orderbook table
+	puzzleTable string
 	// name of the auction orderbook schema
 	auctionSchema string
-	// name of the auction ID => auction number map schema
+	// name of the (auction ID => auction number) map schema
 	auctionOrderSchema string
-	// name of the auction ID => auction number table
+	// name of the (auction ID => auction number) table
 	auctionOrderTable string
 
 	// list of all coins supported, passed in from above
@@ -222,7 +223,7 @@ func (db *DB) SetupCustodyTables(balanceSchema string, depositSchema string, pen
 func (db *DB) SetupExchangeTables(orderSchema string) (err error) {
 	// Initialize order table
 	// You can have a price up to 30 digits total, and 10 decimal places.
-	if err = db.InitializePairTables(db.orderSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP"); err != nil {
+	if err = db.InitializePairTables(orderSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP"); err != nil {
 		err = fmt.Errorf("Could not initialize order tables: \n%s", err)
 		return
 	}
@@ -230,21 +231,25 @@ func (db *DB) SetupExchangeTables(orderSchema string) (err error) {
 }
 
 // SetupAuctionTables sets up the tables needed to store auction orders and puzzles for specific auctions
-func (db *DB) SetupAuctionTables(initialAuctionID [32]byte) (err error) {
+func (db *DB) SetupAuctionTables(auctionSchema string, puzzleSchema string, puzzleTable string, auctionOrderSchema string, auctionOrderTable string) (err error) {
 
 	// Initialize auction order schema, table
 	// An auction order is identified by it's auction ID, pubkey, nonce, and other specific data.
 	// You can have a price up to 30 digits total, and 10 decimal places.
-	if err = db.InitializePairTables(db.auctionSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), hashedOrder VARBINARY"); err != nil {
+	if err = db.InitializePairTables(auctionSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), hashedOrder VARBINARY"); err != nil {
 		err = fmt.Errorf("Could not initialize order tables: \n%s", err)
 		return
 	}
 
-	// Yes yes I know fmt.Sprintf("%x", initialAuctionID) exists, this seems to get the point across quicker
-	initialAuctionTableName := hex.EncodeToString(initialAuctionID[:])
-	// the name of the table is the auction ID: We can just get auction puzzles by table. "selected" is whether or not it's been selected for the auction.
-	if err = db.InitializeSingleTable(db.puzzleSchema, initialAuctionTableName, "encodedPuzzle VARBINARY, selected BOOLEAN"); err != nil {
-		err = fmt.Errorf("Could not initialize puzzle tables: \n%s", err)
+	// This creates the single table where we'll keep all the puzzles
+	if err = db.InitializeSingleTable(puzzleSchema, puzzleTable, "encodedPuzzle VARBINARY, selected BOOLEAN"); err != nil {
+		err = fmt.Errorf("Could not initialize puzzle table: \n%s", err)
+		return
+	}
+
+	// This creates the single table where we'll keep the mapping of auction ID to auction number
+	if err = db.InitializeSingleTable(auctionOrderSchema, auctionOrderTable, "auctionID VARBINARY(64), auctionNumber BIGINT(64), PRIMARY KEY (auctionNumber)"); err != nil {
+		err = fmt.Errorf("Could not initialize auction order map table: %s", err)
 		return
 	}
 

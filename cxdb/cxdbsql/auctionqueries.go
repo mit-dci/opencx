@@ -1,6 +1,9 @@
 package cxdbsql
 
 import (
+	"database/sql"
+	"fmt"
+
 	"github.com/mit-dci/opencx/crypto"
 	"github.com/mit-dci/opencx/match"
 )
@@ -20,7 +23,7 @@ func (db *DB) PlaceAuctionOrder(*match.AuctionOrder) (err error) {
 }
 
 // ViewAuctionOrderBook takes in a trading pair and auction ID, and returns auction orders.
-func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID []byte) (sellOrderBook []*match.AuctionOrder, buyOrderBook []*match.AuctionOrder, err error) {
+func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) (sellOrderBook []*match.AuctionOrder, buyOrderBook []*match.AuctionOrder, err error) {
 
 	// TODO
 	return
@@ -29,8 +32,50 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID []byte) (s
 // ViewAuctionPuzzleBook takes in an auction ID, and returns encrypted auction orders, and puzzles.
 // You don't know what auction IDs should be in the orders encrypted in the puzzle book, but this is
 // what was submitted.
-func (db *DB) ViewAuctionPuzzleBook(auctionID []byte) (orders []*match.EncryptedAuctionOrder, err error) {
+func (db *DB) ViewAuctionPuzzleBook(auctionID [32]byte) (orders []*match.EncryptedAuctionOrder, err error) {
 
 	// TODO
+	return
+}
+
+// NewAuction takes in an auction ID, and creates a new auction, returning the "height"
+// of the auction.
+func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
+
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for NewAuction: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while updating deposits: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// We don't really care about the result when trying to use a schema
+	if _, err = tx.Exec("USE " + db.auctionOrderSchema + ";"); err != nil {
+		err = fmt.Errorf("Error trying to use auction order schema: %s", err)
+		return
+	}
+
+	auctionNumQuery := fmt.Sprintf("SELECT MAX(auctionNumber) FROM %s;", db.auctionOrderTable)
+	if err = tx.QueryRow(auctionNumQuery).Scan(height); err != nil {
+		err = fmt.Errorf("Could not find maximum auction number when creating new auction: %s", err)
+		return
+	}
+
+	// Insert the new auction ID w/ current max height + 1
+	height++
+	insertNewAuctionQuery := fmt.Sprintf("INSERT INTO %s VALUES (%x, %d);", db.auctionOrderTable, auctionID, height)
+	if _, err = tx.Exec(insertNewAuctionQuery); err != nil {
+		err = fmt.Errorf("Error inserting new auction ID when creating new auction: %s", err)
+		return
+	}
+
 	return
 }

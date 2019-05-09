@@ -230,17 +230,13 @@ func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.L
 		var newChanIdx uint32
 		desiredChannelCapacity := consts.MinOutput + amountRemainingWant + uint64(fee)
 		if desiredChannelCapacity < uint64(consts.MinChanCapacity) {
-			// no data
-			if newChanIdx, err = server.ExchangeNode.FundChannel(thisPeer, wantAsset.HDCoinType, consts.MinChanCapacity, 0, [32]byte{}); err != nil {
-				err = fmt.Errorf("Could not fund channel for final send: %s", err)
-				return
-			}
-		} else {
-			// no data
-			if newChanIdx, err = server.ExchangeNode.FundChannel(thisPeer, wantAsset.HDCoinType, int64(desiredChannelCapacity), 0, [32]byte{}); err != nil {
-				err = fmt.Errorf("Could not fund channel for final send: %s", err)
-				return
-			}
+			desiredChannelCapacity = uint64(consts.MinChanCapacity)
+		}
+
+		// no data
+		if newChanIdx, err = server.ExchangeNode.FundChannel(thisPeer, wantAsset.HDCoinType, consts.MinChanCapacity, 0, [32]byte{}); err != nil {
+			err = fmt.Errorf("Could not fund channel for final send: %s", err)
+			return
 		}
 
 		var newlyFundedChannel *qln.Qchan
@@ -302,16 +298,13 @@ func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.L
 		var newChanResult *qln.DualFundingResult
 		desiredChannelCapacity := consts.MinOutput + amountRemainingHave + uint64(fee)
 		if desiredChannelCapacity < uint64(consts.MinChanCapacity) {
-			// no data
-			if newChanResult, err = server.ExchangeNode.DualFundChannel(thisPeer, haveAsset.HDCoinType, 0, consts.MinChanCapacity); err != nil {
-				err = fmt.Errorf("Could not fund channel w/ reason %d for final send: %s", newChanResult.DeclineReason, err)
-				return
-			}
-		} else {
-			if newChanResult, err = server.ExchangeNode.DualFundChannel(thisPeer, haveAsset.HDCoinType, 0, int64(desiredChannelCapacity)); err != nil {
-				err = fmt.Errorf("Could not fund channel w/ reason %d for final send: %s", newChanResult.DeclineReason, err)
-				return
-			}
+			desiredChannelCapacity = uint64(consts.MinChanCapacity)
+		}
+
+		// no data
+		if newChanResult, err = server.ExchangeNode.DualFundChannel(thisPeer, haveAsset.HDCoinType, 0, consts.MinChanCapacity); err != nil {
+			err = fmt.Errorf("Could not fund channel w/ reason %d for final send: %s", newChanResult.DeclineReason, err)
+			return
 		}
 
 		if newChanResult.Error {
@@ -319,14 +312,14 @@ func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.L
 			return
 		}
 
-		// TODO: lit needs request HTLC
+		// TODO: Use PayMultihop - Make sure exchange rate stays the same
 		// var newlyFundedChannel *qln.Qchan
 		// if newlyFundedChannel, err = server.ExchangeNode.GetQchanByIdx(newChanResult.ChannelId); err != nil {
 		// 	err = fmt.Errorf("Error getting newly funded channel by index for swap: %s", err)
 		// 	return
 		// }
 
-		// TODO: we need some sort of request HTLC, like the other side of dualfund
+		// TODO: Again, use PayMultihop
 		// send amountremaininghave in htlc
 		// We don't have any data to send
 		// if err = server.ExchangeNode.OfferHTLC(newlyFundedChannel, uint32(amountRemainingHave), RHash, locktime, [32]byte{}); err != nil {

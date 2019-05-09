@@ -70,4 +70,8 @@ type OpencxAuctionStore interface {
 	// You don't know what auction IDs should be in the orders encrypted in the puzzle book, but this is
 	// what was submitted.
 	ViewAuctionPuzzleBook([32]byte) ([]*match.EncryptedAuctionOrder, error)
+	// NewAuction takes in an auction ID, and creates a new auction, returning the "height"
+	// of the auction.
+	NewAuction([32]byte) (uint64, error)
 }
+
