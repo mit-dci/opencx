@@ -242,7 +242,7 @@ func (db *DB) SetupAuctionTables(auctionSchema string, puzzleSchema string, puzz
 	}
 
 	// This creates the single table where we'll keep all the puzzles
-	if err = db.InitializeSingleTable(puzzleSchema, puzzleTable, "encodedPuzzle VARBINARY, auctionID VARBINARY(64), selected BOOLEAN"); err != nil {
+	if err = db.InitializeSingleTable(puzzleSchema, puzzleTable, "encodedOrder VARBINARY, auctionID VARBINARY(64), selected BOOLEAN"); err != nil {
 		err = fmt.Errorf("Could not initialize puzzle table: \n%s", err)
 		return
 	}
