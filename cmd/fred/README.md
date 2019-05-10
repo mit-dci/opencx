@@ -24,10 +24,48 @@ Based on the hardware in existence, it represents the minimum amount of time to 
 ## Auction protocol
 Each auction has an Auction ID parameter.
 
-  1. Submit
-    * The submit stage should take roughly (b\*t)/n time. n should be greater than 1.
-  2. Commit
-  3. Respond
-  4. Decrypt
-  5. Match
-  6. Execute
+    1. Submit
+        * The submit stage should take roughly (b\*t)/n time. n should be greater than 1.
+        * During the submit stage, users will submit timelock-encrypted orders with time parameter `t`.
+    2. Commit
+        * The commit stage marks the end of the "Submit" stage.
+        * During the commit stage, the exchange broadcasts a commitment to a set of encrypted orders.
+        * These encrypted orders include an unsolved puzzle, ciphertext, intended auction, and a hash.
+    3. Respond
+        * Users who receive the commitment before b\*t send a signature on the commitment to the exchange.
+        * If the exchange receives unanimous signatures before b\*t, the exchange broadcasts these signatures.
+        * If not all users signed off on the commitment, the entire auction is marked as invalid and must start over.
+        * Users should sign during this period if they're confident that the exchange could not have possibly solved a single one of the puzzles in the commitment.
+        * A single malicious user can halt the exchange during this step.
+    4. Decrypt
+        * This stage starts once the exchange has solved a puzzle, and decrypted an order in the set it committed to.
+        * The exchange signs this data.
+        * Once the exchange has decrypted all orders, it broadcasts these decrypted orders.
+        * Some of the ciphertexts, once the puzzle is solved, will decrypt to garbage data, or invalid orders.
+        * Valid encrypted orders will have a puzzle that reveals a decryption key to a ciphertext when solved. 
+        This ciphertext must decrypt to a message that includes a valid order, and a proof that this message, when encrypted by puzzle, results to the same puzzle that was committed to.
+        In the case of the RSW96 puzzle, this would be the trapdoor, meaning either p or q, or both.
+        The hash of the message must be the same as the hash included in the encrypted order.
+        * All users verify these rules. 
+        If a user suspects that any part of any order may have been manipulated by the exchange, they can solve the puzzle and release the correct information.
+        The exchange's signature on the incorrect data and the user's signature on the correct data is a sufficient proof that the exchange did something wrong.
+        If this proof is provided it can be broadcast, and either the entire auction can be considered invalid, or the data can be updated and signed again.
+        * One possibility is that the exchange produces an R value in the commit stage. 
+        Then the exchange won't be able to sign an update to the data without revealing their private key.
+        In this case the auction would have to be restarted.
+        * In any case of an invalid auction, users don't need to pay attention to anything the exchange does that depends on the invalid auction.
+    5. Match
+        * The exchange matches the orders, and signs the outcome of the matching.
+        * If the matching is incorrect, then it's incorrect and you can prove it.
+    6. Execute
+        * The exchange facilitates the trades through whatever settlement it feels like.
+        * Ideally this would be done through lightning atomic swaps, since proofs can be produced for an honest execution.
+        * In the case of lightning atomic swaps, blame can't be assigned to the user or the exchange if either party refuses to execute the trade.
+        Because of this, we can only be sure that the exchange and user were cooperative. 
+        Being able to assign blame in this situation is a problem for all non-custodial exchanges.
+
+## Matching algorithms for this protocol
+
+Because we have this period where orders can be committed to being matched (if valid) and not front-run, we can come up with matching algorithms that we otherwise wouldn't be able to trust to be fair.
+
+This gives us options of both stateful and stateless matching algorithms.
