@@ -25,20 +25,21 @@ Based on the hardware in existence, it represents the minimum amount of time to 
 Each auction has an Auction ID parameter.
 
   1. Submit
-      * The submit stage should take roughly (b\*t)/n time. n should be greater than 1.
+      * The submit stage should take roughly `(b*t)/n` time. `n` should be greater than 1.
       * During the submit stage, users will submit timelock-encrypted orders with time parameter `t`.
   2. Commit
       * The commit stage marks the end of the "Submit" stage.
       * During the commit stage, the exchange broadcasts a commitment to a set of encrypted orders.
       * These encrypted orders include an unsolved puzzle, ciphertext, intended auction, and a hash.
   3. Respond
-      * Users who receive the commitment before b\*t send a signature on the commitment to the exchange.
-      * If the exchange receives unanimous signatures before b\*t, the exchange broadcasts these signatures.
+      * Users who receive the commitment before `b*t` send a signature on the commitment to the exchange.
+      * If the exchange receives unanimous signatures before `b*t`, the exchange broadcasts these signatures.
       * If not all users signed off on the commitment, the entire auction is marked as invalid and must start over.
       * Users should sign during this period if they're confident that the exchange could not have possibly solved a single one of the puzzles in the commitment.
       * A single malicious user can halt the exchange during this step.
   4. Decrypt
       * This stage starts once the exchange has solved a puzzle, and decrypted an order in the set it committed to.
+      * This should happen after `b*t`.
       * The exchange signs this data.
       * Once the exchange has decrypted all orders, it broadcasts these decrypted orders.
       * Some of the ciphertexts, once the puzzle is solved, will decrypt to garbage data, or invalid orders.
@@ -69,3 +70,16 @@ Each auction has an Auction ID parameter.
 Because we have this period where orders can be committed to being matched (if valid) and not front-run, we can come up with matching algorithms that we otherwise wouldn't be able to trust to be fair.
 
 This gives us options of both stateful and stateless matching algorithms.
+
+### Stateless matching algorithms
+
+Since this is a stateless matching algorithm, we only know about orders in the current auction.
+None of the orders have any time priority, so price/time priority can't be used.
+We can, however, use pro-rata matching for matching the orders in the auction.
+We could also use priority for valid orders with the lowest hash. 
+If we did base priority off of the orders with the lowest hash, instead of including the direct hash of the message alongside the puzzle, we should include the double hash.
+This way users would be able to submit the double hash of the message, while revealing nothing about either the message or the preimage of the second hash / hash of the message that is used for priority.
+Users could do a proof of work on their message once the auction has started, and the exchange would be able to do that as well. 
+This would only be an issue if there is a large domain for proof of work.
+This will normally be the case, since the message will include a signature, and the signature will be variable, depending on R.
+This doesn't mean anyone can front-run, since the orders are still hidden and the exchange will be committing to taking a position if it commits to its own orders before a puzzle could have possibly been solved.
