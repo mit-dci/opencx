@@ -6,7 +6,7 @@ type Timelock interface {
 	SetupTimelockPuzzle(t uint64) (puzzle Puzzle, answer []byte, err error)
 }
 
-// Puzzle is what can actually be solved. It should return the same time t
+// Puzzle is what can actually be solved. It should return the same answer that was the result of SetupTimelockPuzzle.
 type Puzzle interface {
 	// Solve solves the puzzle and returns the answer, or fails
 	Solve() (answer []byte, err error)

@@ -1,3 +1,4 @@
+// Package match provides utilities and useful structures for building exchange systems.
 package match
 
 import (

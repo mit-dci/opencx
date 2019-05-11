@@ -3,8 +3,35 @@ package rsw
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"testing"
 )
+
+// This is how you create a solvable RSW timelock puzzle.
+func ExampleTimelockRSW_SetupTimelockPuzzle() {
+	// Allocate memory for key
+	key := make([]byte, 32)
+	// set key to be some bytes that we want to be the solution to the puzzle
+	copy(key[:], []byte(fmt.Sprint("!!! secret < 32 bytes !!!")))
+	// Create a new timelock. A timelock can be used to create puzzles for a key with a certain time.
+	rswTimelock, err := New2048A2(key)
+	if err != nil {
+		log.Fatalf("Error creating a new timelock puzzle: %s", err)
+	}
+
+	// set the time to be some big number
+	t := uint64(1000000)
+
+	// Create the puzzle. Puzzles can be solved.
+	puzzle, expectedAns, err := rswTimelock.SetupTimelockPuzzle(t)
+	if err != nil {
+		log.Fatalf("Error creating puzzle: %s", err)
+	}
+
+	fmt.Printf("Puzzle nil? %t. Expected Answer: %s", puzzle == nil, string(expectedAns))
+	// Puzzle nil? false. Expected Answer: !!! secret < 32 bytes !!!
+
+}
 
 func createSolveTest2048A2(time uint64, t *testing.T) {
 	key := make([]byte, 32)

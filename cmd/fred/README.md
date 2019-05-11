@@ -24,20 +24,20 @@ Based on the hardware in existence, it represents the minimum amount of time to 
 ## Auction protocol
 Each auction has an Auction ID parameter.
 
-  1. Submit
+  1. **Submit**
       * The submit stage should take roughly `(b*t)/n` time. `n` should be greater than 1.
       * During the submit stage, users will submit timelock-encrypted orders with time parameter `t`.
-  2. Commit
+  2. **Commit**
       * The commit stage marks the end of the "Submit" stage.
       * During the commit stage, the exchange broadcasts a commitment to a set of encrypted orders.
       * These encrypted orders include an unsolved puzzle, ciphertext, intended auction, and a hash.
-  3. Respond
+  3. **Respond**
       * Users who receive the commitment before `b*t` send a signature on the commitment to the exchange.
       * If the exchange receives unanimous signatures before `b*t`, the exchange broadcasts these signatures.
       * If not all users signed off on the commitment, the entire auction is marked as invalid and must start over.
       * Users should sign during this period if they're confident that the exchange could not have possibly solved a single one of the puzzles in the commitment.
       * A single malicious user can halt the exchange during this step.
-  4. Decrypt
+  4. **Decrypt**
       * This stage starts once the exchange has solved a puzzle, and decrypted an order in the set it committed to.
       * This should happen after `b*t`.
       * The exchange signs this data.
@@ -55,10 +55,10 @@ Each auction has an Auction ID parameter.
       Then the exchange won't be able to sign an update to the data without revealing their private key.
       In this case the auction would have to be restarted.
       * In any case of an invalid auction, users don't need to pay attention to anything the exchange does that depends on the invalid auction.
-  5. Match
+  5. **Match**
       * The exchange matches the orders, and signs the outcome of the matching.
       * If the matching is incorrect, then it's incorrect and you can prove it.
-  6. Execute
+  6. **Execute**
       * The exchange facilitates the trades through whatever settlement it feels like.
       * Ideally this would be done through lightning atomic swaps, since proofs can be produced for an honest execution.
       * In the case of lightning atomic swaps, blame can't be assigned to the user or the exchange if either party refuses to execute the trade.
@@ -83,3 +83,22 @@ Users could do a proof of work on their message once the auction has started, an
 This would only be an issue if there is a large domain for proof of work.
 This will normally be the case, since the message will include a signature, and the signature will be variable, depending on R.
 This doesn't mean anyone can front-run, since the orders are still hidden and the exchange will be committing to taking a position if it commits to its own orders before a puzzle could have possibly been solved.
+
+Stateless matching algorithms can be considered to be time independent.
+
+### Stateful matching algorithms
+
+We don't *have to* be stuck with only stateless matching algorithms.
+We can use a combination of known, stateful algorithms that have a time priority requirement, and a stateless matching algorithm to have a persistent orderbook.
+Every order in an auction must have the same time priority, so we can do the following steps to be compatible with a persistent orderbook:
+
+  1. Match in auction
+      * Nothing is different here than in the **Match** section of the protocol.
+      * Here, we must match according to a stateless matching algorithm.
+  2. Drop unfilled onto orderbook
+      * Here, we'll still be using a stateless matching algorithm, but only to settle "ties".
+      * Unfilled orders get put on the order queue with the highest time priority so far.
+      The sequence of auctions determines the time priority for orders on this orderbook.
+      In the case that multiple orders can be filled, but those orders have the same time priority, a stateless algorithm is used.
+  3. Match according to any matching algorithm
+      * Now, since we can settle ties with a stateless algorithm, we can use a stateful matching algorithm with the persistent orderbook.
