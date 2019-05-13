@@ -3,6 +3,7 @@ module github.com/mit-dci/opencx
 go 1.12
 
 require (
+	github.com/btcsuite/btcd v0.0.0-20190427004231-96897255fd17
 	github.com/btcsuite/fastsha256 v0.0.0-20160815193821-637e65642941
 	github.com/btcsuite/golangcrypto v0.0.0-20150304025918-53f62d9b43e8
 	github.com/dchest/siphash v1.2.1
@@ -16,6 +17,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/minio/highwayhash v1.0.0
 	github.com/mit-dci/lit v0.0.0-20190430192525-57c63ed5cc95
+	github.com/mit-dci/zksigma v0.0.0-20190313133734-a6a19e83b9cc
 	github.com/ncw/gmp v1.0.4
 	github.com/olekukonko/tablewriter v0.0.1
 	golang.org/x/crypto v0.0.0-20190506204251-e1dfcc566284

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+
+	"github.com/mit-dci/zksigma"
 )
 
 // BalProofMachine represents a single iteration of the proof of assets protocol, and is
@@ -139,5 +141,13 @@ func (machine *AssetsProofMachine) calculateAssets() (totalAssets uint64, err er
 
 	machine.pkAnonSetMutex.Unlock()
 
+	return
+}
+
+// CalculateAssetCommitment calculates the commitment to the Z_Assets to Assets
+// Are we sure on returning an ECPoint?
+func (machine *AssetsProofMachine) CalculateAssetCommitment() (assetCommitment *zksigma.ECPoint, err error) {
+
+	// TODO
 	return
 }

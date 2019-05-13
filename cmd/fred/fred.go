@@ -11,7 +11,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxauctionserver"
-	"github.com/mit-dci/opencx/cxdb/cxdbmemory"
+	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/logging"
 )
 
@@ -128,8 +128,10 @@ func main() {
 	// Check and load config params
 	key := opencxSetup(&conf)
 
-	var db *cxdbmemory.CXDBMemory
-	db = new(cxdbmemory.CXDBMemory)
+	var db *cxdbsql.DB
+	if db, err = cxdbsql.CreateDBConnection(conf.DBUsername, conf.DBPassword, conf.DBHost, conf.DBPort); err != nil {
+		logging.Fatalf("Error initializing Database: \n%s", err)
+	}
 
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)

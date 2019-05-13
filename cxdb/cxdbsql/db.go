@@ -40,6 +40,11 @@ var (
 	balanceSchema        = "balances"
 	depositSchema        = "deposit"
 	pendingDepositSchema = "pending_deposits"
+	puzzleSchema = "puzzle"
+	puzzleTable = "puzzles"
+	auctionSchema = "auctions"
+	auctionOrderSchema = "auctionorder"
+	auctionOrderTable = "auctionorders"
 	orderSchema          = "orders"
 	peerSchema           = "peers"
 	peerTableName        = "opencxpeers"
@@ -50,6 +55,9 @@ func newConfigParser(conf *dbsqlConfig, options flags.Options) *flags.Parser {
 	parser := flags.NewParser(conf, options)
 	return parser
 }
+
+// TODO (rjected): Before any abstractions are done or ANYTHING except build new features in the same way we've already built them, we NEED to give this db
+// either a config file or something.
 
 // DB contains the sql DB type as well as a logger.
 // The database is a BEHEMOTH, should be refactored. Some examples on how to refactor are cleaning up mutexes, creating config file for all the globals,
@@ -153,6 +161,11 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	db.orderSchema = orderSchema
 	db.peerSchema = peerSchema
 	db.peerTableName = peerTableName
+	db.puzzleSchema = puzzleSchema
+	db.puzzleTable = puzzleTable
+	db.auctionSchema = auctionSchema
+	db.auctionOrderSchema = auctionOrderSchema
+	db.auctionOrderTable = auctionOrderTable
 	// Create users and schemas and assign permissions to opencx
 	if err = db.rootInitSchemas(); err != nil {
 		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
@@ -268,13 +281,14 @@ func (db *DB) SetupAuctionTables(auctionSchema string, puzzleSchema string, puzz
 	// Initialize auction order schema, table
 	// An auction order is identified by it's auction ID, pubkey, nonce, and other specific data.
 	// You can have a price up to 30 digits total, and 10 decimal places.
-	if err = db.InitializePairTables(auctionSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), hashedOrder VARBINARY"); err != nil {
-		err = fmt.Errorf("Could not initialize order tables: \n%s", err)
+	// Could be using blob instead of text but it really doesn't matter
+	if err = db.InitializePairTables(auctionSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), hashedOrder VARBINARY(64)"); err != nil {
+		err = fmt.Errorf("Could not initialize auction order tables: \n%s", err)
 		return
 	}
 
 	// This creates the single table where we'll keep all the puzzles
-	if err = db.InitializeSingleTable(puzzleSchema, puzzleTable, "encodedOrder VARBINARY, auctionID VARBINARY(64), selected BOOLEAN"); err != nil {
+	if err = db.InitializeSingleTable(puzzleSchema, puzzleTable, "encodedOrder TEXT, auctionID VARBINARY(64), selected BOOLEAN"); err != nil {
 		err = fmt.Errorf("Could not initialize puzzle table: \n%s", err)
 		return
 	}
@@ -380,12 +394,18 @@ func (db *DB) rootInitSchemas() (err error) {
 		return
 	}
 
+	// TODO: !!! PUT THIS IN A CONFIG !!!
 	schemasToCreate := []string{
 		db.balanceSchema,
 		db.depositSchema,
 		db.pendingDepositSchema,
 		db.orderSchema,
 		db.peerSchema,
+		db.puzzleSchema,
+		db.puzzleTable,
+		db.auctionSchema,
+		db.auctionOrderSchema,
+		db.auctionOrderTable,
 	}
 
 	for _, schema := range schemasToCreate {

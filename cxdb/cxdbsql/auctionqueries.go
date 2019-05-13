@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/opencx/match"
+	"github.com/mit-dci/opencx/logging"
 )
 
 // PlaceAuctionPuzzle puts a puzzle and ciphertext in the datastore.
@@ -150,10 +151,17 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 		return
 	}
 
+	var nullCompatHeight sql.NullInt64
 	auctionNumQuery := fmt.Sprintf("SELECT MAX(auctionNumber) FROM %s;", db.auctionOrderTable)
-	if err = tx.QueryRow(auctionNumQuery).Scan(height); err != nil {
+	if err = tx.QueryRow(auctionNumQuery).Scan(&nullCompatHeight); err != nil {
 		err = fmt.Errorf("Could not find maximum auction number when creating new auction: %s", err)
 		return
+	}
+
+	if nullCompatHeight.Valid {
+		height = uint64(nullCompatHeight.Int64)
+	} else {
+		logging.Warnf("Warning, the max height was null!")
 	}
 
 	// Insert the new auction ID w/ current max height + 1
