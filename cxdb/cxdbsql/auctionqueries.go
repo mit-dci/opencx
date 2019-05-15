@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/mit-dci/opencx/match"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 // PlaceAuctionPuzzle puts a puzzle and ciphertext in the datastore.
@@ -40,7 +40,7 @@ func (db *DB) PlaceAuctionPuzzle(encryptedOrder *match.EncryptedAuctionOrder) (e
 	}
 
 	// We concatenate ciphertext and puzzle and set "selected" to 1 by default
-	placeAuctionPuzzleQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%x', 'TRUE');", db.puzzleTable, orderBytes, encryptedOrder.IntendedAuction)
+	placeAuctionPuzzleQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%x', 1);", db.puzzleTable, orderBytes, encryptedOrder.IntendedAuction)
 	if _, err = tx.Exec(placeAuctionPuzzleQuery); err != nil {
 		err = fmt.Errorf("Error adding auction puzzle to puzzle orders: %s", err)
 		return
@@ -50,7 +50,29 @@ func (db *DB) PlaceAuctionPuzzle(encryptedOrder *match.EncryptedAuctionOrder) (e
 }
 
 // PlaceAuctionOrder places an order in the unencrypted datastore.
-func (db *DB) PlaceAuctionOrder(*match.AuctionOrder) (err error) {
+func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
+
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for NewAuction: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while creating new auction: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + db.auctionSchema + ";"); err != nil {
+		err = fmt.Errorf("Error while placing solved auction order: %s", err)
+		return
+	}
+
+	logging.Infof("Placing order %s!", order)
 
 	// TODO
 	return
@@ -102,7 +124,7 @@ func (db *DB) ViewAuctionPuzzleBook(auctionID [32]byte) (orders []*match.Encrypt
 		// allocate memory for the next order to be inserted in the list
 		currEncryptedOrder = new(match.EncryptedAuctionOrder)
 
-		if err = rows.Scan(encodedOrder); err != nil {
+		if err = rows.Scan(&encodedOrder); err != nil {
 			err = fmt.Errorf("Error scanning for puzzle: %s", err)
 			return
 		}
@@ -170,6 +192,71 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 	if _, err = tx.Exec(insertNewAuctionQuery); err != nil {
 		err = fmt.Errorf("Error inserting new auction ID when creating new auction: %s", err)
 		return
+	}
+
+	return
+}
+
+// MatchAuction matches the auction with a specific auctionID. This is meant to be the implementation of pro-rata for just the stuff in the auction. We assume that there are orders in the auction orderbook that are ALL valid.
+func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
+
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for NewAuction: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while creating new auction: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// Do this for every pair we have
+
+	// We define the rows, etc here so we don't waste a bunch of stack space
+	// ughhhh scanning is so tedious
+	var rows *sql.Rows
+	var pubkeyBytes []byte
+	var auctionIDBytes []byte
+	var nonceBytes []byte
+	var thisOrder *match.AuctionOrder
+	var book []*match.AuctionOrder
+	for _, pair := range db.pairsArray {
+		// So we get the orders, and they are supposed to be all valid.
+		queryAuctionOrders := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce FROM %s WHERE auctionID='%x';", pair, auctionID)
+		if rows, err = tx.Query(queryAuctionOrders); err != nil {
+			err = fmt.Errorf("Error querying for orders in auction: %s", err)
+			return
+		}
+
+		for rows.Next() {
+			thisOrder = new(match.AuctionOrder)
+			if err = rows.Scan(&pubkeyBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes); err != nil {
+				err = fmt.Errorf("Error scanning row to bytes: %s", err)
+				return
+			}
+
+			// Now we do the dumb decoding thing
+			for _, byteArray := range [][]byte{pubkeyBytes, auctionIDBytes, nonceBytes} {
+				// just for everything in this list of things we want to decode from weird words to real bytes
+				if _, err = hex.Decode(byteArray, byteArray); err != nil {
+					err = fmt.Errorf("Error decoding bytes for auction matching: %s", err)
+					return
+				}
+			}
+
+			// Now we put the data into the auction order
+			copy(thisOrder.Pubkey[:], pubkeyBytes)
+			copy(thisOrder.AuctionID[:], auctionIDBytes)
+			copy(thisOrder.Nonce[:], nonceBytes)
+
+			// okay cool now add it to the list
+			book = append(book, thisOrder)
+		}
 	}
 
 	return

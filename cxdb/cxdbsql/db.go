@@ -40,11 +40,11 @@ var (
 	balanceSchema        = "balances"
 	depositSchema        = "deposit"
 	pendingDepositSchema = "pending_deposits"
-	puzzleSchema = "puzzle"
-	puzzleTable = "puzzles"
-	auctionSchema = "auctions"
-	auctionOrderSchema = "auctionorder"
-	auctionOrderTable = "auctionorders"
+	puzzleSchema         = "puzzle"
+	puzzleTable          = "puzzles"
+	auctionSchema        = "auctions"
+	auctionOrderSchema   = "auctionorder"
+	auctionOrderTable    = "auctionorders"
 	orderSchema          = "orders"
 	peerSchema           = "peers"
 	peerTableName        = "opencxpeers"
@@ -282,7 +282,7 @@ func (db *DB) SetupAuctionTables(auctionSchema string, puzzleSchema string, puzz
 	// An auction order is identified by it's auction ID, pubkey, nonce, and other specific data.
 	// You can have a price up to 30 digits total, and 10 decimal places.
 	// Could be using blob instead of text but it really doesn't matter
-	if err = db.InitializePairTables(auctionSchema, "pubkey VARBINARY(66), orderID TEXT, side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), hashedOrder VARBINARY(64)"); err != nil {
+	if err = db.InitializePairTables(auctionSchema, "pubkey VARBINARY(66), side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), hashedOrder VARBINARY(64), PRIMARY KEY (hashedOrder)"); err != nil {
 		err = fmt.Errorf("Could not initialize auction order tables: \n%s", err)
 		return
 	}

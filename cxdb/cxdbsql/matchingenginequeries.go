@@ -71,11 +71,12 @@ func (db *DB) CalculatePrice(pair *match.Pair) (price float64, err error) {
 		return
 	}
 
+	var currSide string
+	var currPrice float64
+	var currAmountHave uint64
+	var currAmountWant uint64
 	for rows.Next() {
-		var currSide string
-		var currPrice float64
-		var currAmountHave uint64
-		var currAmountWant uint64
+		currSide = *new(string)
 		if err = rows.Scan(&currSide, &currPrice, &currAmountHave, &currAmountWant); err != nil {
 			return
 		}
