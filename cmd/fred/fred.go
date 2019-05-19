@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -96,7 +98,7 @@ var (
 	defaultDBPort     = uint16(3306)
 
 	// default auction options
-	defaultAuctionTime = uint64(10000)
+	defaultAuctionTime = uint64(30000)
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -170,24 +172,23 @@ func main() {
 		}
 	}()
 
+	doneChan := make(chan bool, 1)
 	if !conf.AuthenticatedRPC {
 		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on rpc ===")
 		go cxauctionrpc.RPCListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
-		// block until rpclisten is done
-		<-doneChan
 	} else {
-
 		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
 		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on noise-rpc ===")
 		go cxauctionrpc.NoiseListenAsync(doneChan, privkey, rpc1, conf.Rpchost, conf.Rpcport)
-		// block until noiselisten is done
-		<-doneChan
-
 	}
+
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	<-doneChan
 
 	return
 }

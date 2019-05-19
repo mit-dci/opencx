@@ -1,4 +1,4 @@
-// Package rsw is an implementation of Rivest-Shamir-Wagner timelock puzzles, from RSW96. 
+// Package rsw is an implementation of Rivest-Shamir-Wagner timelock puzzles, from RSW96.
 // The puzzles are based on modular exponentiation, and this package provides an easy to use API for creating and solving these types of puzzles.
 package rsw
 

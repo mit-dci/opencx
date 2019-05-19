@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/mit-dci/opencx/cxdb"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -22,6 +23,7 @@ type OpencxAuctionServer struct {
 
 // InitServer creates a new server
 func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
 		OpencxDB:     db,
 		dbLock:       new(sync.Mutex),
@@ -35,7 +37,7 @@ func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctio
 		return
 	}
 
-	// Start the order handler (TODO: is this the right place to put this?)
+	// Start the solved order handler (TODO: is this the right place to put this?)
 	go server.AuctionOrderHandler(server.orderChannel)
 
 	// Start the auction clock (also TODO: is this the right place to put this?)

@@ -23,7 +23,6 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 	}
 	s.dbLock.Unlock()
 
-	// send order solving to channel
 	go match.SolveRC5AuctionOrderAsync(order, s.orderChannel)
 
 	return

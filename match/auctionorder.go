@@ -33,14 +33,13 @@ func SolveRC5AuctionOrderAsync(e *EncryptedAuctionOrder, puzzleResChan chan *Ord
 		return
 	}
 
-	auctionOrder := new(AuctionOrder)
-	if err = auctionOrder.Deserialize(orderBytes); err != nil {
+	result.Auction = new(AuctionOrder)
+	if err = result.Auction.Deserialize(orderBytes); err != nil {
 		result.Err = fmt.Errorf("Error deserializing order gotten from puzzle: %s", err)
 		puzzleResChan <- result
 		return
 	}
 
-	result.Auction = auctionOrder
 	puzzleResChan <- result
 
 	return

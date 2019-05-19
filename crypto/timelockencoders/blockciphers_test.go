@@ -77,6 +77,44 @@ func TestRSWRC5(t *testing.T) {
 	return
 }
 
+func TestRSWRC5ManyN8_T100000(t *testing.T) {
+	solveRSWRC5Concurrent(uint64(100000), uint64(8), t)
+	return
+}
+
+func solveRSWRC5Concurrent(timeToSolve uint64, howMany uint64, t *testing.T) {
+	resChan := make(chan bool, howMany)
+	for i := uint64(0); i < howMany; i++ {
+		message := make([]byte, 32)
+		copy(message, []byte("RSW96 Full Scheme!!!!!"))
+		// This should take a couple seconds
+		ciphertext, puzzle, err := CreateRSW2048A2PuzzleRC5(timeToSolve, message)
+		if err != nil {
+			t.Fatalf("Error creating puzzle: %s", err)
+		}
+
+		go func() {
+			newMessage, err := SolvePuzzleRC5(ciphertext, puzzle)
+			if err != nil {
+				t.Fatalf("Error solving puzzle: %s", err)
+			}
+
+			if !bytes.Equal(newMessage, message) {
+				t.Fatalf("Messages not equal")
+			}
+
+			t.Logf("Solved concurrent")
+			resChan <- true
+		}()
+	}
+
+	for i := uint64(0); i < howMany; i++ {
+		<-resChan
+	}
+
+	return
+}
+
 func TestRSWRC6(t *testing.T) {
 	message := make([]byte, 32)
 	copy(message, []byte("RSW96 Full Scheme but with RC6!"))

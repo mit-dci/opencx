@@ -220,12 +220,23 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 	// We define the rows, etc here so we don't waste a bunch of stack space
 	// ughhhh scanning is so tedious
 	var rows *sql.Rows
+
 	var pubkeyBytes []byte
 	var auctionIDBytes []byte
 	var nonceBytes []byte
+
 	var thisOrder *match.AuctionOrder
-	var book []*match.AuctionOrder
+
+	var book map[float64][]*match.AuctionOrder
+	book = make(map[float64][]*match.AuctionOrder)
+
+	// I hate writing matching algorithms!!!!!
+	// Alright so here's what's going to happen:
+	// uh two lists? How does crossing work with pro rata
+	// very annoying, maybe it's time to look at other examples
+
 	for _, pair := range db.pairsArray {
+
 		// So we get the orders, and they are supposed to be all valid.
 		queryAuctionOrders := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce FROM %s WHERE auctionID='%x';", pair, auctionID)
 		if rows, err = tx.Query(queryAuctionOrders); err != nil {
@@ -255,8 +266,9 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 			copy(thisOrder.Nonce[:], nonceBytes)
 
 			// okay cool now add it to the list
-			book = append(book, thisOrder)
+			book[thisOrder.OrderbookPrice] = append(book[thisOrder.OrderbookPrice], thisOrder)
 		}
+
 	}
 
 	return

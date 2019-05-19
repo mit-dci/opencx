@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"runtime"
 	"testing"
 )
 
@@ -31,6 +32,48 @@ func ExampleTimelockRSW_SetupTimelockPuzzle() {
 	fmt.Printf("Puzzle nil? %t. Expected Answer: %s", puzzle == nil, string(expectedAns))
 	// Puzzle nil? false. Expected Answer: !!! secret < 32 bytes !!!
 
+}
+
+func createSolveConcurrentN(time uint64, n int, t *testing.T) {
+	doneChan := make(chan bool, n)
+	for i := 0; i < n; i++ {
+		go createSolveTest2048A2Async(time, doneChan, t)
+	}
+
+	// Wait for our things to return - there may be a better way to do this with select
+	for i := 0; i < n; i++ {
+		<-doneChan
+	}
+
+	return
+}
+
+func createSolveConcurrent(time uint64, t *testing.T) {
+	createSolveConcurrentN(time, runtime.NumCPU(), t)
+	return
+}
+
+func createSolveTest2048A2Async(time uint64, doneChan chan bool, t *testing.T) {
+	key := make([]byte, 32)
+	copy(key[:], []byte(fmt.Sprintf("opencxcreatesolve%d", time)))
+	rswTimelock, err := New2048A2(key)
+	if err != nil {
+		t.Fatalf("There was an error creating a new timelock puzzle: %s", err)
+	}
+	puzzle, expectedAns, err := rswTimelock.SetupTimelockPuzzle(time)
+	if err != nil {
+		t.Fatalf("There was an error setting up the timelock puzzle: %s\n", err)
+	}
+	puzzleAns, err := puzzle.Solve()
+	if err != nil {
+		t.Fatalf("Error solving puzzle: %s\n", err)
+	}
+	if !bytes.Equal(puzzleAns, expectedAns) {
+		t.Fatalf("Answer did not equal puzzle for time = %d. Expected %x, got %x\n", time, expectedAns, puzzleAns)
+	}
+
+	doneChan <- true
+	return
 }
 
 func createSolveTest2048A2(time uint64, t *testing.T) {
@@ -224,3 +267,25 @@ func TestHundredMillion2048A2(t *testing.T) {
 	createSolveTest2048A2(100000000, t)
 	return
 }
+
+func TestConcurrentMillion2048A2(t *testing.T) {
+	createSolveConcurrent(1000000, t)
+	return
+}
+
+func TestConcurrentManyMillions2048A2(t *testing.T) {
+	createSolveConcurrentN(100000000, runtime.NumCPU(), t)
+	return
+}
+
+// 4748 0975 4727 2012 8661 7503 4130 6167 7388 5051 2607 4492 0056 4448 6710
+// 6196 3607 1042 4558 1476 5425 2707 6049 4101 2311 7758 9201 2567 5790 6462
+// ...
+// 0642 1926 9454 1125 0658 7397 7
+// func Benchmark2019CheckPoint(b *testing.B) {
+// 	puzzle := PuzzleRSW{
+// 		N: new(big.Int).SetString("474809754727201286617503413061677388505126074492005644486710", 10),
+// 	}
+
+// 	return
+// }
