@@ -3,10 +3,12 @@ module github.com/mit-dci/opencx
 go 1.12
 
 require (
+	github.com/Rjected/gmp v1.0.4-0.20190521043342-9c9965578e96
 	github.com/btcsuite/btcd v0.0.0-20190427004231-96897255fd17
 	github.com/btcsuite/fastsha256 v0.0.0-20160815193821-637e65642941
 	github.com/btcsuite/golangcrypto v0.0.0-20150304025918-53f62d9b43e8
 	github.com/btcsuite/goleveldb v1.0.0 // indirect
+	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/siphash v1.2.1
 	github.com/dgryski/go-rc5 v0.0.0-20181025211356-a14dd155920a
@@ -16,6 +18,8 @@ require (
 	github.com/go-redis/redis v6.15.2+incompatible
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/golang/protobuf v1.3.1 // indirect
+	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f // indirect
+	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/jessevdk/go-flags v1.4.1-0.20181221193153-c0795c8afcf4
 	github.com/kkdai/bstream v0.0.0-20181106074824-b3251f7901ec // indirect
 	github.com/mattn/go-isatty v0.0.7 // indirect

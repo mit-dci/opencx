@@ -8,6 +8,7 @@ import (
 
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxrpc"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -196,6 +197,8 @@ func (cl *BenchClient) AuctionOrderCommand(pubkey *koblitz.PublicKey, side strin
 // AuctionOrderAsync is supposed to be run in a separate goroutine, AuctionOrderCommand makes this synchronous however
 func (cl *BenchClient) AuctionOrderAsync(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64, t uint64, auctionID [32]byte, replyChan chan *cxauctionrpc.SubmitPuzzledOrderReply, errChan chan error) {
 
+	auctionID = [32]byte{0xde, 0xad, 0xbe, 0xef}
+
 	if cl.PrivKey == nil {
 		errChan <- fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
 		return
@@ -237,6 +240,8 @@ func (cl *BenchClient) AuctionOrderAsync(pubkey *koblitz.PublicKey, side string,
 		if compactSig, err = koblitz.SignCompact(koblitz.S256(), cl.PrivKey, e, false); err != nil {
 			return
 		}
+
+		logging.Infof("Order time: %d", t)
 
 		newAuctionOrder.Signature = compactSig
 		var order *match.EncryptedAuctionOrder

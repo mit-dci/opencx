@@ -9,7 +9,7 @@ import (
 
 const (
 	testOrderChanSize       = 100
-	testStandardAuctionTime = 1000000
+	testStandardAuctionTime = 100000
 )
 
 var (

@@ -5,6 +5,7 @@ import (
 
 	"github.com/btcsuite/golangcrypto/sha3"
 	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/opencx/crypto/timelockencoders"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
@@ -23,7 +24,32 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 	}
 	s.dbLock.Unlock()
 
-	go match.SolveRC5AuctionOrderAsync(order, s.orderChannel)
+	go s.solveOrderIntoResChan(order)
+
+	return
+}
+
+// solveOrderIntoResChan solves the order puzzle and puts it in to the server's order channel.
+func (s *OpencxAuctionServer) solveOrderIntoResChan(eOrder *match.EncryptedAuctionOrder) {
+	var err error
+	result := new(match.OrderPuzzleResult)
+	result.Encrypted = eOrder
+
+	var orderBytes []byte
+	if orderBytes, err = timelockencoders.SolvePuzzleRC5(eOrder.OrderCiphertext, eOrder.OrderPuzzle); err != nil {
+		result.Err = fmt.Errorf("Error solving RC5 puzzle for auction order server solve: %s", err)
+		s.orderChannel <- result
+		return
+	}
+
+	result.Auction = new(match.AuctionOrder)
+	if err = result.Auction.Deserialize(orderBytes); err != nil {
+		result.Err = fmt.Errorf("Error deserializing order from puzzle for server: %s", err)
+		s.orderChannel <- result
+		return
+	}
+
+	s.orderChannel <- result
 
 	return
 }

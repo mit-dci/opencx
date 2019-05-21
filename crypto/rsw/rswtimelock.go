@@ -11,7 +11,8 @@ import (
 
 	"math/big"
 
-	gmpbig "github.com/ncw/gmp"
+	// danbig "github.com/Rjected/gmp"
+	gmpbig "github.com/Rjected/gmp"
 
 	"github.com/mit-dci/opencx/crypto"
 )
@@ -207,18 +208,20 @@ func (pz *PuzzleRSW) SolveCkXOR() (answer []byte, err error) {
 
 // Solve solves the puzzle by repeated squarings
 func (pz *PuzzleRSW) Solve() (answer []byte, err error) {
+	// return pz.SolveDanGMPCkXOR()
 	return pz.SolveGMPCkXOR()
 }
 
 // SolveGMPCkXOR solves the puzzle by repeated squarings and xor b with ck using the GMP library
 func (pz *PuzzleRSW) SolveGMPCkXOR() (answer []byte, err error) {
 	// No longer a one liner but many times faster
-	gmpck := new(gmpbig.Int).SetBytes(pz.CK.Bytes())
-	gmpa := new(gmpbig.Int).SetBytes(pz.A.Bytes())
-	gmpt := new(gmpbig.Int).SetBytes(pz.T.Bytes())
-	gmpn := new(gmpbig.Int).SetBytes(pz.N.Bytes())
-	return new(gmpbig.Int).Xor(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
+	return new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).Exp(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).Exp(gmpbig.NewInt(2), new(gmpbig.Int).SetBytes(pz.T.Bytes()), nil), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
 }
+
+// func (pz *PuzzleRSW) SolveDanGMPCkXOR() (answer []byte, err error) {
+// 	// One line and doesn't use all the memory
+// 	return new(danbig.Int).Xor(new(danbig.Int).SetBytes(pz.CK.Bytes()), new(danbig.Int).ExpSquare(new(danbig.Int).SetBytes(pz.A.Bytes()), new(danbig.Int).SetBytes(pz.T.Bytes()), new(danbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
+// }
 
 // SolveGMPCkADD solves the puzzle by repeated squarings and xor b with ck using the GMP library
 func (pz *PuzzleRSW) SolveGMPCkADD() (answer []byte, err error) {
