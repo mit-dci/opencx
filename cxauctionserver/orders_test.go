@@ -46,7 +46,6 @@ func TestMemPlacePuzzledOrder(t *testing.T) {
 
 	// Place a bunch of orders
 	for _, order := range orders {
-		t.Logf("Placing order...\n")
 		// We can do this in sequence because it's going to start a goroutine anyways
 		s.PlacePuzzledOrder(order)
 		// Okay now we'll wait a little bit to make sure we see this memory issue in action

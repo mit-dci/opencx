@@ -10,4 +10,4 @@ go:
 
 # script always runs to completion
 script:
-  - go test -v -race ./... # Run all the tests with the race detector enabled
+  - go test -v -race -timeout 35m ./... # Run all the tests with the race detector enabled

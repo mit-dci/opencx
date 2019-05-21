@@ -5,6 +5,7 @@ import (
 
 	"github.com/btcsuite/golangcrypto/sha3"
 	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/opencx/crypto/rsw"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
@@ -23,6 +24,10 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 		return
 	}
 	s.dbLock.Unlock()
+
+	if err = s.validateEncryptedOrder(order); err != nil {
+		logging.Errorf("Error validating order: %s", err)
+	}
 
 	go s.solveOrderIntoResChan(order)
 
@@ -109,7 +114,25 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 }
 
 // validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
-func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, encryptedOrder *match.EncryptedAuctionOrder) (valid bool, err error) {
+func (s *OpencxAuctionServer) validateEncryptedOrder(order *match.EncryptedAuctionOrder) (err error) {
+
+	var rswPuzzle *rsw.PuzzleRSW
+	var ok bool
+	if rswPuzzle, ok = order.OrderPuzzle.(*rsw.PuzzleRSW); !ok {
+		err = fmt.Errorf("Puzzle could not be converted to RSW puzzle, invalid encrypted order")
+		return
+	}
+
+	if uint64(rswPuzzle.T.Int64()) != s.t {
+		err = fmt.Errorf("The time to solve the puzzle is not correct, invalid encrypted order")
+		return
+	}
+
+	return
+}
+
+// validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
+func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, encryptedOrder *match.EncryptedAuctionOrder) (err error) {
 
 	logging.Infof("Validating order by pubkey %x", decryptedOrder.Pubkey)
 
@@ -152,6 +175,5 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 	// 	return
 	// }
 
-	valid = true
 	return
 }

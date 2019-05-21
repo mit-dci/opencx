@@ -76,6 +76,27 @@ func createSolveTest2048A2Async(time uint64, doneChan chan bool, t *testing.T) {
 	return
 }
 
+func createSolveBench2048A2(time uint64, b *testing.B) {
+	key := make([]byte, 32)
+	copy(key[:], []byte(fmt.Sprintf("opencxcreatesolve%d", time)))
+	rswTimelock, err := New2048A2(key)
+	if err != nil {
+		b.Fatalf("There was an error creating a new timelock puzzle: %s", err)
+	}
+	puzzle, expectedAns, err := rswTimelock.SetupTimelockPuzzle(time)
+	if err != nil {
+		b.Fatalf("There was an error setting up the timelock puzzle: %s\n", err)
+	}
+	puzzleAns, err := puzzle.Solve()
+	if err != nil {
+		b.Fatalf("Error solving puzzle: %s\n", err)
+	}
+	if !bytes.Equal(puzzleAns, expectedAns) {
+		b.Fatalf("Answer did not equal puzzle for time = %d. Expected %x, got %x\n", time, expectedAns, puzzleAns)
+	}
+	return
+}
+
 func createSolveTest2048A2(time uint64, t *testing.T) {
 	key := make([]byte, 32)
 	copy(key[:], []byte(fmt.Sprintf("opencxcreatesolve%d", time)))
@@ -268,13 +289,18 @@ func TestHundredMillion2048A2(t *testing.T) {
 	return
 }
 
+// func BenchmarkMemoryBreak2048A2(b *testing.B) {
+// 	createSolveBench2048A2(50000000000, b)
+// 	return
+// }
+
 func TestConcurrentMillion2048A2(t *testing.T) {
 	createSolveConcurrent(1000000, t)
 	return
 }
 
 func TestConcurrentManyMillions2048A2(t *testing.T) {
-	createSolveConcurrentN(100000000, runtime.NumCPU(), t)
+	createSolveConcurrentN(10000000, runtime.NumCPU(), t)
 	return
 }
 

@@ -9,7 +9,6 @@ import (
 func (s *OpencxAuctionServer) AuctionOrderHandler(orderResultChannel chan *match.OrderPuzzleResult) {
 	// We can reuse these, do not put them in the infinite loop
 	var receivedOrder *match.OrderPuzzleResult
-	var isOrderValid bool
 	var err error
 	for {
 		receivedOrder = <-orderResultChannel
@@ -19,11 +18,8 @@ func (s *OpencxAuctionServer) AuctionOrderHandler(orderResultChannel chan *match
 			continue
 		}
 
-		if isOrderValid, err = s.validateOrder(receivedOrder.Auction, receivedOrder.Encrypted); err != nil {
+		if err = s.validateOrder(receivedOrder.Auction, receivedOrder.Encrypted); err != nil {
 			logging.Errorf("Error validating order: %s", err)
-			continue
-		} else if !isOrderValid {
-			logging.Warnf("Invalid order received")
 			continue
 		}
 

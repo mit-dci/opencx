@@ -32,7 +32,7 @@ func (s *OpencxAuctionServer) AuctionClock() {
 		logging.Infof("Auction clock tick!")
 
 		// TODO: configurable time, work out schedule, base it on the AuctionTime option
-		time.AfterFunc(time.Duration(s.t)*time.Nanosecond, afterTick)
+		time.AfterFunc(time.Duration(s.t)*time.Microsecond, afterTick)
 
 		logging.Infof("Waiting for tick")
 

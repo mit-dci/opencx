@@ -215,7 +215,9 @@ func (pz *PuzzleRSW) Solve() (answer []byte, err error) {
 // SolveGMPCkXOR solves the puzzle by repeated squarings and xor b with ck using the GMP library
 func (pz *PuzzleRSW) SolveGMPCkXOR() (answer []byte, err error) {
 	// No longer a one liner but many times faster
-	return new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).Exp(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).Exp(gmpbig.NewInt(2), new(gmpbig.Int).SetBytes(pz.T.Bytes()), nil), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
+	// return new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).Exp(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).Exp(gmpbig.NewInt(2), new(gmpbig.Int).SetBytes(pz.T.Bytes()), nil), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
+	// we're using a fork now!
+	return new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).ExpSquare(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).SetBytes(pz.T.Bytes()), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
 }
 
 // func (pz *PuzzleRSW) SolveDanGMPCkXOR() (answer []byte, err error) {
@@ -230,7 +232,9 @@ func (pz *PuzzleRSW) SolveGMPCkADD() (answer []byte, err error) {
 	gmpa := new(gmpbig.Int).SetBytes(pz.A.Bytes())
 	gmpt := new(gmpbig.Int).SetBytes(pz.T.Bytes())
 	gmpn := new(gmpbig.Int).SetBytes(pz.N.Bytes())
-	return new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
+	// return new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
+	// Yay memory
+	return new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).ExpSquare(gmpa, gmpt, gmpn)).Bytes(), nil
 }
 
 // Serialize turns the RSW puzzle into something that can be sent over the wire
