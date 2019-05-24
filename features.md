@@ -27,63 +27,15 @@ Keeping the block header, I need something to check that it's not an orphan bloc
 
 Only once the current height and height stored in the DB differ by the # of confirmations stored along with the deposit, do we make a DB update on the balances table.
 
-# Current features
-
- - [x] RPC Interface
- - [x] DB Interface
- - [x] Testnet interface
- - [x] Wallets
-   - [x] Withdrawal
-   - [x] Test on testnet - debug transaction sending / pushing
- - [x] Register
-   - [x] RPC Command in interface
- - [x] Place order
-   - [x] Orders and trading pairs in DB
-   - [x] Different coins in DB
-   - [x] Account balances for said coins in DB
- - [x] Get balance
-   - [x] Different coins in DB
-   - [x] Account balances for said coins in DB
- - [x] View orderbook
-   - [x] Orders in DB
- - [x] Get Address
-   - [x] Testnet interface
-   - [x] Deposit addresses in DB
- - [x] Deposit
-   - [x] Testnet interface
-   - [x] Deposit confirmations variable
-   - [x] How to confirm deposit
-   - [x] Create master private key
- - [x] Signing
-   - [x] Sign all messages to/from for identification
- - [x] Matching engine
- - [x] Get all balances
-   - [x] Extra command
- - [x] Get Price
- - [x] Remove token stuff in shell
- - [x] ~~Correct dynamic confirmations~~ fixed but I just changed it to 6, but it *could* be made a lot better because I made it easy to do so.
- - [x] **Get robust way of adding multiple tokens**
- - [x] Fix issue with price calculation on sell side
- - [ ] Fix SQL Injection
- - [ ] Lightning Features
-   - [ ] Protocol for custodial only-on-orderbook exchange
-   - [ ] Lightning atomic swap
-     - [x] OpenCX code for off-chain HTLC-based atomic swaps and cross-chain channel management
-     - [ ] Lit code for HTLC-based atomic swaps
-   - [x] Lightning fund and push deposit
-   - [x] Lightning withdrawal
-   - [x] Lightning push back on withdrawal channel as deposit
-   - [ ] Magic: fully non custodial exchange without the free option problem
-
 ## Note on phishing
-If people were to tell other people "send me bitcoin and I'll credit you on my OpenCX exchange" that's ripe for phishing. 
+If people were to tell other people "send me bitcoin and I'll credit you on my OpenCX exchange" that's ripe for phishing.
 It's just a bitcoin/vertcoin/litecoin/lightning node, how do people know that's the service being provided?
 
 ## Note on proofs
 One thing I've been more and more interested in as a research topic has been the idea of a publicly auditable exchange. This means that things like Provisions will be produced.
 One possibility I've been exploring is the idea that liabilities are essentially proof of users for the exchange, and proof of assets (like in Provisions) backs those users up with money. The idea behind this is then the exchange might be able to then "prove" that an action occurred, and that action is backed up by some liabilities.
-Provisions then proves that these liabilities are backed up by real assets. 
-An exchange can "create" fake liabilities, but those then need to be backed up by assets. 
+Provisions then proves that these liabilities are backed up by real assets.
+An exchange can "create" fake liabilities, but those then need to be backe up by assets.
 So the proof of liabilities needs to be reused for both the provisions proof and any other proofs in order for this to work.
 This also might be a completely horrible way to do things. Provisions isn't perfect, you need to use P2PK, and it requires users to check their own accounts. It also isn't super efficient, but that might not be avoidable given number of users.
 Given the recent SEC report by Bitwise, even considering the fact that the entire thing might not be true at all (I doubt it but you never know), it's clear that wash trading is something that a malicious exchange could do.
@@ -101,4 +53,4 @@ Figure out, maybe based on historical data, see how much the optionality in the 
 ### Architecture notes
 I've realized that the wallet should probably be decoupled. As the exchange, we just rely on something that takes in transactions and tells us if we've received the money yet, so basically a wallet. We should be able to just connect to that thing, ask it about what addresses it has and has been sent to.
 
-Key management has always been an issue but I'd like to just keep one thing synced up and connect to that, and lit is the most compatible with the chainhook and stuff. I'm sure I'm storing like 3 copies of everything. 
+Key management has always been an issue but I'd like to just keep one thing synced up and connect to that, and lit is the most compatible with the chainhook and stuff. I'm sure I'm storing like 3 copies of everything.

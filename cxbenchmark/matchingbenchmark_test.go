@@ -8,7 +8,6 @@ import (
 	"github.com/mit-dci/opencx/logging"
 )
 
-// TODO: fix problems where you do something unexpected network-wise and the entire rpc server crashes!
 func BenchmarkPlaceOrders(b *testing.B) {
 	var err error
 

@@ -103,16 +103,20 @@ func solveVariableRC5AuctionOrder(howMany uint64, timeToSolve uint64, t *testing
 	return
 }
 
+// This should be super quick. Takes 0.1 seconds on an i7 8700k, most of the time is probably
+// spent creating the test to solve.
 func TestConcurrentSolvesN10_T10000(t *testing.T) {
 	solveVariableRC5AuctionOrder(uint64(10), uint64(10000), t)
 	return
 }
 
+// This should be less quick but still quick. Takes about 0.7 seconds on an i7 8700k
 func TestConcurrentSolvesN10_T100000(t *testing.T) {
 	solveVariableRC5AuctionOrder(uint64(10), uint64(100000), t)
 	return
 }
 
+// TestConcurrentSolvesN10_T10000000 takes about 72 seconds on an i7 8700k
 func TestConcurrentSolvesN10_T10000000(t *testing.T) {
 	solveVariableRC5AuctionOrder(uint64(10), uint64(10000000), t)
 	return

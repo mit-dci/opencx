@@ -48,6 +48,20 @@ func createSolveConcurrentN(time uint64, n int, t *testing.T) {
 	return
 }
 
+func createSolveConcurrentNBench(time uint64, n int, b *testing.B) {
+	doneChan := make(chan bool, n)
+	for i := 0; i < n; i++ {
+		go createSolveBench2048A2Async(time, doneChan, b)
+	}
+
+	// Wait for our things to return - there may be a better way to do this with select
+	for i := 0; i < n; i++ {
+		<-doneChan
+	}
+
+	return
+}
+
 func createSolveConcurrent(time uint64, t *testing.T) {
 	createSolveConcurrentN(time, runtime.NumCPU(), t)
 	return
@@ -70,6 +84,29 @@ func createSolveTest2048A2Async(time uint64, doneChan chan bool, t *testing.T) {
 	}
 	if !bytes.Equal(puzzleAns, expectedAns) {
 		t.Fatalf("Answer did not equal puzzle for time = %d. Expected %x, got %x\n", time, expectedAns, puzzleAns)
+	}
+
+	doneChan <- true
+	return
+}
+
+func createSolveBench2048A2Async(time uint64, doneChan chan bool, b *testing.B) {
+	key := make([]byte, 32)
+	copy(key[:], []byte(fmt.Sprintf("opencxcreatesolve%d", time)))
+	rswTimelock, err := New2048A2(key)
+	if err != nil {
+		b.Fatalf("There was an error creating a new timelock puzzle: %s", err)
+	}
+	puzzle, expectedAns, err := rswTimelock.SetupTimelockPuzzle(time)
+	if err != nil {
+		b.Fatalf("There was an error setting up the timelock puzzle: %s\n", err)
+	}
+	puzzleAns, err := puzzle.Solve()
+	if err != nil {
+		b.Fatalf("Error solving puzzle: %s\n", err)
+	}
+	if !bytes.Equal(puzzleAns, expectedAns) {
+		b.Fatalf("Answer did not equal puzzle for time = %d. Expected %x, got %x\n", time, expectedAns, puzzleAns)
 	}
 
 	doneChan <- true
@@ -284,8 +321,8 @@ func TestTenMillion2048A2(t *testing.T) {
 	return
 }
 
-func TestHundredMillion2048A2(t *testing.T) {
-	createSolveTest2048A2(100000000, t)
+func BenchmarkHundredMillion2048A2(b *testing.B) {
+	createSolveBench2048A2(100000000, b)
 	return
 }
 
@@ -299,8 +336,8 @@ func TestConcurrentMillion2048A2(t *testing.T) {
 	return
 }
 
-func TestConcurrentManyMillions2048A2(t *testing.T) {
-	createSolveConcurrentN(10000000, runtime.NumCPU(), t)
+func BenchmarkConcurrentManyMillions2048A2(b *testing.B) {
+	createSolveConcurrentNBench(10000000, runtime.NumCPU(), b)
 	return
 }
 

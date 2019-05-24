@@ -42,7 +42,6 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 		return
 	}
 
-	// TODO: make sure this is a valid way of doing stuff
 	if !sigPubKey.IsEqual(orderPubkey) {
 		err = fmt.Errorf("Pubkey used with signature not equal to the one passed")
 		return
@@ -156,7 +155,6 @@ func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) 
 		return
 	}
 
-	// TODO: make sure this is a valid way of doing stuff
 	if !sigPubKey.IsEqual(orderPubKey) {
 		err = fmt.Errorf("Pubkey used with signature not equal to the one passed")
 		return
@@ -230,7 +228,6 @@ func (cl *OpencxRPC) GetOrder(args GetOrderArgs, reply *GetOrderReply) (err erro
 		return
 	}
 
-	// TODO: make sure this is a valid way of doing stuff
 	if !sigPubKey.IsEqual(orderPubKey) {
 		err = fmt.Errorf("Pubkey used with signature not equal to the one passed")
 		return

@@ -44,7 +44,7 @@ This will print a description of the order after making it, and prompt the user 
 
 `ocx placeorder name {buy|sell} pair amountHave price`
 
-The price is price, amountHave is the amount of the asset you have. If you're on the selling side, that will be the first asset1 in the asset1/asset2 pair. If you're on the buying side, that will be the second, asset2. 
+The price is price, amountHave is the amount of the asset you have. If you're on the selling side, that will be the first asset1 in the asset1/asset2 pair. If you're on the buying side, that will be the second, asset2.
 
 Arguments:
  - Name (string)

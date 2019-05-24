@@ -27,7 +27,7 @@ Memory Device
 	Type: DDR4
 	Speed: 2133 MT/s
 	Manufacturer: SK Hynix
-	Part Number: HMA41GS6AFR8N-TF    
+	Part Number: HMA41GS6AFR8N-TF
 	Configured Memory Speed: 2133 MT/s
 	Configured Voltage: 1.2 V
 
@@ -37,7 +37,7 @@ Memory Device
 	Type: DDR4
 	Speed: 2133 MT/s
 	Manufacturer: SK Hynix
-	Part Number: HMA41GS6AFR8N-TF    
+	Part Number: HMA41GS6AFR8N-TF
 	Configured Memory Speed: 2133 MT/s
 	Configured Voltage: 1.2 V
 ```
@@ -47,7 +47,7 @@ All tests are run on the regtest environment as well.
 ### Currently known limits:
 
  - If you try to use SQL injection you will succeed. The honor system is currently in place to protect against that vulnerability.
- - From start to finish, with many thousands of blocks, it takes a while to sync up. 
+ - From start to finish, with many thousands of blocks, it takes a while to sync up.
 
 ## Placing orders and matching
 
@@ -106,7 +106,7 @@ NOTE: The benchmark requires users `tester` and `othertester` to have a bunch of
 Here are the results for combination tests. PlaceAndFill test place then immediately fill orders for multiple prices, meaning the matching loop will be somewhat busy. The PlaceBuyThenSell test place many buy orders, then place many sell orders, like an "all at once" operation. I'm still testing whether or not running matching for the price of an order immediately after the order is placed is a good idea, or any slower. The following only run the matching loop. The matching loop can be optimized as well, maybe it should be run on a time increment when the exchange isn't that busy, and run on an order increment when the exchange is busy.
 
 ```
- dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master  go test -v -benchtime=10s -bench=. 
+ dan@dan-pc  ~/Documents/Projects/opencx/cxbenchmark   master  go test -v -benchtime=10s -bench=.
 goos: linux
 goarch: amd64
 pkg: github.com/mit-dci/opencx/cxbenchmark

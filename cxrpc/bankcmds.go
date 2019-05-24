@@ -96,8 +96,6 @@ type WithdrawArgs struct {
 	Signature  []byte
 }
 
-// TODO: figure out a good way to do this serialize and signature stuff!!
-
 // WithdrawReply holds the reply for Withdraw
 type WithdrawReply struct {
 	Txid string

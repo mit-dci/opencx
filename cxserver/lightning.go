@@ -328,8 +328,6 @@ func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.L
 		// }
 	}
 
-	// TODO: once everything is revealed,
-
 	return
 }
 

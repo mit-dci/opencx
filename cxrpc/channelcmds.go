@@ -44,7 +44,6 @@ func (cl *OpencxRPC) GetLitConnection(args GetLitConnectionArgs, reply *GetLitCo
 			return
 		}
 
-		// TODO: figure out how to use the rest of the port list
 		reply.Ports[i] = uint16(port64)
 	}
 

@@ -197,7 +197,63 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 	return
 }
 
-// MatchAuction matches the auction with a specific auctionID. This is meant to be the implementation of pro-rata for just the stuff in the auction. We assume that there are orders in the auction orderbook that are ALL valid.
+/*
+ MatchAuction matches the auction with a specific auctionID. This is meant to be the implementation of pro-rata for just the stuff in the auction. We assume that there are orders in the auction orderbook that are ALL valid.
+
+To understand Pro-rata matching on a batch of orders, here is an example of an orderbook, where the "Buy" list represents all of the buy orders
+and the "Sell" list represents all of the sell orders.
+
+The pair is BTC/LTC, you "buy" BTC with LTC and "sell" BTC for LTC.
+
+	"Sell": [
+		so1: {
+			amountWant: 300 LTC,
+			amountHave: 100 BTC,
+			// price  : 0.33
+		},
+		so2: {
+			amountWant: 400 LTC,
+			amountHave: 100 BTC,
+			// price  : 0.25
+		},
+		so3: {
+			amountWant: 600 LTC,
+			amountHave: 100 BTC,
+			// price  : 0.17
+		},
+		so4: {
+			amountWant: 70 LTC,
+			amountHave: 10 BTC,
+			// price  : 0.15
+		},
+	]
+	"Buy":  [
+		bo1: {
+			amountWant: 100 BTC,
+			amountHave: 100 LTC,
+			// price  : 1.00
+		},
+		bo2: {
+			amountWant: 100 BTC,
+			amountHave: 300 LTC,
+			// price  : 0.33
+		},
+		bo3: {
+			amountWant: 100 BTC,
+			amountHave: 500 LTC,
+			// price  : 0.20
+		},
+		bo4: {
+			amountWant: 10 BTC,
+			amountHave: 50 LTC,
+			// price  : 0.20
+		},
+	]
+
+We can see here that there's no "nice" way to match these orders, the high/low prices on either end are competitive, nor are there many orders
+that are the same price. Pro-rata matching for a single price is trivial.
+
+*/
 func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
 	var tx *sql.Tx
@@ -229,11 +285,6 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
 	var book map[float64][]*match.AuctionOrder
 	book = make(map[float64][]*match.AuctionOrder)
-
-	// I hate writing matching algorithms!!!!!
-	// Alright so here's what's going to happen:
-	// uh two lists? How does crossing work with pro rata
-	// very annoying, maybe it's time to look at other examples
 
 	for _, pair := range db.pairsArray {
 

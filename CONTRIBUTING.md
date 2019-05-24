@@ -26,11 +26,12 @@ If you don't know what to work on, here are some things that generally increase 
  * Documentation for packages and other things
  * Updates to this document that may help other contributors or developers get started
  * Anything that fixes a TODO in the code
-   - If you find a TODO, feel free to create an issue for it! Sometimes they're just left there and get forgotten. Some TODOs might already be fixed, so if you create an issue and it turns out the TODO was out of date, then you probably shouldn't work on it. 
+   - If you find a TODO, feel free to create an issue for it! Sometimes they're just left there and get forgotten. Some TODOs might already be fixed, so if you create an issue and it turns out the TODO was out of date, then you probably shouldn't work on it.
 
 ## Who is the maintainer?
 
 Currently, [rjected](https://github.com/rjected) is the maintainer.
+You can contact them by [email!](dan@dancline.net)
 
 ## How can I get my pull request merged?
 

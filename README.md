@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx?status.svg)](https://godoc.org/github.com/mit-dci/opencx)
 
-OpenCX stands for Open Cryptocurrency eXchange, it's an open-source cryptocurrency exchange toolkit originally built to help understand what a decentralized exchange should be. It's meant to be modular enough so features that increase trustlessness in cryptocurrency exchange can be implemented and experimented with. Included are packages for lightning support, RPC, authentication via the NOISE protocol, and a Golang API supporting multiple forms of authentication. 
+OpenCX stands for Open Cryptocurrency eXchange, it's an open-source cryptocurrency exchange toolkit originally built to help understand what a decentralized exchange should be. It's meant to be modular enough so features that increase trustlessness in cryptocurrency exchange can be implemented and experimented with. Included are packages for lightning support, RPC, authentication via the NOISE protocol, and a Golang API supporting multiple forms of authentication.
 There is also a robust implementation of timed-release cryptography in the `crypto` package.
 
 *Pull requests and issues encouraged!*

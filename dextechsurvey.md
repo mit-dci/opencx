@@ -12,7 +12,7 @@ It's good to get a survey of the research and not-yet-implemented solutions to p
    - [x] [dFusion](https://github.com/gnosis/dex-research/tree/master/dFusion)
    - [x] [Batch Auction Optimization](https://github.com/gnosis/dex-research/tree/master/BatchAuctionOptimization)
    - [x] [Plasma Research](https://github.com/gnosis/dex-research/tree/master/PlasmaResearch)
- - [x] Vitalik Reddit: [Let's run on-chain decentralized exchanges the way we run prediction markets](https://www.reddit.com/r/ethereum/comments/55m04x/lets_run_onchain_decentralized_exchanges_the_way/) 
+ - [x] Vitalik Reddit: [Let's run on-chain decentralized exchanges the way we run prediction markets](https://www.reddit.com/r/ethereum/comments/55m04x/lets_run_onchain_decentralized_exchanges_the_way/)
  - [x] ethresear.ch ["Decentralized exchanges" category](https://ethresear.ch/c/decentralized-exchanges) as of 2/19/2019
    - [x] [Introducing DTRADE. Confoederation dapp](https://ethresear.ch/t/introducing-dtrade-confoederatio-dapp/4870)
    - [x] [Self-referential proxy exchange - does this exist?](https://ethresear.ch/t/self-referential-proxy-exchange-does-this-exist/4515)
@@ -113,7 +113,7 @@ There's a note about unidirectional channels and how publishing the most recent 
 
 Finally, there are a lot of diagrams about their implementation of limit orders and RFQs, and they also explain bidirectional RFQ's, where if you bought one asset then you should be able to also sell it back with another RFQ. It's a very dry paper but it's a very solid idea. It is still a market maker but as far as non custodial exchanges go, this is a good way to do it.
 
-Also in the arwen paper there's a mistake, on the last page it says that "Plasma [28] is a proposal for a layer-two decentralized exchange protocol on Ethereum", which is false. Plasma is a proposal for layer-two off-chain transactions on ethereum, much like lightning but for ethereum. 
+Also in the arwen paper there's a mistake, on the last page it says that "Plasma [28] is a proposal for a layer-two decentralized exchange protocol on Ethereum", which is false. Plasma is a proposal for layer-two off-chain transactions on ethereum, much like lightning but for ethereum.
 
 ## Nash / NEX
 
@@ -140,7 +140,7 @@ Here's a basic run-through of what would happen:
 This is one of the most thoughtful pieces of decentralized exchange research, since they fully recognize that the matching engine will have to be trusted, and count it as a trade-off. The efforts towards making the matching less centralized are also thoughtful.
 
 ### The Heart of Nash Article review and thoughts
-This article is essentially a tip-of-the-iceberg explanation of the Nash matching engine, which claims to be a "provably fair, distributed system". This is the selling point of their decentralized exchange technology. They openly say that they are trading off trust in matching for the huge speed bonus you get by not having extremely redundant computation, like other DEXes that have their matching not off chain. They acknowledge this by requiring that their matching engine be provably fair and deterministic, so users can verify there is nothing bad happening. 
+This article is essentially a tip-of-the-iceberg explanation of the Nash matching engine, which claims to be a "provably fair, distributed system". This is the selling point of their decentralized exchange technology. They openly say that they are trading off trust in matching for the huge speed bonus you get by not having extremely redundant computation, like other DEXes that have their matching not off chain. They acknowledge this by requiring that their matching engine be provably fair and deterministic, so users can verify there is nothing bad happening.
 
 Their matching engine is a distributed system with its own consensus algorithm.
 
@@ -181,7 +181,7 @@ Supposedly the point is that the users of the system are participating in a sort
 ### Batch auctions with uniform clearing price on plasma
 This is a post by one of the gnosis people trying to spur conversation about their papers on batch auctions for eliminating front-running and bundling liquidity. Here is the basic idea:
 
-Consider the ethereum root / plasma chain model. The plasma chain is necessary for throughput as well as slashing conditions for collusion. The first step is that a set of "bonded" participants participate in distributed key generation. If they try to reveal secret messages that were exchanged in the distributed key generation process before the auction is over, they are subject to slashing. Then, those who would like to place orders will place them within a set period of time (the auction time), and once that time period is over the orders are revealed, price is calculated, and proofs for order settlement / matching are generated. 
+Consider the ethereum root / plasma chain model. The plasma chain is necessary for throughput as well as slashing conditions for collusion. The first step is that a set of "bonded" participants participate in distributed key generation. If they try to reveal secret messages that were exchanged in the distributed key generation process before the auction is over, they are subject to slashing. Then, those who would like to place orders will place them within a set period of time (the auction time), and once that time period is over the orders are revealed, price is calculated, and proofs for order settlement / matching are generated.
 
 This is another one of those things that seems only useful on ethereum and doesn't really have much to do with decentralized exchange, other than their $1200 snark-based order matching, which is also essentially their version of a proof of work but it's on ethereum so _slashing fixes everything_.
 
@@ -199,7 +199,7 @@ This is just a complaint that DutchX isn't available in certain countries.
 Vitalik here addresses the issues of miners being able to front-run automated market maker based exchanges for profit. He proposes a way to turn that profit into the very least a griefing attack by the miner.
 
 ### Limit orders and slippage resistance in `x*y=k` market makers
-The problem discussed in this post is basically that once you start taking up a large amount of the liquidity of the automated market maker, there's a high rate per token. The OP of this post is one of the two uniswap members, and he proposes a way to use on-chain limit orders as well as the automated `x*y=k` market maker to fill orders with high volume as well as those with low volume without too much "price slippage" due to trade volume increasing rate, in the nature of `x*y=k` market makers. 
+The problem discussed in this post is basically that once you start taking up a large amount of the liquidity of the automated market maker, there's a high rate per token. The OP of this post is one of the two uniswap members, and he proposes a way to use on-chain limit orders as well as the automated `x*y=k` market maker to fill orders with high volume as well as those with low volume without too much "price slippage" due to trade volume increasing rate, in the nature of `x*y=k` market makers.
 The limit orders are not necessarily executed very quickly but they are executed without affecting the issues of placing high volume trades on automated market makers.
 
 ### Reverse Parimutuel Options on Bitcoin
@@ -214,14 +214,14 @@ Binance chain is basically bitshares with a different consensus algorithm. They 
 # Topics
 
 ## "Provably fair" matching
-Provably fair matching is mostly a topic brought up by NEX / Nash. The idea is to make sure that the matching is completely deterministic so that anyone on any computer can verify that each step is being done correctly. I'm not sure if anyone will verify it, or if anyone will be able to, considering the whole point of an off chain matching engine is to remove computing redundantly, but it's an interesting idea. 
+Provably fair matching is mostly a topic brought up by NEX / Nash. The idea is to make sure that the matching is completely deterministic so that anyone on any computer can verify that each step is being done correctly. I'm not sure if anyone will verify it, or if anyone will be able to, considering the whole point of an off chain matching engine is to remove computing redundantly, but it's an interesting idea.
 
-The actual question of "fairness" seems like a topic that is up to interpretation. Many believe that the price-time priority matching algorithm is the only fair algorithm. I'm not sure whether this is the case. 
-With price-time priority, there are issues with front-running and race conditions. There would be similar issues with bitcoin transactions if it didn't use transaction fees as incentive for miners to pick up transactions. With large distributed networks it would be difficult to determine "true" order of transactions anyways, since there would be conflicting opinions on which came first depending on how the transaction were propagated. 
+The actual question of "fairness" seems like a topic that is up to interpretation. Many believe that the price-time priority matching algorithm is the only fair algorithm. I'm not sure whether this is the case.
+With price-time priority, there are issues with front-running and race conditions. There would be similar issues with bitcoin transactions if it didn't use transaction fees as incentive for miners to pick up transactions. With large distributed networks it would be difficult to determine "true" order of transactions anyways, since there would be conflicting opinions on which came first depending on how the transaction were propagated.
 
 Maybe price-fee priority makes the problem of decentralized matching much simpler, by removing a constraint that was put there in order to enforce undefined "fairness" (time).
 
-One other issue with "provable fairness" is the issue that if you were to submit a log of all inputs, the current state, and a program to allow the user to verify that the inputs and program lead to the current state, then the user would take an equal amount of time to verify that the computation happened correctly. This isn't exactly feasible for most, since if we were to do this for Google then it's not like we all have servers that match up to Google's. 
+One other issue with "provable fairness" is the issue that if you were to submit a log of all inputs, the current state, and a program to allow the user to verify that the inputs and program lead to the current state, then the user would take an equal amount of time to verify that the computation happened correctly. This isn't exactly feasible for most, since if we were to do this for Google then it's not like we all have servers that match up to Google's.
 
 Also this means if you did this for a program that doesn't stop, you essentially have to be running a clone of the system that the prover is running in order to keep up. So it would be better if we could verify that an exchange did some algorithm correctly in less time than it took the algorithm to run, hopefully constant or something with better asymptotic performance.
 
@@ -255,8 +255,6 @@ Some, like Nash, choose to settle trades by having the matching engine simultane
 ## Cryptographic Securities Exchanges
 
 ## Deconstructing Decentralized Exchanges
-TODO: summary of essay and general opinion
-
 The essay starts out by defining the architecture of a decentralized exchange, however it doesn't get one thing completely right. They state,
 > A decentralized exchange application builds on top of a decentralized exchange protocol, and adds an on-chain or off-chain order book database and a graphic user interface (GUI) and/or APIs so that the information is easily accessible.
 
@@ -321,8 +319,8 @@ They finally go through the various use cases for decentralized exchanges such a
 6. Trust Level
 
 The trust level is something very relevant, and they highlight 3 main things that need to be trusted in order for a user to trust a protocol:
-> 1. the decentralized exchange application creator and operator to perform activities such as hosting and publishing order books or performing order matching, 
-> 2. the underlying decentralized exchange protocol, including relevant smart contracts, and 
+> 1. the decentralized exchange application creator and operator to perform activities such as hosting and publishing order books or performing order matching,
+> 2. the underlying decentralized exchange protocol, including relevant smart contracts, and
 > 3. the security, miners, and validators of the underlying distributed ledger.
 
 They highlight the various reasons why users would sacrifice trust or place more importance on one or more of these three, and conclude the essay.
@@ -334,7 +332,7 @@ This also exposes the total liabilities of the exchange. The more proofs are mad
 
 Provisions proposes a zero knowledge proof based solution to proof of solvency. One issue with doing this is that multiple exchanges could possibly collude to create a valid proof of solvency.
 However, they provide an extension to provisions which is able to prove that one exchange is not sharing addresses with another exchange running Provisions by also providing the result of a deterministic function on the private key. This does reveal the number of addresses (or private keys) the exchange controls though.
-There are three protocols in Provisions: 
+There are three protocols in Provisions:
  1. Proof of assets
  2. Proof of liabilities
  3. Proof of solvency
@@ -348,7 +346,7 @@ Cryptographic primitives in Provisions:
  3. Non-interactive Zero-Knowledge Proofs (NIZKP)
    - The paper says that they can be adapted from basic sigma protocols (like schnorr proof of knowledge of discrete log).
    - Any alternative sigma protocol to NIZKP compilation is sufficient (so just fiat-shamir whatever sigma protocol with knowledge soundness).
-   - Easiest proof of discrete log for me is the fiat-shamir'ed schnorr: 
+   - Easiest proof of discrete log for me is the fiat-shamir'ed schnorr:
      - `s = k - h(R,m)a <=> sG = kG - h(R,m)aG <=> sG = R - h(R,m)A`
 
 Assumptions in Provisions:
@@ -444,7 +442,7 @@ They explain proof of stake, and compare it to proof of work, as justification w
 18 pages in, they start to explain Delayed Proof of Work.
 dPoW does not use the Chain with the most work for all blocks. Komodo has a stake-weighted vote to elect 64 separate notary nodes who notarize blocks.
 The system requires notary nodes to generate a hash of a block hash on the Komodo network, the block height of that block on the Komodo network, and the letters "KMD".
-This gets published to the Bitcoin blockchain (or any other with Proof of Work) using an `OP_RETURN`. 
+This gets published to the Bitcoin blockchain (or any other with Proof of Work) using an `OP_RETURN`.
 This hash will get concatenated with the txid on whatever chain it's published on, and then that will be submitted with a notarization transaction to the Komodo chain.
 
 Every 65 blocks, a notary node gets the chance to mine the Komodo chain on "easy mode" (which I think is 10 zeros at the beginning of a block). Each notary is on its own cycle, so for 64 blocks notary nodes will be the only miners. Non notary nodes can theoretically mine during this period but probably won't because easy mode is so easy.
@@ -455,7 +453,7 @@ At least 13 notaries are required to post a notarization transaction on the main
 
 In Komodo, there are also asset chains, but the notary nodes only mine the main chain. Asset chains are notarized to the main KMD chain in the same way the KMD chain is notarized to a chain like bitcoin.
 
-It also apparently costs money (about 180BTC or $1,500,000) to run all the notary nodes. There are fees and payments to notary nodes if you would like to create an asset chain. This is about 333 KMD and 333 of the asset coin. 
+It also apparently costs money (about 180BTC or $1,500,000) to run all the notary nodes. There are fees and payments to notary nodes if you would like to create an asset chain. This is about 333 KMD and 333 of the asset coin.
 Notary nodes make their profit from mining the KMD chain.
 
 ### The Decentralized Initial Coin Offering
@@ -517,7 +515,7 @@ Then the smart contract verifies that the signature originated from the order ma
 IDEX uses smart contracts for settlement but stores balances, the orderbook, transaction queue, and matching engine on IDEX servers. The user deposits into a smart contract and places an order using that smart contract. The IDEX server is authenticated to execute signed orders on the smart contract, and when it matches orders it calls a smart contract method to settle two smart contracts. Balances are updated and users can withdraw if they'd like.
 
 ## Uniswap
-Uniswap is an implementation of an `x*y=k` market maker, where there is some constant `k`, and `x` is an amount of one asset stored in the smart contract, and `y` is an amount of another asset stored in the smart contract. Suppose I created a `x*y=k` market maker, specified the constant to be `100`, and funded it with 10 BTC as `x` and 10 LTC as `y`. 
+Uniswap is an implementation of an `x*y=k` market maker, where there is some constant `k`, and `x` is an amount of one asset stored in the smart contract, and `y` is an amount of another asset stored in the smart contract. Suppose I created a `x*y=k` market maker, specified the constant to be `100`, and funded it with 10 BTC as `x` and 10 LTC as `y`.
 
 The price is 1 BTC/LTC.
 
