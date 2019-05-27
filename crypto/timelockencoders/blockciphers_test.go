@@ -83,9 +83,15 @@ func TestRSWRC5ManyN8_T100000(t *testing.T) {
 	return
 }
 
-// TestRSWRC5ManyN8_T5000000 tests 8 concurrent orders with a 5000000 time to solve
-func TestRSWRC5ManyN8_T5000000(t *testing.T) {
-	solveRSWRC5Concurrent(uint64(5000000), uint64(8), t)
+// TestRSWRC5ManyN8_T1000000 tests 8 concurrent orders with a 1000000 time to solve
+func TestRSWRC5ManyN8_T1000000(t *testing.T) {
+	solveRSWRC5Concurrent(uint64(1000000), uint64(8), t)
+	return
+}
+
+// BenchmarkRSWRC5ManyN8_T5000000 tests 8 concurrent orders with a 5000000 time to solve
+func BenchmarkRSWRC5ManyN8_T5000000(b *testing.B) {
+	solveRSWRC5ConcurrentBench(uint64(5000000), uint64(8), b)
 	return
 }
 
