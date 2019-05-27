@@ -4,7 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx?status.svg)](https://godoc.org/github.com/mit-dci/opencx)
 
-Cryptocurrency exchanges are some of the largest businesses in the cryptocurrency space, and are often viewed as "honeypots" for hackers and other types of criminals.
+Cryptocurrency exchanges are some of the largest businesses in the cryptocurrency space, and their reserves are often viewed as "honeypots" of cryptocurrencies.
 Because of this, cryptocurrency exchanges have been a hotbed of crime in the form of hacks, front-running, wash trading, fake orderbooks, and much more.
 In order for cryptocurrency to be successful, we need safe, trustworthy ways to exchange cryptocurrencies, without fear that coins will be stolen, or trades executed unfairly.
 Additionally, the vast majority of exchange software is closed-source, and exchanges have historically not implemented technological upgrades that would substantially decrease risk for users.
