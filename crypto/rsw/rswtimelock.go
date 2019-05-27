@@ -19,7 +19,7 @@ import (
 
 // TimelockRSW generates the puzzle that can then only be solved with repeated squarings
 type TimelockRSW struct {
-	rsaKeyBits int
+	rsaKeyBits uint64
 	key        []byte
 	p          *big.Int
 	q          *big.Int
@@ -39,12 +39,12 @@ type PuzzleRSW struct {
 // New creates a new TimelockRSW with p and q generated as per crypto/rsa, and an input a as well as number of bits for the RSA key size.
 // The key is also set here
 // The number of bits is so we can figure out how big we want p and q to be.
-func New(key []byte, a int64, rsaKeyBits int) (timelock crypto.Timelock, err error) {
+func New(key []byte, a uint64, rsaKeyBits uint64) (timelock crypto.Timelock, err error) {
 	tl := new(TimelockRSW)
 	tl.rsaKeyBits = rsaKeyBits
 	// generate primes p and q
 	var rsaPrivKey *rsa.PrivateKey
-	if rsaPrivKey, err = rsa.GenerateMultiPrimeKey(rand.Reader, 2, tl.rsaKeyBits); err != nil {
+	if rsaPrivKey, err = rsa.GenerateMultiPrimeKey(rand.Reader, 2, int(tl.rsaKeyBits)); err != nil {
 		err = fmt.Errorf("Could not generate primes for RSA: %s", err)
 		return
 	}
@@ -55,7 +55,7 @@ func New(key []byte, a int64, rsaKeyBits int) (timelock crypto.Timelock, err err
 	// If we ever want to just switch to gmp for all calculations these two lines will fix all of the issues
 	tl.p = new(big.Int).SetBytes(rsaPrivKey.Primes[0].Bytes())
 	tl.q = new(big.Int).SetBytes(rsaPrivKey.Primes[1].Bytes())
-	tl.a = big.NewInt(a)
+	tl.a = new(big.Int).SetUint64(a)
 	tl.key = key
 
 	timelock = tl
@@ -63,8 +63,8 @@ func New(key []byte, a int64, rsaKeyBits int) (timelock crypto.Timelock, err err
 }
 
 // New2048 creates a new TimelockRSW with p and q generated as per crypto/rsa, and an input a. This generates according to a fixed RSA key size (2048 bits).
-func New2048(key []byte, a int64) (tl crypto.Timelock, err error) {
-	return New(key, a, 2048)
+func New2048(key []byte, a uint64) (tl crypto.Timelock, err error) {
+	return New(key, a, uint64(2048))
 }
 
 //New2048A2 is the same as New2048 but we use a base of 2. It's called A2 because A=2 I guess
