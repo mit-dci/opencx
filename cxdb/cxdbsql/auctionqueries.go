@@ -206,52 +206,59 @@ and the "Sell" list represents all of the sell orders.
 The pair is BTC/LTC, you "buy" BTC with LTC and "sell" BTC for LTC.
 
 	"Sell": [
-		so1: {
-			amountWant: 300 LTC,
-			amountHave: 100 BTC,
-			// price  : 0.33
-		},
-		so2: {
-			amountWant: 400 LTC,
-			amountHave: 100 BTC,
-			// price  : 0.25
+		so4: {
+			amountWant: 70 LTC,
+			amountHave: 10 BTC,
+			// price  : 0.15
 		},
 		so3: {
 			amountWant: 600 LTC,
 			amountHave: 100 BTC,
 			// price  : 0.17
 		},
-		so4: {
-			amountWant: 70 LTC,
-			amountHave: 10 BTC,
-			// price  : 0.15
+		so2: {
+			amountWant: 400 LTC,
+			amountHave: 100 BTC,
+			// price  : 0.25
+		},
+		so1: {
+			amountWant: 300 LTC,
+			amountHave: 100 BTC,
+			// price  : 0.33
 		},
 	]
 	"Buy":  [
-		bo1: {
-			amountWant: 100 BTC,
-			amountHave: 100 LTC,
-			// price  : 1.00
-		},
-		bo2: {
-			amountWant: 100 BTC,
-			amountHave: 300 LTC,
-			// price  : 0.33
+		bo4: {
+			amountWant: 10 BTC,
+			amountHave: 50 LTC,
+			// price  : 0.20
 		},
 		bo3: {
 			amountWant: 100 BTC,
 			amountHave: 500 LTC,
 			// price  : 0.20
 		},
-		bo4: {
-			amountWant: 10 BTC,
-			amountHave: 50 LTC,
-			// price  : 0.20
+		bo2: {
+			amountWant: 100 BTC,
+			amountHave: 300 LTC,
+			// price  : 0.33
+		},
+		bo1: {
+			amountWant: 100 BTC,
+			amountHave: 100 LTC,
+			// price  : 1.00
 		},
 	]
 
 We can see here that there's no "nice" way to match these orders, the high/low prices on either end are competitive, nor are there many orders
 that are the same price. Pro-rata matching for a single price is trivial.
+
+Alright so we're essentially looking for the orders that will match, meaning we want to create the ordering based on want/have, depending on the price
+
+We start iteratively from the beginning of "Buy" and end of "Sell".
+
+so1 provides 100 BTC, and bo4 is the current order on the buy side.
+100 * (portion of 0.20 orders that bo4 provides = 0.1666666666...) > bo4's amountWant, so we match the whole thing, reducing so1 by 10 BTC and 30 LTC. 20 LTC is now left in the LTC pot, since we're not done matching 0.2 orders.
 
 */
 func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
