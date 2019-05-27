@@ -51,10 +51,10 @@ func ocxSetup(conf *ocxConfig) (help bool) {
 	// create home directory
 	_, err := os.Stat(conf.OcxHomeDir)
 	if err != nil {
-		logging.Errorf("Error while creating a directory")
+		logging.Infof("Creating a home directory at %s", conf.OcxHomeDir)
 	}
 	if os.IsNotExist(err) {
-		os.Mkdir(conf.OcxHomeDir, 0700)
+		os.MkdirAll(conf.OcxHomeDir, 0700)
 		logging.Infof("Creating a new config file")
 		err := createDefaultConfigFile(conf.OcxHomeDir)
 		if err != nil {

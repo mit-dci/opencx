@@ -38,7 +38,7 @@ func createDefaultConfigFile(destinationPath string) error {
 	defer dest.Close()
 
 	writer := bufio.NewWriter(dest)
-	defaultArgs := []byte("reg=y\nlitereg=y\nrtvtc=y")
+	defaultArgs := []byte("tn3=y\ntvtc=y")
 	_, err = writer.Write(defaultArgs)
 	if err != nil {
 		return err
@@ -65,10 +65,10 @@ func opencxSetup(conf *fredConfig) *[32]byte {
 	// create home directory
 	_, err := os.Stat(conf.FredHomeDir)
 	if err != nil {
-		logging.Errorf("Error while creating a directory")
+		logging.Infof("Creating a home directory at %s", conf.FredHomeDir)
 	}
 	if os.IsNotExist(err) {
-		os.Mkdir(conf.FredHomeDir, 0700)
+		os.MkdirAll(conf.FredHomeDir, 0700)
 		logging.Infof("Creating a new config file")
 		err := createDefaultConfigFile(conf.FredHomeDir)
 		if err != nil {
