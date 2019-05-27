@@ -4,13 +4,29 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx?status.svg)](https://godoc.org/github.com/mit-dci/opencx)
 
-OpenCX stands for Open Cryptocurrency eXchange, it's an open-source cryptocurrency exchange toolkit originally built to help understand what a decentralized exchange should be. It's meant to be modular enough so features that increase trustlessness in cryptocurrency exchange can be implemented and experimented with. Included are packages for lightning support, RPC, authentication via the NOISE protocol, and a Golang API supporting multiple forms of authentication.
-There is also a robust implementation of timed-release cryptography in the `crypto` package.
+Cryptocurrency exchanges are some of the largest businesses in the cryptocurrency space, and are often viewed as "honeypots" for hackers and other types of criminals.
+Because of this, cryptocurrency exchanges have been a hotbed of crime in the form of hacks, front-running, wash trading, fake orderbooks, and much more.
+In order for cryptocurrency to be successful, we need safe, trustworthy ways to exchange cryptocurrencies, without fear that coins will be stolen, or trades executed unfairly.
+Additionally, the vast majority of exchange software is closed-source, and exchanges have historically not implemented technological upgrades that would substantially decrease risk for users.
+OpenCX hopes to solve this problem by making it trivially easy to run a secure, scalable cryptocurrency exchange which implements many of these features, including:
+
+  - Layer two compatibility
+  - Non-custodial exchange
+  - Anti front-running
+  - Public orderbook auditability
+  - *More to come...*
+
+Additionally, all of the components of OpenCX are designed to be swappable, secure, and scalable.
+The goal is to fit those requirements well enough to be competitive with modern cryptocurrency exchanges, while keeping high quality software.
 
 *Pull requests and issues encouraged!*
 
+# Contributing
+
+Please see the [contributing](./CONTRIBUTING.md) file to get started with contributing!
+
 # Requirements
- - Go 1.11+
+ - Go 1.12+
  - A MySQL Database (not needed for client)
 
 # Demo
@@ -51,10 +67,6 @@ go build ./cmd/ocx/...
 ```
 
 You can now issue any of the commands in the cxrpc README.md file.
-
-# Contributing
-
-Please see the [contributing](./CONTRIBUTING.md) file to get started with contributing!
 
 # Configuration
 There are configuration options (both command line and .conf) for the client and the server, and by default home folders for these files will be created at `~/.opencx/opencxd/` and `~/.opencx/ocx/` respectively. You can decide whether or not to use the NOISE protocol for authentication, which hostnames and ports to use for connecting to certain clients, which coins you would like to support, and whether or not to support lightning.
