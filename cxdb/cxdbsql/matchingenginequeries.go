@@ -7,8 +7,6 @@ import (
 
 	"github.com/mit-dci/lit/crypto/koblitz"
 
-	"github.com/mit-dci/opencx/util"
-
 	"github.com/mit-dci/lit/coinparam"
 
 	"github.com/mit-dci/opencx/logging"
@@ -200,25 +198,12 @@ func shouldMatch(buyPrices []float64, sellPrices []float64) bool {
 // RunMatchingCrossedPricesWithinTransaction runs the matching algorithm assuming the bestBuyPrice is actually the best buy price and the bestSellPrice is actually the best sell price
 func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBuyPrice float64, bestSellPrice float64, tx *sql.Tx) (err error) {
 
-	// get coinparam for assetwant
-	var assetWantCoinType *coinparam.Params
-	if assetWantCoinType, err = util.GetParamFromName(pair.AssetWant.String()); err != nil {
-		err = fmt.Errorf("Tried to run matching for asset that doesn't have a coinType. Nothing will be compatible")
-		return
-	}
-
-	// get coinparam for assetwant
-	var assetHaveCoinType *coinparam.Params
-	if assetHaveCoinType, err = util.GetParamFromName(pair.AssetHave.String()); err != nil {
-		err = fmt.Errorf("Tried to run matching for asset that doesn't have a coinType. Nothing will be compatible")
-		return
-	}
-
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("Error while running matching for price within transaction, this might be bad: \n%s", err)
 			return
 		}
+		return
 	}()
 
 	// debug
@@ -301,46 +286,22 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 			}
 			currBuyOrder.AmountHave -= currSellOrder.AmountWant
 
-			// update order with new amounts
-			if err = db.UpdateOrderAmountsWithinTransaction(currBuyOrder, pair, tx); err != nil {
-				return
-			}
-			// delete sell order
-			if err = db.DeleteOrderWithinTransaction(currSellOrder, pair, tx); err != nil {
+			// // update order with new amounts
+			// if err = db.UpdateOrderAmountsWithinTransaction(currBuyOrder, pair, tx); err != nil {
+			// 	return
+			// }
+			// // delete sell order
+			// if err = db.DeleteOrderWithinTransaction(currSellOrder, pair, tx); err != nil {
+			// 	return
+			// }
+
+			if err = db.fillOrdersByAmountsTx(currBuyOrder, currSellOrder, prevAmountHave, prevAmountWant, tx); err != nil {
+				err = fmt.Errorf("Error filling orders for equal amounts in matching: %s", err)
 				return
 			}
 
+			// logging.Infof("deleted orders")
 			sellOrders = sellOrders[1:]
-
-			// use the balance schema because we're ending with balance transactions
-			if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
-				return
-			}
-
-			var buyOrderPubkey *koblitz.PublicKey
-			if buyOrderPubkey, err = koblitz.ParsePubKey(currBuyOrder.Pubkey[:], koblitz.S256()); err != nil {
-				return
-			}
-
-			var sellOrderPubkey *koblitz.PublicKey
-			if sellOrderPubkey, err = koblitz.ParsePubKey(currSellOrder.Pubkey[:], koblitz.S256()); err != nil {
-				return
-			}
-
-			// credit buyOrder client with sellOrder amountHave
-			if err = db.AddToBalanceWithinTransaction(buyOrderPubkey, prevAmountHave, tx, assetWantCoinType); err != nil {
-				return
-			}
-			// credit sellOrder client with buyorder amountWant
-			if err = db.AddToBalanceWithinTransaction(sellOrderPubkey, prevAmountWant, tx, assetHaveCoinType); err != nil {
-				return
-			}
-
-			// logging.Infof("done all greater")
-			// making sure we're going back in the order db, we're going to be making lots of order queries
-			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
-				return
-			}
 		} else if currBuyOrder.AmountHave < currSellOrder.AmountWant {
 
 			prevAmountHave := currBuyOrder.AmountHave
@@ -355,96 +316,118 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 			}
 			currSellOrder.AmountWant -= currBuyOrder.AmountHave
 
-			// logging.Infof("less")
-			// update order with new amounts
-			if err = db.UpdateOrderAmountsWithinTransaction(currSellOrder, pair, tx); err != nil {
-				return
-			}
-			// delete buy order
-			if err = db.DeleteOrderWithinTransaction(currBuyOrder, pair, tx); err != nil {
+			// // logging.Infof("less")
+			// // update order with new amounts
+			// if err = db.UpdateOrderAmountsWithinTransaction(currSellOrder, pair, tx); err != nil {
+			// 	return
+			// }
+			// // delete buy order
+			// if err = db.DeleteOrderWithinTransaction(currBuyOrder, pair, tx); err != nil {
+			// 	return
+			// }
+
+			if err = db.fillOrdersByAmountsTx(currBuyOrder, currSellOrder, prevAmountWant, prevAmountHave, tx); err != nil {
+				err = fmt.Errorf("Error filling orders for equal amounts in matching: %s", err)
 				return
 			}
 
-			// logging.Infof("done delete")
+			// logging.Infof("deleted orders")
 			buyOrders = buyOrders[1:]
-			// use the balance schema because we're ending with balance transactions
-			if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
-				return
-			}
-
-			var buyOrderPubkey *koblitz.PublicKey
-			if buyOrderPubkey, err = koblitz.ParsePubKey(currBuyOrder.Pubkey[:], koblitz.S256()); err != nil {
-				return
-			}
-
-			var sellOrderPubkey *koblitz.PublicKey
-			if sellOrderPubkey, err = koblitz.ParsePubKey(currSellOrder.Pubkey[:], koblitz.S256()); err != nil {
-				return
-			}
-
-			// credit buyOrder client with sellOrder amountHave
-			if err = db.AddToBalanceWithinTransaction(buyOrderPubkey, prevAmountWant, tx, assetWantCoinType); err != nil {
-				return
-			}
-			// credit sellOrder client with buyorder amountWant
-			if err = db.AddToBalanceWithinTransaction(sellOrderPubkey, prevAmountHave, tx, assetHaveCoinType); err != nil {
-				return
-			}
-
-			// logging.Infof("done lesser")
-			// making sure we're going back in the order db, we're going to be making lots of order queries
-			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
-				return
-			}
 		} else if currBuyOrder.AmountHave == currSellOrder.AmountWant {
 
-			// this is if they can perfectly fill each others orders
-
-			// logging.Infof("Order amounts are equal")
-			// delete buy order
-			if err = db.DeleteOrderWithinTransaction(currBuyOrder, pair, tx); err != nil {
-				return
-			}
-			// delete sell order
-			if err = db.DeleteOrderWithinTransaction(currSellOrder, pair, tx); err != nil {
+			// Fill both orders
+			if err = db.fillOrdersByAmountsTx(currBuyOrder, currSellOrder, currBuyOrder.AmountWant, currBuyOrder.AmountHave, tx); err != nil {
+				err = fmt.Errorf("Error filling orders for equal amounts in matching: %s", err)
 				return
 			}
 
 			// logging.Infof("deleted orders")
 			sellOrders = sellOrders[1:]
 			buyOrders = buyOrders[1:]
-
-			// use the balance schema because we're ending with balance transactions
-			if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
-				return
-			}
-
-			var buyOrderPubkey *koblitz.PublicKey
-			if buyOrderPubkey, err = koblitz.ParsePubKey(currBuyOrder.Pubkey[:], koblitz.S256()); err != nil {
-				return
-			}
-
-			var sellOrderPubkey *koblitz.PublicKey
-			if sellOrderPubkey, err = koblitz.ParsePubKey(currSellOrder.Pubkey[:], koblitz.S256()); err != nil {
-				return
-			}
-
-			// credit buyOrder client with sellOrder amountHave
-			if err = db.AddToBalanceWithinTransaction(buyOrderPubkey, currBuyOrder.AmountWant, tx, assetWantCoinType); err != nil {
-				return
-			}
-			// credit sellOrder client with buyorder amountWant
-			if err = db.AddToBalanceWithinTransaction(sellOrderPubkey, currBuyOrder.AmountHave, tx, assetHaveCoinType); err != nil {
-				return
-			}
-
-			// logging.Infof("done update")
-
-			// making sure we're going back in the order db, we're going to be making lots of order queries
-			if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
-				return
-			}
 		}
+	}
+
+	return
+}
+
+func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match.LimitOrder, buyFillAmount uint64, sellFillAmount uint64, tx *sql.Tx) (err error) {
+
+	// If the two orders are on different trading pairs we can't fill them
+	if buyOrder.TradingPair != sellOrder.TradingPair {
+		err = fmt.Errorf("Buy order and Sell order are not trading on the same pair, invalid fill: %s", err)
+		return
+	}
+
+	// Since we will have errored out if they are not the same, set the pair to the buy order
+	pair := buyOrder.TradingPair
+
+	// get coinparam for assetwant
+	var assetWantCoinType *coinparam.Params
+	if assetWantCoinType, err = pair.AssetWant.CoinParamFromAsset(); err != nil {
+		err = fmt.Errorf("Tried to run matching for asset that doesn't have a coinType. Nothing will be compatible")
+		return
+	}
+
+	// get coinparam for assetwant
+	var assetHaveCoinType *coinparam.Params
+	if assetHaveCoinType, err = pair.AssetHave.CoinParamFromAsset(); err != nil {
+		err = fmt.Errorf("Tried to run matching for asset that doesn't have a coinType. Nothing will be compatible")
+		return
+	}
+
+	// First make sure we delete or update orders accordingly
+	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+		return
+	}
+
+	// If we're trying to fill less than the order wants, then we only update the order. Otherwise, it will be filled and we delete it
+	if buyFillAmount < buyOrder.AmountWant {
+		// update order with new amounts
+		if err = db.UpdateOrderAmountsWithinTransaction(sellOrder, &pair, tx); err != nil {
+			return
+		}
+	} else {
+		// update order with new amounts
+		if err = db.DeleteOrderWithinTransaction(sellOrder, &pair, tx); err != nil {
+			return
+		}
+	}
+
+	// If we're trying to fill less than the order wants, then we only update the order. Otherwise, it will be filled and we delete it
+	if sellFillAmount < sellOrder.AmountWant {
+		// update order with new amounts
+		if err = db.UpdateOrderAmountsWithinTransaction(buyOrder, &pair, tx); err != nil {
+			return
+		}
+	} else {
+		// update order with new amounts
+		if err = db.DeleteOrderWithinTransaction(buyOrder, &pair, tx); err != nil {
+			return
+		}
+	}
+
+	// use the balance schema because we're ending with balance transactions
+	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+		return
+	}
+
+	var buyOrderPubkey *koblitz.PublicKey
+	if buyOrderPubkey, err = koblitz.ParsePubKey(buyOrder.Pubkey[:], koblitz.S256()); err != nil {
+		return
+	}
+
+	var sellOrderPubkey *koblitz.PublicKey
+	if sellOrderPubkey, err = koblitz.ParsePubKey(sellOrder.Pubkey[:], koblitz.S256()); err != nil {
+		return
+	}
+
+	// credit buyOrder client with sellOrder amountHave
+	if err = db.AddToBalanceWithinTransaction(buyOrderPubkey, buyFillAmount, tx, assetWantCoinType); err != nil {
+		return
+	}
+	// credit sellOrder client with buyorder amountWant
+	if err = db.AddToBalanceWithinTransaction(sellOrderPubkey, sellFillAmount, tx, assetHaveCoinType); err != nil {
+		return
 	}
 
 	return

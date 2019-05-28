@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"math"
 
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
@@ -198,7 +199,8 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 }
 
 /*
-MatchAuction matches the auction with a specific auctionID. This is meant to be the implementation of pro-rata for just the stuff in the auction. We assume that there are orders in the auction orderbook that are ALL valid.
+** This is a note on a matching algorithm that may be more fair than a single clearing price for batch auctions. **
+** This also prevents price slippage **
 
 To understand Pro-rata matching on a batch of orders, here is an example of an orderbook, where the "Buy" list represents all of the buy orders
 and the "Sell" list represents all of the sell orders.
@@ -300,6 +302,8 @@ If we have orders and no funds, we drop the orders onto the orderbook and match 
 A redistribution strategy just means an answer to "What are we going to do with all of these funds?". It could mean the exchange takes them, or split equally among the matched, or split pro-rata among the matched, who knows.
 
 */
+
+// MatchAuction calculates a single clearing price to execute orders at, and executes at that price.
 func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
 	var tx *sql.Tx
@@ -319,54 +323,142 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
 	// Do this for every pair we have
 
+	// Run the matching algorithm for every pair in the orderbook
+	for _, pair := range db.pairsArray {
+		if err = db.clearingMatchingAlgorithm(auctionID, pair, tx); err != nil {
+			err = fmt.Errorf("Error running clearing matching algorithm for pair %s: %s", pair, err)
+			return
+		}
+	}
+
+	return
+}
+
+// clearingMatchingAlgorithm runs the matching algorithm based on clearing price for a single batch pair
+func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (err error) {
+
 	// We define the rows, etc here so we don't waste a bunch of stack space
 	// ughhhh scanning is so tedious
 	var rows *sql.Rows
 
+	// All of the things we need to serialize into then copy from for the current order
 	var pubkeyBytes []byte
 	var auctionIDBytes []byte
 	var nonceBytes []byte
 
+	// order to be scanned into
 	var thisOrder *match.AuctionOrder
 
+	// map representation of orderbook
 	var book map[float64][]*match.AuctionOrder
 	book = make(map[float64][]*match.AuctionOrder)
 
-	for _, pair := range db.pairsArray {
+	// list of all orders
+	var allOrders []*match.AuctionOrder
 
-		// So we get the orders, and they are supposed to be all valid.
-		queryAuctionOrders := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce FROM %s WHERE auctionID='%x';", pair, auctionID)
-		if rows, err = tx.Query(queryAuctionOrders); err != nil {
-			err = fmt.Errorf("Error querying for orders in auction: %s", err)
+	// So we get the orders, and they are supposed to be all valid.
+	queryAuctionOrders := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce FROM %s WHERE auctionID='%x';", pair, auctionID)
+	if rows, err = tx.Query(queryAuctionOrders); err != nil {
+		err = fmt.Errorf("Error querying for orders in auction: %s", err)
+		return
+	}
+
+	for rows.Next() {
+		thisOrder = new(match.AuctionOrder)
+		if err = rows.Scan(&pubkeyBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes); err != nil {
+			err = fmt.Errorf("Error scanning row to bytes: %s", err)
 			return
 		}
 
-		for rows.Next() {
-			thisOrder = new(match.AuctionOrder)
-			if err = rows.Scan(&pubkeyBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes); err != nil {
-				err = fmt.Errorf("Error scanning row to bytes: %s", err)
+		// Now we do the dumb decoding thing
+		for _, byteArray := range [][]byte{pubkeyBytes, auctionIDBytes, nonceBytes} {
+			// just for everything in this list of things we want to decode from weird words to real bytes
+			if _, err = hex.Decode(byteArray, byteArray); err != nil {
+				err = fmt.Errorf("Error decoding bytes for auction matching: %s", err)
 				return
 			}
+		}
 
-			// Now we do the dumb decoding thing
-			for _, byteArray := range [][]byte{pubkeyBytes, auctionIDBytes, nonceBytes} {
-				// just for everything in this list of things we want to decode from weird words to real bytes
-				if _, err = hex.Decode(byteArray, byteArray); err != nil {
-					err = fmt.Errorf("Error decoding bytes for auction matching: %s", err)
-					return
-				}
-			}
+		// Now we put the data into the auction order
+		copy(thisOrder.Pubkey[:], pubkeyBytes)
+		copy(thisOrder.AuctionID[:], auctionIDBytes)
+		copy(thisOrder.Nonce[:], nonceBytes)
 
-			// Now we put the data into the auction order
-			copy(thisOrder.Pubkey[:], pubkeyBytes)
-			copy(thisOrder.AuctionID[:], auctionIDBytes)
-			copy(thisOrder.Nonce[:], nonceBytes)
+		// okay cool now add it to the orderbook
+		book[thisOrder.OrderbookPrice] = append(book[thisOrder.OrderbookPrice], thisOrder)
+		// now add it to the list of all orders
+		allOrders = append(allOrders, thisOrder)
 
-			// okay cool now add it to the list
-			book[thisOrder.OrderbookPrice] = append(book[thisOrder.OrderbookPrice], thisOrder)
+	}
+
+	// We can now calculate a clearing price:
+	var clearingPrice float64
+	if clearingPrice, err = calculateClearingPrice(book); err != nil {
+		err = fmt.Errorf("Error calculating clearing price in clearing match algorithm: %s", err)
+		return
+	}
+
+	// go through all orders and figure out which ones to match
+	for _, order := range allOrders {
+		if order.IsBuySide() && order.OrderbookPrice > clearingPrice {
+			// Fill the buy order at the clearing price -- TODO
+		} else if order.IsSellSide() && order.OrderbookPrice < clearingPrice {
+			// Fill the sell order at the clearing price -- TODO
 		}
 
 	}
+
+	return
+}
+
+// calculateClearingPrice calculates the clearing price for orders based on their intersections.
+// In the future the error will be used potentially since the divide operation at the end might be real bad.
+func calculateClearingPrice(book map[float64][]*match.AuctionOrder) (clearingPrice float64, err error) {
+
+	// sellClearAmount and buyClearAmount are uint64's, and technically should be amounts of tokens (Issue #22).
+	var sellClearAmount uint64
+	var buyClearAmount uint64
+
+	// price that is the lowest sell price so far
+	var lowestIntersectingPrice float64
+	lowestIntersectingPrice = math.MaxFloat64
+
+	// price that is the highest buy price so far
+	var highestIntersectingPrice float64
+	highestIntersectingPrice = 0
+
+	// Now go through every price in the orderbook, finding the lowest sell order and highest buy order
+	for pr, orderList := range book {
+		for _, order := range orderList {
+			// make sure that we keep track of the highest buy order price
+			if order.IsBuySide() {
+				if pr > highestIntersectingPrice {
+					highestIntersectingPrice = pr
+				}
+				// make sure we keep track of the lowest sell order price
+			} else if order.IsSellSide() {
+				if pr < lowestIntersectingPrice {
+					lowestIntersectingPrice = pr
+				}
+			}
+		}
+	}
+
+	// now that we have the prices, we go through the book again to calculate the clearing price
+	for pr, orderList := range book {
+		// if there is an intersecting price, calculate clearing amounts for the price.
+		for _, order := range orderList {
+			// for all intersecting prices in the orderbook, we add the amounts
+			if order.IsBuySide() && pr > lowestIntersectingPrice {
+				buyClearAmount += order.AmountHave
+			} else if order.IsSellSide() && pr < highestIntersectingPrice {
+				sellClearAmount += order.AmountHave
+			}
+		}
+	}
+
+	// TODO: this should be changed, I really don't like this floating point math (See Issue #6 and TODOs in match about price.)
+	clearingPrice = float64(buyClearAmount) / float64(sellClearAmount)
 
 	return
 }
