@@ -63,12 +63,6 @@ type fredConfig struct {
 	// support lightning or not to support lightning?
 	LightningSupport bool `long:"lightning" description:"Whether or not to support lightning on the exchange"`
 
-	// database information
-	DBUsername string `long:"dbuser" description:"database username"`
-	DBPassword string `long:"dbpassword" description:"database password"`
-	DBHost     string `long:"dbhost" description:"Host for the database connection"`
-	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
-
 	// Auction server options
 	AuctionTime uint64 `long:"auctiontime" description:"Time it should take to generate a timelock puzzle protected order"`
 }
@@ -90,12 +84,6 @@ var (
 
 	// Yes we want lightning
 	defaultLightningSupport = true
-
-	// default database stuff
-	defaultDBUsername = "opencx"
-	defaultDBPassword = "testpass"
-	defaultDBHost     = "localhost"
-	defaultDBPort     = uint16(3306)
 
 	// default auction options
 	defaultAuctionTime = uint64(30000)
@@ -120,23 +108,18 @@ func main() {
 		Litport:          defaultLitport,
 		AuthenticatedRPC: defaultAuthenticatedRPC,
 		LightningSupport: defaultLightningSupport,
-		DBUsername:       defaultDBUsername,
-		DBPassword:       defaultDBPassword,
-		DBHost:           defaultDBHost,
-		DBPort:           defaultDBPort,
 		AuctionTime:      defaultAuctionTime,
 	}
 
 	// Check and load config params
 	key := opencxSetup(&conf)
 
-	var db *cxdbsql.DB
-	if db, err = cxdbsql.CreateDBConnection(conf.DBUsername, conf.DBPassword, conf.DBHost, conf.DBPort); err != nil {
-		logging.Fatalf("Error initializing Database: \n%s", err)
-	}
-
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
+
+	// init db
+	var db *cxdbsql.DB
+	db = new(cxdbsql.DB)
 
 	// Setup DB Client
 	if err = db.SetupClient(coinList); err != nil {
