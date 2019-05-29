@@ -21,7 +21,7 @@ type opencxConfig struct {
 
 	// stuff for files and directories
 	LogFilename   string `long:"logFilename" description:"Filename for output log file"`
-	OpencxHomeDir string `long:"dir" description:"Location of the root directory relative to home directory"`
+	OpencxHomeDir string `long:"dir" description:"Location of the root directory for opencxd"`
 
 	// stuff for ports
 	Rpcport uint16 `short:"p" long:"rpcport" description:"Set RPC port to connect to"`
@@ -61,12 +61,6 @@ type opencxConfig struct {
 
 	// support lightning or not to support lightning?
 	LightningSupport bool `long:"lightning" description:"Whether or not to support lightning on the exchange"`
-
-	// database information
-	DBUsername string `long:"dbuser" description:"database username"`
-	DBPassword string `long:"dbpassword" description:"database password"`
-	DBHost     string `long:"dbhost" description:"Host for the database connection"`
-	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
 }
 
 var (
@@ -86,12 +80,6 @@ var (
 
 	// Yes we want lightning
 	defaultLightningSupport = true
-
-	// default database stuff
-	defaultDBUsername = "opencx"
-	defaultDBPassword = "testpass"
-	defaultDBHost     = "localhost"
-	defaultDBPort     = uint16(3306)
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -113,22 +101,16 @@ func main() {
 		Litport:          defaultLitport,
 		AuthenticatedRPC: defaultAuthenticatedRPC,
 		LightningSupport: defaultLightningSupport,
-		DBUsername:       defaultDBUsername,
-		DBPassword:       defaultDBPassword,
-		DBHost:           defaultDBHost,
-		DBPort:           defaultDBPort,
 	}
 
 	// Check and load config params
 	key := opencxSetup(&conf)
 
-	var db *cxdbsql.DB
-	if db, err = cxdbsql.CreateDBConnection(conf.DBUsername, conf.DBPassword, conf.DBHost, conf.DBPort); err != nil {
-		logging.Fatalf("Error initializing Database: \n%s", err)
-	}
-
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
+
+	var db *cxdbsql.DB
+	db = new(cxdbsql.DB)
 
 	// Setup DB Client
 	if err = db.SetupClient(coinList); err != nil {
