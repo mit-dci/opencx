@@ -116,8 +116,8 @@ func TestConcurrentSolvesN10_T100000(t *testing.T) {
 	return
 }
 
-// TestConcurrentSolvesN10_T10000000 takes about 72 seconds on an i7 8700k
-func TestConcurrentSolvesN10_T10000000(t *testing.T) {
-	solveVariableRC5AuctionOrder(uint64(10), uint64(10000000), t)
+// TestConcurrentSolvesN10_T1000000 takes about 7.2 seconds on an i7 8700k
+func TestConcurrentSolvesN10_T1000000(t *testing.T) {
+	solveVariableRC5AuctionOrder(uint64(10), uint64(1000000), t)
 	return
 }
