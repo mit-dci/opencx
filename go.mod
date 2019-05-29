@@ -3,6 +3,7 @@ module github.com/mit-dci/opencx
 go 1.12
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.3.3
 	github.com/Rjected/gmp v1.0.4-0.20190521043342-9c9965578e96
 	github.com/btcsuite/btcd v0.0.0-20190427004231-96897255fd17 // indirect
 	github.com/btcsuite/fastsha256 v0.0.0-20160815193821-637e65642941
