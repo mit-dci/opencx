@@ -19,7 +19,7 @@ const (
 	rootUser = "root"
 	rootPass = ""
 	// defaults
-	defaultHost = "127.0.0.1"
+	defaultHost = "localhost"
 	defaultPort = uint16(3306)
 )
 
@@ -54,11 +54,16 @@ func constCoinParams() (params []*coinparam.Params) {
 
 func createOpencxUser() (err error) {
 
-	var dbconn *DB
-	dbconn = new(DB)
+	var dbConn *DB
+	dbConn = new(DB)
+
+	if err = dbConn.SetupClient(constCoinParams()); err != nil {
+		err = fmt.Errorf("Error setting up client for creating test user: %s", err)
+		return
+	}
 
 	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", dbconn.dbUsername, dbconn.dbPassword, dbconn.dbAddr.Network(), dbconn.dbAddr.String())
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", dbConn.dbUsername, dbConn.dbPassword, dbConn.dbAddr.Network(), dbConn.dbAddr.String())
 
 	// this is the root user!
 	var dbHandle *sql.DB
