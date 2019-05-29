@@ -20,34 +20,53 @@ type dbsqlConfig struct {
 	// Filename of config file where this stuff can be set as well
 	ConfigFile string
 
-	// database information
+	// database home dir
+	DBHomeDir string `long:"dir" description:"Location of the root directory for the sql db info and config"`
+
+	// database info required to establish connection
 	DBUsername string `long:"dbuser" description:"database username"`
 	DBPassword string `long:"dbpassword" description:"database password"`
 	DBHost     string `long:"dbhost" description:"Host for the database connection"`
 	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
+
+	// database schema names
+	BalanceSchemaName        string `long:"balanceschema" description:"Name of balance schema"`
+	DepositSchemaName        string `long:"depositschema" description:"Name of deposit schema"`
+	PendingDepositSchemaName string `long:"penddepschema" description:"Name of pending deposit schema"`
+	PuzzleSchemaName         string `long:"puzzleschema" description:"Name of schema for puzzle orderbooks"`
+	AuctionSchemaName        string `long:"auctionschema" description:"Name of schema for auction ID"`
+	AuctionOrderSchemaName   string `long:"auctionorderschema" description:"Name of schema for auction orderbook"`
+	OrderSchemaName          string `long:"orderschema" description:"Name of schema for limit orderbook"`
+	PeerSchemaName           string `long:"peerschema" description:"Name of schema for peer storage"`
+
+	// database table names
+	PuzzleTableName       string `long:"puzzletable" description:"Name of table for puzzle orderbooks"`
+	AuctionOrderTableName string `long:"auctionordertable" description:"Name of table for auction orders"`
+	PeerTableName         string `long:"peertable" description:"Name of table for peer storage"`
 }
 
 // Let these be turned into config things at some point
 var (
-	defaultConfigFilename   = "sqldb.conf"
-	defaultDBHomeDirName    = os.Getenv("HOME") + "/.opencx/"
-	defaultHomeDir          = os.Getenv("HOME")
-	defaultDBPort           = uint16(12345)
-	defaultDBHost           = "localhost"
-	defaultAuthenticatedRPC = true
+	defaultConfigFilename = "sqldb.conf"
+	defaultHomeDir        = os.Getenv("HOME")
+	defaultDBHomeDirName  = defaultHomeDir + "/.opencx/db/"
+	defaultDBPort         = uint16(3306)
+	defaultDBHost         = "localhost"
+	defaultDBUser         = "opencx"
+	defaultDBPass         = "testpass"
 
 	// definitely move this to a config file
-	balanceSchema        = "balances"
-	depositSchema        = "deposit"
-	pendingDepositSchema = "pending_deposits"
-	puzzleSchema         = "puzzle"
-	puzzleTable          = "puzzles"
-	auctionSchema        = "auctions"
-	auctionOrderSchema   = "auctionorder"
-	auctionOrderTable    = "auctionorders"
-	orderSchema          = "orders"
-	peerSchema           = "peers"
-	peerTableName        = "opencxpeers"
+	defaultBalanceSchema        = "balances"
+	defaultDepositSchema        = "deposit"
+	defaultPendingDepositSchema = "pending_deposits"
+	defaultPuzzleSchema         = "puzzle"
+	defaultPuzzleTable          = "puzzles"
+	defaultAuctionSchema        = "auctions"
+	defaultAuctionOrderSchema   = "auctionorder"
+	defaultAuctionOrderTable    = "auctionorders"
+	defaultOrderSchema          = "orders"
+	defaultPeerSchema           = "peers"
+	defaultPeerTable            = "opencxpeers"
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -136,36 +155,77 @@ func (db *DB) GetPairs() (pairArray []*match.Pair) {
 	return
 }
 
-// CreateDBConnection initializes the db so the client is ready to be set up. We use TCP by default
-func CreateDBConnection(username string, password string, host string, port uint16) (dbconn *DB, err error) {
-	var dbAddr net.Addr
-	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(host, fmt.Sprintf("%d", port))); err != nil {
-		err = fmt.Errorf("Error resolving database address: \n%s", err)
-		return
-	}
+func (db *DB) SetOptionsFromConfig(conf *dbsqlConfig) {
 
-	dbconn = &DB{
-		dbAddr:     dbAddr,
-		dbUsername: username,
-		dbPassword: password,
-	}
 	return
 }
 
 // SetupClient sets up the mysql client and driver
 func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
-	db.gPriceMap = make(map[string]float64)
-	db.balanceSchema = balanceSchema
-	db.depositSchema = depositSchema
-	db.pendingDepositSchema = pendingDepositSchema
-	db.orderSchema = orderSchema
-	db.peerSchema = peerSchema
-	db.peerTableName = peerTableName
-	db.puzzleSchema = puzzleSchema
-	db.puzzleTable = puzzleTable
-	db.auctionSchema = auctionSchema
-	db.auctionOrderSchema = auctionOrderSchema
-	db.auctionOrderTable = auctionOrderTable
+
+	// Set defaults
+	conf := dbsqlConfig{
+		// home dir
+		DBHomeDir: defaultDBHomeDirName,
+
+		// user / pass / net stuff
+		DBUsername: defaultDBUser,
+		DBPassword: defaultDBPass,
+		DBHost:     defaultDBHost,
+		DBPort:     defaultDBPort,
+
+		// schemas
+		BalanceSchemaName:        defaultBalanceSchema,
+		DepositSchemaName:        defaultDepositSchema,
+		PendingDepositSchemaName: defaultPendingDepositSchema,
+		PuzzleSchemaName:         defaultPuzzleSchema,
+		AuctionSchemaName:        defaultAuctionSchema,
+		AuctionOrderSchemaName:   defaultAuctionOrderSchema,
+		OrderSchemaName:          defaultOrderSchema,
+		PeerSchemaName:           defaultPeerSchema,
+
+		// tables
+		PuzzleTableName:       defaultPuzzleTable,
+		AuctionOrderTableName: defaultAuctionOrderTable,
+		PeerTableName:         defaultPeerTable,
+	}
+
+	// create and parse config file
+	dbConfigSetup(&conf)
+
+	*db = DB{
+		dbUsername: conf.DBUsername,
+		dbPassword: conf.DBPassword,
+
+		// schemas
+		balanceSchema:        conf.BalanceSchemaName,
+		depositSchema:        conf.DepositSchemaName,
+		pendingDepositSchema: conf.PendingDepositSchemaName,
+		orderSchema:          conf.OrderSchemaName,
+		peerSchema:           conf.PeerSchemaName,
+		puzzleSchema:         conf.PuzzleSchemaName,
+		auctionSchema:        conf.AuctionSchemaName,
+		auctionOrderSchema:   conf.AuctionOrderSchemaName,
+
+		// tables
+		puzzleTable:       conf.PuzzleTableName,
+		auctionOrderTable: conf.AuctionOrderTableName,
+		peerTableName:     conf.PeerTableName,
+
+		// Initialize price map and mutex
+		gPriceMap:   make(map[string]float64),
+		priceMapMtx: new(sync.Mutex),
+
+		// Set the coinlist based on the param we passed in
+		coinList: coinList,
+	}
+
+	// Resolve address for host and port, then set that as the network address
+	if db.dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(conf.DBHost, fmt.Sprintf("%d", conf.DBPort))); err != nil {
+		err = fmt.Errorf("Error resolving database address: \n%s", err)
+		return
+	}
+
 	// Create users and schemas and assign permissions to opencx
 	if err = db.rootInitSchemas(); err != nil {
 		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
@@ -175,21 +235,15 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	// open db handle
 	openString := fmt.Sprintf("%s:%s@%s(%s)/", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String())
 
-	var dbHandle *sql.DB
-	if dbHandle, err = sql.Open("mysql", openString); err != nil {
+	if db.DBHandler, err = sql.Open("mysql", openString); err != nil {
 		err = fmt.Errorf("Error opening database: \n%s", err)
 		return
 	}
-
-	db.DBHandler = dbHandle
-	db.coinList = coinList
 
 	// Get all the pairs
 	if db.pairsArray, err = match.GenerateAssetPairs(coinList); err != nil {
 		return
 	}
-
-	// DEBUGGING
 
 	// Get all the assets
 	for i, asset := range db.coinList {

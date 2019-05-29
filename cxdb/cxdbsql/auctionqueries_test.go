@@ -55,10 +55,7 @@ func constCoinParams() (params []*coinparam.Params) {
 func createOpencxUser() (err error) {
 
 	var dbconn *DB
-	if dbconn, err = CreateDBConnection(rootUser, rootPass, defaultHost, defaultPort); err != nil {
-		err = fmt.Errorf("Error creating db connection to create testing user: %s", err)
-		return
-	}
+	dbconn = new(DB)
 
 	// create open string for db
 	openString := fmt.Sprintf("%s:%s@%s(%s)/", dbconn.dbUsername, dbconn.dbPassword, dbconn.dbAddr.Network(), dbconn.dbAddr.String())
@@ -90,10 +87,7 @@ func TestPlaceAuctionGoodParams(t *testing.T) {
 	}
 
 	var dbConn *DB
-	if dbConn, err = CreateDBConnection(testingUser, testingPass, defaultHost, defaultPort); err != nil {
-		t.Skipf("Could not create db connection for test (error), so skipping: %s", err)
-		return
-	}
+	dbConn = new(DB)
 
 	if err = dbConn.SetupClient(constCoinParams()); err != nil {
 		t.Errorf("Error setting up db client for test: %s", err)
@@ -117,10 +111,7 @@ func TestPlaceAuctionBadParams(t *testing.T) {
 	}
 
 	var dbConn *DB
-	if dbConn, err = CreateDBConnection(testingUser, testingPass, defaultHost, defaultPort); err != nil {
-		t.Skipf("Could not create db connection for test (error), so skipping: %s", err)
-		return
-	}
+	dbConn = new(DB)
 
 	if err = dbConn.SetupClient([]*coinparam.Params{}); err != nil {
 		t.Errorf("Error setting up db client for test: %s", err)
@@ -144,10 +135,7 @@ func TestPlaceAuctionOrderbookChanges(t *testing.T) {
 	}
 
 	var dbConn *DB
-	if dbConn, err = CreateDBConnection(testingUser, testingPass, defaultHost, defaultPort); err != nil {
-		t.Skipf("Could not create db connection for test (error), so skipping: %s", err)
-		return
-	}
+	dbConn = new(DB)
 
 	if err = dbConn.SetupClient(constCoinParams()); err != nil {
 		t.Errorf("Error setting up db client for test: %s", err)

@@ -104,23 +104,17 @@ func registerClient(client *benchclient.BenchClient) (err error) {
 }
 
 // createFullServer creates a server after starting the database with a bunch of parameters
-func createFullServer(dbuser string, dbpass string, dbhost string, dbport uint16, coinList []*coinparam.Params, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
+func createFullServer(coinList []*coinparam.Params, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
 
 	// Create db connection
 	var db *cxdbsql.DB
-	if db, err = cxdbsql.CreateDBConnection(dbuser, dbpass, dbhost, dbport); err != nil {
-		err = fmt.Errorf("Error initializing Database: \n%s", err)
-		return
-	}
+	db = new(cxdbsql.DB)
 
 	// Setup DB Client
 	if err = db.SetupClient(coinList); err != nil {
 		err = fmt.Errorf("Error setting up sql client: \n%s", err)
 		return
 	}
-
-	// first add closeDB to the stack of things we're deferring until we're out of the scope of this function
-	// functionCloser(closeFunc, db.DBHandler.Close)
 
 	// Anyways, here's where we set the server
 	ocxServer = cxserver.InitServer(db, "", serverport, coinList)
@@ -188,7 +182,7 @@ func functionCloser(original func() error, additionalCloser func() error) {
 
 // createDefaultParamServerWithKey creates a server with a bunch of default params minus privkey and authrpc
 func createDefaultParamServerWithKey(privkey *koblitz.PrivateKey, authrpc bool) (server *cxserver.OpencxServer, offChan chan bool, err error) {
-	return createFullServer("opencx", "testpass", "localhost", uint16(3306), []*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, "localhost", uint16(12346), privkey, authrpc)
+	return createFullServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, "localhost", uint16(12346), privkey, authrpc)
 }
 
 // prepareBalances adds tons of money to both accounts
