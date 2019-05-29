@@ -1,5 +1,9 @@
 language: go
 
+# This starts mysql
+services:
+  - mysql
+
 # Force-enable Go modules.
 # This will be unnecessary when Go 1.13 lands.
 env:
