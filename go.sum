@@ -1,3 +1,5 @@
+github.com/DATA-DOG/go-sqlmock v1.3.3 h1:CWUqKXe0s8A2z6qCgkP4Kru7wC11YoAnoupUKFDnH08=
+github.com/DATA-DOG/go-sqlmock v1.3.3/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/NebulousLabs/go-UpnP v0.0.0-20181203152547-b32978b8ccbf h1:W7P3bv/G1dqsdsc+L2iZZRKHLSA3akIJm14wwaLxETM=
 github.com/NebulousLabs/go-UpnP v0.0.0-20181203152547-b32978b8ccbf/go.mod h1:T0vQBt4b6iPDbP21SrsJ6e3E3gbPa9LAhWDZB6pFRcg=
 github.com/Rjected/gmp v1.0.4-0.20190521043342-9c9965578e96 h1:RWfIQi8VwIKBNcgLsET3RvDm0r8EfBz9PKmOpDDWxOI=
