@@ -254,7 +254,6 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	for i, pair := range db.pairsArray {
 		logging.Debugf("Pair %d: %s\n", i, pair)
 	}
-	// END DEBUGGING
 
 	if err = db.DBHandler.Ping(); err != nil {
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
