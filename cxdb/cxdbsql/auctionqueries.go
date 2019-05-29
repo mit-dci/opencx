@@ -198,111 +198,6 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 	return
 }
 
-/*
-** This is a note on a matching algorithm that may be more fair than a single clearing price for batch auctions. **
-** This also prevents price slippage **
-
-To understand Pro-rata matching on a batch of orders, here is an example of an orderbook, where the "Buy" list represents all of the buy orders
-and the "Sell" list represents all of the sell orders.
-
-The pair is BTC/LTC, you "buy" BTC with LTC and "sell" BTC for LTC.
-
-	"Sell": [
-		so4: {
-			amountWant: 70 LTC,
-			amountHave: 10 BTC,
-			// price  : 0.15
-		},
-		so3: {
-			amountWant: 600 LTC,
-			amountHave: 100 BTC,
-			// price  : 0.17
-		},
-		so2: {
-			amountWant: 400 LTC,
-			amountHave: 100 BTC,
-			// price  : 0.25
-		},
-		so1: {
-			amountWant: 300 LTC,
-			amountHave: 100 BTC,
-			// price  : 0.33
-		},
-	]
-	"Buy":  [
-		bo4: {
-			amountWant: 10 BTC,
-			amountHave: 50 LTC,
-			// price  : 0.20
-		},
-		bo3: {
-			amountWant: 100 BTC,
-			amountHave: 500 LTC,
-			// price  : 0.20
-		},
-		bo2: {
-			amountWant: 100 BTC,
-			amountHave: 300 LTC,
-			// price  : 0.33
-		},
-		bo1: {
-			amountWant: 100 BTC,
-			amountHave: 100 LTC,
-			// price  : 1.00
-		},
-	]
-
-We can see here that there's no "nice" way to match these orders, the high/low prices on either end are competitive, nor are there many orders
-that are the same price. Pro-rata matching for a single price is trivial.
-
-Alright so we're essentially looking for the orders that will match, meaning we want to create the ordering based on want/have, depending on the price
-
-We start iteratively from the beginning of "Buy" and end of "Sell".
-
-so1 provides 100 BTC, and bo4 is the current order on the buy side.
-100 * (portion of 0.20 orders that bo4 provides = 0.1666666666...) > bo4's amountWant, so we match the whole thing, reducing so1 by 10 BTC and 30 LTC. 20 LTC is now left in the LTC pot, since we're not done matching 0.2 orders.
-This is an example of how we iteratively match orders pro-rata for intersecting prices.
-
-We look at entire prices when doing the calculation for matching, comparing what is provided to what is given.
-Iteratively matching pro-rata for *intersecting prices* (ordering: low w/h for sell, high h/w for buy), we add the left over coins from trades into a reserve.
-
-If there are orders with "intersecting" prices, so an order fills another exactly (in which case no coins get added to a reserve), or they are mutually competitive (in which case coins ARE added),
-there will be coins left over in a reserve.
-
-If, after all intersecting matches, there are no other orders, then we need to figure out a redistribution strategy, since we have a bunch of coins and no orders to match with them.
-
-If, after all intersecting matches, there are other orders, we will either have reserves in 0 buckets, one bucket, or both.
-
-In the case of zero buckets, we are thankfully done!
-
-In the case of one bucket, we will determine which of the sides would be matched if they were to be given this asset. We then match orders according to their price priority, pro-rata, and then alternate to the other bucket.
-This will fill the other bucket, and we continue doing this until there are no coins left in either bucket, or there are no orders left to match (or both!).
-
-In the case of two buckets, we do as described before, starting with the bucket with more funds in it.
-The bucket that we start with doesn't matter (at least I don't think).
-We use all of these excess funds to match as many orders as possible.
-Each pro-rata match will also fill the bucket even more, but decreasingly, since the priority (ordering) defined by price means the orders being matched will get more and more "expensive," and take up more of their
-bucket while providing less to the other.
-
-The one & two bucket strategies are actually equivalent.
-
-If we have no more funds then we're done!!!
-
-If, AFTER ALL THIS, we end up with all orders matched, and STILL have funds left in a bucket, we have to default to some sort of redistribution strategy.
-But then we're finally done!
-
-If we could generalize this matching algorithm so we don't have to be so iterative and dependent on cases that would be great, but for now this is what we have.
-
-**As an addendum**, if we have either orders left or funds, we could bring this matching algorithm to a whole other level by running the same thing, but drop everything down to a stateful level!
-We do the same thing as above, but each auction has some orderbook state. We match like this until completion in the current auction batch of orders.
-Next, if we have funds we run out bucket-emptying algorithm, except for with price and time priority, and ties with price AND time priority get settled with pro-rata matching.
-If we have orders and no funds, we drop the orders onto the orderbook and match with price/time priority, settling ties with pro-rata matching.
-
-**Note:**
-A redistribution strategy just means an answer to "What are we going to do with all of these funds?". It could mean the exchange takes them, or split equally among the matched, or split pro-rata among the matched, who knows.
-
-*/
-
 // MatchAuction calculates a single clearing price to execute orders at, and executes at that price.
 func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
@@ -462,3 +357,109 @@ func calculateClearingPrice(book map[float64][]*match.AuctionOrder) (clearingPri
 
 	return
 }
+
+/*
+TODO: implement this
+** This is a note on a matching algorithm that may be more fair than a single clearing price for batch auctions. **
+** This also prevents price slippage **
+
+To understand Pro-rata matching on a batch of orders, here is an example of an orderbook, where the "Buy" list represents all of the buy orders
+and the "Sell" list represents all of the sell orders.
+
+The pair is BTC/LTC, you "buy" BTC with LTC and "sell" BTC for LTC.
+
+	"Sell": [
+		so4: {
+			amountWant: 70 LTC,
+			amountHave: 10 BTC,
+			// price  : 0.15
+		},
+		so3: {
+			amountWant: 600 LTC,
+			amountHave: 100 BTC,
+			// price  : 0.17
+		},
+		so2: {
+			amountWant: 400 LTC,
+			amountHave: 100 BTC,
+			// price  : 0.25
+		},
+		so1: {
+			amountWant: 300 LTC,
+			amountHave: 100 BTC,
+			// price  : 0.33
+		},
+	]
+	"Buy":  [
+		bo4: {
+			amountWant: 10 BTC,
+			amountHave: 50 LTC,
+			// price  : 0.20
+		},
+		bo3: {
+			amountWant: 100 BTC,
+			amountHave: 500 LTC,
+			// price  : 0.20
+		},
+		bo2: {
+			amountWant: 100 BTC,
+			amountHave: 300 LTC,
+			// price  : 0.33
+		},
+		bo1: {
+			amountWant: 100 BTC,
+			amountHave: 100 LTC,
+			// price  : 1.00
+		},
+	]
+
+We can see here that there's no "nice" way to match these orders, the high/low prices on either end are competitive, nor are there many orders
+that are the same price. Pro-rata matching for a single price is trivial.
+
+Alright so we're essentially looking for the orders that will match, meaning we want to create the ordering based on want/have, depending on the price
+
+We start iteratively from the beginning of "Buy" and end of "Sell".
+
+so1 provides 100 BTC, and bo4 is the current order on the buy side.
+100 * (portion of 0.20 orders that bo4 provides = 0.1666666666...) > bo4's amountWant, so we match the whole thing, reducing so1 by 10 BTC and 30 LTC. 20 LTC is now left in the LTC pot, since we're not done matching 0.2 orders.
+This is an example of how we iteratively match orders pro-rata for intersecting prices.
+
+We look at entire prices when doing the calculation for matching, comparing what is provided to what is given.
+Iteratively matching pro-rata for *intersecting prices* (ordering: low w/h for sell, high h/w for buy), we add the left over coins from trades into a reserve.
+
+If there are orders with "intersecting" prices, so an order fills another exactly (in which case no coins get added to a reserve), or they are mutually competitive (in which case coins ARE added),
+there will be coins left over in a reserve.
+
+If, after all intersecting matches, there are no other orders, then we need to figure out a redistribution strategy, since we have a bunch of coins and no orders to match with them.
+
+If, after all intersecting matches, there are other orders, we will either have reserves in 0 buckets, one bucket, or both.
+
+In the case of zero buckets, we are thankfully done!
+
+In the case of one bucket, we will determine which of the sides would be matched if they were to be given this asset. We then match orders according to their price priority, pro-rata, and then alternate to the other bucket.
+This will fill the other bucket, and we continue doing this until there are no coins left in either bucket, or there are no orders left to match (or both!).
+
+In the case of two buckets, we do as described before, starting with the bucket with more funds in it.
+The bucket that we start with doesn't matter (at least I don't think).
+We use all of these excess funds to match as many orders as possible.
+Each pro-rata match will also fill the bucket even more, but decreasingly, since the priority (ordering) defined by price means the orders being matched will get more and more "expensive," and take up more of their
+bucket while providing less to the other.
+
+The one & two bucket strategies are actually equivalent.
+
+If we have no more funds then we're done!!!
+
+If, AFTER ALL THIS, we end up with all orders matched, and STILL have funds left in a bucket, we have to default to some sort of redistribution strategy.
+But then we're finally done!
+
+If we could generalize this matching algorithm so we don't have to be so iterative and dependent on cases that would be great, but for now this is what we have.
+
+**As an addendum**, if we have either orders left or funds, we could bring this matching algorithm to a whole other level by running the same thing, but drop everything down to a stateful level!
+We do the same thing as above, but each auction has some orderbook state. We match like this until completion in the current auction batch of orders.
+Next, if we have funds we run out bucket-emptying algorithm, except for with price and time priority, and ties with price AND time priority get settled with pro-rata matching.
+If we have orders and no funds, we drop the orders onto the orderbook and match with price/time priority, settling ties with pro-rata matching.
+
+**Note:**
+A redistribution strategy just means an answer to "What are we going to do with all of these funds?". It could mean the exchange takes them, or split equally among the matched, or split pro-rata among the matched, who knows.
+
+*/
