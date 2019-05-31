@@ -20,8 +20,8 @@ const (
 	// root user stuff -- should be default
 	rootUser = "root"
 	rootPass = ""
-	//
-	testDBName = "testopencxdb"
+	// test string to put before stuff in the config
+	testString = "testopencxdb_"
 )
 
 var (
@@ -52,22 +52,39 @@ func testConfig() (conf *dbsqlConfig) {
 		DBPassword: testingPass,
 		DBHost:     defaultDBHost,
 		DBPort:     defaultDBPort,
-		DBName:     testDBName,
 
 		// schemas (test schema names)
-		BalanceSchemaName:        defaultBalanceSchema,
-		DepositSchemaName:        defaultDepositSchema,
-		PendingDepositSchemaName: defaultPendingDepositSchema,
-		PuzzleSchemaName:         defaultPuzzleSchema,
-		AuctionSchemaName:        defaultAuctionSchema,
-		AuctionOrderSchemaName:   defaultAuctionOrderSchema,
-		OrderSchemaName:          defaultOrderSchema,
-		PeerSchemaName:           defaultPeerSchema,
+		BalanceSchemaName:        testString + defaultBalanceSchema,
+		DepositSchemaName:        testString + defaultDepositSchema,
+		PendingDepositSchemaName: testString + defaultPendingDepositSchema,
+		PuzzleSchemaName:         testString + defaultPuzzleSchema,
+		AuctionSchemaName:        testString + defaultAuctionSchema,
+		AuctionOrderSchemaName:   testString + defaultAuctionOrderSchema,
+		OrderSchemaName:          testString + defaultOrderSchema,
+		PeerSchemaName:           testString + defaultPeerSchema,
 
 		// tables
-		PuzzleTableName:       defaultPuzzleTable,
-		AuctionOrderTableName: defaultAuctionOrderTable,
-		PeerTableName:         defaultPeerTable,
+		PuzzleTableName:       testString + defaultPuzzleTable,
+		AuctionOrderTableName: testString + defaultAuctionOrderTable,
+		PeerTableName:         testString + defaultPeerTable,
+	}
+	return
+}
+
+func getSchemasFromDB(db *DB) (testSchemaList []string, err error) {
+	if db == nil {
+		err = fmt.Errorf("Cannot get schemas from null db pointer: %s", err)
+		return
+	}
+	testSchemaList = []string{
+		db.balanceSchema,
+		db.depositSchema,
+		db.pendingDepositSchema,
+		db.orderSchema,
+		db.peerSchema,
+		db.puzzleSchema,
+		db.auctionSchema,
+		db.auctionOrderSchema,
 	}
 	return
 }
@@ -87,14 +104,8 @@ func constCoinParams() (params []*coinparam.Params) {
 func createUserAndDatabase() (killThemBoth func(t *testing.T), err error) {
 
 	var killUserFunc func() (err error)
-	var killDatabaseFunc func() (err error)
 
-	// create database first then user
-	if killDatabaseFunc, err = createTestDatabase(); err != nil {
-		err = fmt.Errorf("Error creating test database while creating both: %s", err)
-		return
-	}
-
+	// create user first, then return killer
 	if killUserFunc, err = createOpencxUser(); err != nil {
 		err = fmt.Errorf("Error creating opencx user while creating both: %s", err)
 		return
@@ -106,17 +117,14 @@ func createUserAndDatabase() (killThemBoth func(t *testing.T), err error) {
 			t.Errorf("Error killing user while killing both: %s", err)
 			return
 		}
-		if err = killDatabaseFunc(); err != nil {
-			t.Errorf("Error killing database while killing both: %s", err)
-			return
-		}
+		killDatabaseFunc(t)
 		return
 	}
 	return
 }
 
-func createTestDatabase() (killDatabaseFunc func() (err error), err error) {
-
+func killDatabaseFunc(t *testing.T) {
+	var err error
 	var dbConn *DB
 
 	// initialize the db
@@ -124,59 +132,33 @@ func createTestDatabase() (killDatabaseFunc func() (err error), err error) {
 
 	// We created this testConfig, now we set the options from the testConfig
 	if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
-		err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
+		t.Errorf("Error setting options from testConfig for setupclient: %s", err)
 		return
 	}
 
 	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr)
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr.String())
 
 	// this is the root user!
 	var dbHandle *sql.DB
 	if dbHandle, err = sql.Open("mysql", openString); err != nil {
-		err = fmt.Errorf("Error opening db to create testing user: %s", err)
+		t.Errorf("Error opening db to create testing user: %s", err)
 		return
 	}
 
 	// make sure we close the connection at the end
 	defer dbHandle.Close()
 
-	if _, err = dbHandle.Exec(fmt.Sprintf("CREATE DATABASE %s;", dbConn.dbName)); err != nil {
-		err = fmt.Errorf("Error creating user for testing: %s", err)
+	var schemaList []string
+	if schemaList, err = getSchemasFromDB(dbConn); err != nil {
+		t.Errorf("Error getting schemas from DB: %s", err)
 		return
 	}
-
-	killDatabaseFunc = func() (err error) {
-		var dbConn *DB
-
-		// initialize the db
-		dbConn = new(DB)
-
-		// We created this testConfig, now we set the options from the testConfig
-		if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
-			err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
+	for _, schema := range schemaList {
+		if _, err = dbHandle.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", schema)); err != nil {
+			t.Errorf("Error dropping db for testing: %s", err)
 			return
 		}
-
-		// create open string for db
-		openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr.String())
-
-		// this is the root user!
-		var dbHandle *sql.DB
-		if dbHandle, err = sql.Open("mysql", openString); err != nil {
-			err = fmt.Errorf("Error opening db to create testing user: %s", err)
-			return
-		}
-
-		// make sure we close the connection at the end
-		defer dbHandle.Close()
-
-		if _, err = dbHandle.Exec(fmt.Sprintf("DROP DATABASE %s;", dbConn.dbName)); err != nil {
-			err = fmt.Errorf("Error dropping db for testing: %s", err)
-			return
-		}
-
-		return
 	}
 
 	return
@@ -197,7 +179,7 @@ func createOpencxUser() (killUserFunc func() (err error), err error) {
 	}
 
 	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/%s", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr.String(), dbConn.dbName)
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr)
 
 	// this is the root user!
 	var dbHandle *sql.DB
@@ -228,7 +210,7 @@ func createOpencxUser() (killUserFunc func() (err error), err error) {
 		}
 
 		// create open string for db
-		openString := fmt.Sprintf("%s:%s@%s(%s)/%s", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr.String(), testConfig().DBName)
+		openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr)
 
 		// this is the root user!
 		var dbHandle *sql.DB
@@ -280,7 +262,7 @@ func startupDB() (db *DB, err error) {
 	}
 
 	// open db handle
-	openString := fmt.Sprintf("%s:%s@%s(%s)/%s", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String(), db.dbName)
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr)
 
 	if db.DBHandler, err = sql.Open("mysql", openString); err != nil {
 		err = fmt.Errorf("Error opening database: \n%s", err)
