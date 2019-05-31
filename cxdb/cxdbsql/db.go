@@ -27,7 +27,6 @@ type dbsqlConfig struct {
 	DBPassword string `long:"dbpassword" description:"database password"`
 	DBHost     string `long:"dbhost" description:"Host for the database connection"`
 	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
-	DBName     string `long:"dbname" description:"Name of the database for the database connection"`
 
 	// database schema names
 	BalanceSchemaName        string `long:"balanceschema" description:"Name of balance schema"`
@@ -54,20 +53,21 @@ var (
 	defaultDBHost         = "localhost"
 	defaultDBUser         = "opencx"
 	defaultDBPass         = "testpass"
-	defaultDBName         = "opencxdb"
 
 	// definitely move this to a config file
 	defaultBalanceSchema        = "balances"
 	defaultDepositSchema        = "deposit"
 	defaultPendingDepositSchema = "pending_deposits"
 	defaultPuzzleSchema         = "puzzle"
-	defaultPuzzleTable          = "puzzles"
 	defaultAuctionSchema        = "auctions"
 	defaultAuctionOrderSchema   = "auctionorder"
-	defaultAuctionOrderTable    = "auctionorders"
 	defaultOrderSchema          = "orders"
 	defaultPeerSchema           = "peers"
-	defaultPeerTable            = "opencxpeers"
+
+	// tables
+	defaultAuctionOrderTable = "auctionorders"
+	defaultPuzzleTable       = "puzzles"
+	defaultPeerTable         = "opencxpeers"
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -91,7 +91,6 @@ type DB struct {
 	// db username and password
 	dbUsername string
 	dbPassword string
-	dbName     string
 	// db host and port
 	dbAddr net.Addr
 
@@ -165,7 +164,6 @@ func (db *DB) setOptionsFromConfig(conf *dbsqlConfig) (err error) {
 	// username & pass stuff
 	db.dbUsername = conf.DBUsername
 	db.dbPassword = conf.DBPassword
-	db.dbName = conf.DBName
 
 	// schemas
 	db.balanceSchema = conf.BalanceSchemaName
@@ -204,7 +202,6 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 		DBPassword: defaultDBPass,
 		DBHost:     defaultDBHost,
 		DBPort:     defaultDBPort,
-		DBName:     defaultDBName,
 
 		// schemas
 		BalanceSchemaName:        defaultBalanceSchema,
@@ -245,7 +242,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	}
 
 	// open db handle
-	openString := fmt.Sprintf("%s:%s@%s(%s)/%s", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String(), db.dbName)
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String())
 
 	if db.DBHandler, err = sql.Open("mysql", openString); err != nil {
 		err = fmt.Errorf("Error opening database: \n%s", err)
@@ -385,6 +382,8 @@ func (db *DB) InitializeSingleTable(schemaName string, tableName string, schemaS
 		err = fmt.Errorf("Could not use %s schema: \n%s", schemaName, err)
 		return
 	}
+
+	// now create the table
 	tableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", tableName, schemaSpec)
 	if _, err = db.DBHandler.Exec(tableQuery); err != nil {
 		err = fmt.Errorf("Could not create table %s: \n%s", tableName, err)
@@ -469,7 +468,6 @@ func (db *DB) rootInitSchemas() (err error) {
 		return
 	}
 
-	// TODO: !!! PUT THIS IN A CONFIG !!!
 	schemasToCreate := []string{
 		db.balanceSchema,
 		db.depositSchema,
@@ -477,10 +475,8 @@ func (db *DB) rootInitSchemas() (err error) {
 		db.orderSchema,
 		db.peerSchema,
 		db.puzzleSchema,
-		db.puzzleTable,
 		db.auctionSchema,
 		db.auctionOrderSchema,
-		db.auctionOrderTable,
 	}
 
 	for _, schema := range schemasToCreate {
