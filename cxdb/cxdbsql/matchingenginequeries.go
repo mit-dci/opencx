@@ -257,6 +257,7 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 
 		// we have to do this because ugh they return my byte arrays as hex strings...
 		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
+			err = fmt.Errorf("Error decoding while viewing orderbook: %s", err)
 			return
 		}
 
@@ -264,6 +265,7 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 		buyOrders = append(buyOrders, buyOrder)
 	}
 	if err = buyRows.Close(); err != nil {
+		err = fmt.Errorf("Error closing buy rows for matching: %s", err)
 		return
 	}
 
