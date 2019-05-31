@@ -12,7 +12,6 @@ import (
 
 	// mysql is just the driver, always interact with database/sql api
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -28,6 +27,7 @@ type dbsqlConfig struct {
 	DBPassword string `long:"dbpassword" description:"database password"`
 	DBHost     string `long:"dbhost" description:"Host for the database connection"`
 	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
+	DBName     string `long:"dbname" description:"Name of the database for the database connection"`
 
 	// database schema names
 	BalanceSchemaName        string `long:"balanceschema" description:"Name of balance schema"`
@@ -54,6 +54,7 @@ var (
 	defaultDBHost         = "localhost"
 	defaultDBUser         = "opencx"
 	defaultDBPass         = "testpass"
+	defaultDBName         = "opencxdb"
 
 	// definitely move this to a config file
 	defaultBalanceSchema        = "balances"
@@ -90,6 +91,7 @@ type DB struct {
 	// db username and password
 	dbUsername string
 	dbPassword string
+	dbName     string
 	// db host and port
 	dbAddr net.Addr
 
@@ -155,7 +157,36 @@ func (db *DB) GetPairs() (pairArray []*match.Pair) {
 	return
 }
 
-func (db *DB) SetOptionsFromConfig(conf *dbsqlConfig) {
+func (db *DB) setOptionsFromConfig(conf *dbsqlConfig) (err error) {
+
+	// create and parse config file
+	dbConfigSetup(conf)
+
+	// username & pass stuff
+	db.dbUsername = conf.DBUsername
+	db.dbPassword = conf.DBPassword
+	db.dbName = conf.DBName
+
+	// schemas
+	db.balanceSchema = conf.BalanceSchemaName
+	db.depositSchema = conf.DepositSchemaName
+	db.pendingDepositSchema = conf.PendingDepositSchemaName
+	db.orderSchema = conf.OrderSchemaName
+	db.peerSchema = conf.PeerSchemaName
+	db.puzzleSchema = conf.PuzzleSchemaName
+	db.auctionSchema = conf.AuctionSchemaName
+	db.auctionOrderSchema = conf.AuctionOrderSchemaName
+
+	// tables
+	db.puzzleTable = conf.PuzzleTableName
+	db.auctionOrderTable = conf.AuctionOrderTableName
+	db.peerTableName = conf.PeerTableName
+
+	// Resolve address for host and port, then set that as the network address
+	if db.dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(conf.DBHost, fmt.Sprintf("%d", conf.DBPort))); err != nil {
+		err = fmt.Errorf("Error resolving database address: \n%s", err)
+		return
+	}
 
 	return
 }
@@ -164,7 +195,7 @@ func (db *DB) SetOptionsFromConfig(conf *dbsqlConfig) {
 func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 
 	// Set defaults
-	conf := dbsqlConfig{
+	conf := &dbsqlConfig{
 		// home dir
 		DBHomeDir: defaultDBHomeDirName,
 
@@ -173,6 +204,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 		DBPassword: defaultDBPass,
 		DBHost:     defaultDBHost,
 		DBPort:     defaultDBPort,
+		DBName:     defaultDBName,
 
 		// schemas
 		BalanceSchemaName:        defaultBalanceSchema,
@@ -190,35 +222,15 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 		PeerTableName:         defaultPeerTable,
 	}
 
-	// create and parse config file
-	dbConfigSetup(&conf)
-
-	*db = DB{
-		dbUsername: conf.DBUsername,
-		dbPassword: conf.DBPassword,
-
-		// schemas
-		balanceSchema:        conf.BalanceSchemaName,
-		depositSchema:        conf.DepositSchemaName,
-		pendingDepositSchema: conf.PendingDepositSchemaName,
-		orderSchema:          conf.OrderSchemaName,
-		peerSchema:           conf.PeerSchemaName,
-		puzzleSchema:         conf.PuzzleSchemaName,
-		auctionSchema:        conf.AuctionSchemaName,
-		auctionOrderSchema:   conf.AuctionOrderSchemaName,
-
-		// tables
-		puzzleTable:       conf.PuzzleTableName,
-		auctionOrderTable: conf.AuctionOrderTableName,
-		peerTableName:     conf.PeerTableName,
-
-		// Initialize price map and mutex
-		gPriceMap:   make(map[string]float64),
-		priceMapMtx: new(sync.Mutex),
-
-		// Set the coinlist based on the param we passed in
-		coinList: coinList,
+	// We created this config, now we set the options from the config
+	if err = db.setOptionsFromConfig(conf); err != nil {
+		err = fmt.Errorf("Error setting options from config for setupclient: %s", err)
+		return
 	}
+
+	db.gPriceMap = make(map[string]float64)
+	db.priceMapMtx = new(sync.Mutex)
+	db.coinList = coinList
 
 	// Resolve address for host and port, then set that as the network address
 	if db.dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(conf.DBHost, fmt.Sprintf("%d", conf.DBPort))); err != nil {
@@ -233,7 +245,7 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 	}
 
 	// open db handle
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String())
+	openString := fmt.Sprintf("%s:%s@%s(%s)/%s", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String(), db.dbName)
 
 	if db.DBHandler, err = sql.Open("mysql", openString); err != nil {
 		err = fmt.Errorf("Error opening database: \n%s", err)
@@ -245,15 +257,25 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 		return
 	}
 
-	// Get all the assets
-	for i, asset := range db.coinList {
-		logging.Debugf("Asset %d: %s\n", i, asset.Name)
+	if err = db.setupSchemasAndTables(); err != nil {
+		err = fmt.Errorf("Error setting up schemas and tables for setupclient: %s", err)
+		return
 	}
 
-	// Get all the asset pairs
-	for i, pair := range db.pairsArray {
-		logging.Debugf("Pair %d: %s\n", i, pair)
-	}
+	return
+}
+
+func (db *DB) setupSchemasAndTables() (err error) {
+
+	// // Get all the assets
+	// for i, asset := range db.coinList {
+	// 	logging.Debugf("Asset %d: %s\n", i, asset.Name)
+	// }
+
+	// // Get all the asset pairs
+	// for i, pair := range db.pairsArray {
+	// 	logging.Debugf("Pair %d: %s\n", i, pair)
+	// }
 
 	if err = db.DBHandler.Ping(); err != nil {
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
@@ -335,7 +357,7 @@ func (db *DB) SetupAuctionTables(auctionSchema string, puzzleSchema string, puzz
 	// An auction order is identified by it's auction ID, pubkey, nonce, and other specific data.
 	// You can have a price up to 30 digits total, and 10 decimal places.
 	// Could be using blob instead of text but it really doesn't matter
-	if err = db.InitializePairTables(auctionSchema, "pubkey VARBINARY(66), side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), hashedOrder VARBINARY(64), PRIMARY KEY (hashedOrder)"); err != nil {
+	if err = db.InitializePairTables(auctionSchema, "pubkey VARBINARY(66), side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), sig BLOB, hashedOrder VARBINARY(64), PRIMARY KEY (hashedOrder)"); err != nil {
 		err = fmt.Errorf("Could not initialize auction order tables: \n%s", err)
 		return
 	}
