@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 
+	"golang.org/x/crypto/sha3"
+
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
@@ -50,7 +52,7 @@ func (db *DB) PlaceAuctionPuzzle(encryptedOrder *match.EncryptedAuctionOrder) (e
 	return
 }
 
-// PlaceAuctionOrder places an order in the unencrypted datastore.
+// PlaceAuctionOrder places an order in the unencrypted datastore. This assumes that the order is valid.
 func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 
 	var tx *sql.Tx
@@ -75,14 +77,107 @@ func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 
 	logging.Infof("Placing order %s!", order)
 
-	// TODO
+	// calculate price
+	var price float64
+	if price, err = order.Price(); err != nil {
+		err = fmt.Errorf("Error getting price from order while placing order: %s", err)
+		return
+	}
+
+	// hash order so we can use that as a primary key
+	sha := sha3.New256()
+	sha.Write(order.Serialize())
+	hashedOrder := sha.Sum(nil)
+
+	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", order.TradingPair, order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
+	if _, err = tx.Exec(insertOrderQuery); err != nil {
+		err = fmt.Errorf("Error getting orders from db for viewauctionorderbook: %s", err)
+		return
+	}
+
+	logging.Infof("Placed order!")
+
 	return
 }
 
 // ViewAuctionOrderBook takes in a trading pair and auction ID, and returns auction orders.
 func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) (sellOrderBook []*match.AuctionOrder, buyOrderBook []*match.AuctionOrder, err error) {
 
-	// TODO
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for NewAuction: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while placing puzzle order: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + db.auctionSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using auction order schema for viewauctionorderbook: %s", err)
+		return
+	}
+
+	var rows *sql.Rows
+	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce, sig FROM %s WHERE auctionID = '%x';", tradingPair, auctionID)
+	if rows, err = tx.Query(selectOrderQuery); err != nil {
+		err = fmt.Errorf("Error getting orders from db for viewauctionorderbook: %s", err)
+		return
+	}
+
+	defer func() {
+		if err = rows.Close(); err != nil {
+			err = fmt.Errorf("Error closing rows for viewauctionorderbook: %s", err)
+			return
+		}
+	}()
+
+	// we allocate space for new orders but only need one pointer
+	var thisOrder *match.AuctionOrder
+
+	// we create these here so we don't take up a ton of memory allocating space for new intermediate arrays
+	var pkBytes []byte
+	var auctionIDBytes []byte
+	var nonceBytes []byte
+	var sigBytes []byte
+
+	for rows.Next() {
+		// scan the things we can into this order
+		thisOrder = new(match.AuctionOrder)
+		if err = rows.Scan(&pkBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, auctionIDBytes, nonceBytes, sigBytes); err != nil {
+			err = fmt.Errorf("Error scanning into order for viewauctionorderbook: %s", err)
+			return
+		}
+
+		// decode them all weirdly because of the way mysql may store the bytes
+		for _, byteArrayPtr := range [][]byte{pkBytes, auctionIDBytes, nonceBytes, sigBytes} {
+			if byteArrayPtr, err = hex.DecodeString(string(byteArrayPtr)); err != nil {
+				err = fmt.Errorf("Error decoding bytes for viewauctionorderbook: %s", err)
+				return
+			}
+		}
+
+		// Copy all of the bytes
+		copy(thisOrder.Pubkey[:], pkBytes)
+		copy(thisOrder.AuctionID[:], auctionIDBytes)
+		copy(thisOrder.Signature[:], sigBytes)
+
+		// now we just add the order to what we're going to return
+		if thisOrder.IsBuySide() {
+			buyOrderBook = append(buyOrderBook, thisOrder)
+		} else if thisOrder.IsSellSide() {
+			sellOrderBook = append(sellOrderBook, thisOrder)
+		} else {
+			err = fmt.Errorf("order retreived for viewauctionorderbook is not a buy or sell order, stopping scan")
+			return
+		}
+	}
+
 	return
 }
 

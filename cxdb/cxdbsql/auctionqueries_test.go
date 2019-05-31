@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"net"
+	"sync"
 	"testing"
 
 	"github.com/mit-dci/lit/coinparam"
@@ -18,9 +20,8 @@ const (
 	// root user stuff -- should be default
 	rootUser = "root"
 	rootPass = ""
-	// defaults
-	defaultHost = "localhost"
-	defaultPort = uint16(3306)
+	//
+	testDBName = "testopencxdb"
 )
 
 var (
@@ -41,6 +42,36 @@ var (
 	testEncryptedBytes, _ = testEncryptedOrder.Serialize()
 )
 
+func testConfig() (conf *dbsqlConfig) {
+	conf = &dbsqlConfig{
+		// home dir (for test stuff)
+		DBHomeDir: defaultDBHomeDirName + "test/",
+
+		// user / pass / net stuff
+		DBUsername: testingUser,
+		DBPassword: testingPass,
+		DBHost:     defaultDBHost,
+		DBPort:     defaultDBPort,
+		DBName:     testDBName,
+
+		// schemas (test schema names)
+		BalanceSchemaName:        defaultBalanceSchema,
+		DepositSchemaName:        defaultDepositSchema,
+		PendingDepositSchemaName: defaultPendingDepositSchema,
+		PuzzleSchemaName:         defaultPuzzleSchema,
+		AuctionSchemaName:        defaultAuctionSchema,
+		AuctionOrderSchemaName:   defaultAuctionOrderSchema,
+		OrderSchemaName:          defaultOrderSchema,
+		PeerSchemaName:           defaultPeerSchema,
+
+		// tables
+		PuzzleTableName:       defaultPuzzleTable,
+		AuctionOrderTableName: defaultAuctionOrderTable,
+		PeerTableName:         defaultPeerTable,
+	}
+	return
+}
+
 func constCoinParams() (params []*coinparam.Params) {
 	params = []*coinparam.Params{
 		&coinparam.TestNet3Params,
@@ -52,18 +83,53 @@ func constCoinParams() (params []*coinparam.Params) {
 	return
 }
 
-func createOpencxUser() (err error) {
+// takes in a t so we can log things
+func createUserAndDatabase() (killThemBoth func(t *testing.T), err error) {
+
+	var killUserFunc func() (err error)
+	var killDatabaseFunc func() (err error)
+
+	// create database first then user
+	if killDatabaseFunc, err = createTestDatabase(); err != nil {
+		err = fmt.Errorf("Error creating test database while creating both: %s", err)
+		return
+	}
+
+	if killUserFunc, err = createOpencxUser(); err != nil {
+		err = fmt.Errorf("Error creating opencx user while creating both: %s", err)
+		return
+	}
+
+	killThemBoth = func(t *testing.T) {
+		// kill user first then database
+		if err = killUserFunc(); err != nil {
+			t.Errorf("Error killing user while killing both: %s", err)
+			return
+		}
+		if err = killDatabaseFunc(); err != nil {
+			t.Errorf("Error killing database while killing both: %s", err)
+			return
+		}
+		return
+	}
+	return
+}
+
+func createTestDatabase() (killDatabaseFunc func() (err error), err error) {
 
 	var dbConn *DB
+
+	// initialize the db
 	dbConn = new(DB)
 
-	if err = dbConn.SetupClient(constCoinParams()); err != nil {
-		err = fmt.Errorf("Error setting up client for creating test user: %s", err)
+	// We created this testConfig, now we set the options from the testConfig
+	if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
+		err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
 		return
 	}
 
 	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", dbConn.dbUsername, dbConn.dbPassword, dbConn.dbAddr.Network(), dbConn.dbAddr.String())
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr)
 
 	// this is the root user!
 	var dbHandle *sql.DB
@@ -75,8 +141,159 @@ func createOpencxUser() (err error) {
 	// make sure we close the connection at the end
 	defer dbHandle.Close()
 
-	if _, err = dbHandle.Exec(fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DROP, DELETE ON *.* TO '%s'@'%s' IDENTIFIED BY '%s';", testingUser, defaultHost, testingPass)); err != nil {
+	if _, err = dbHandle.Exec(fmt.Sprintf("CREATE DATABASE %s;", dbConn.dbName)); err != nil {
 		err = fmt.Errorf("Error creating user for testing: %s", err)
+		return
+	}
+
+	killDatabaseFunc = func() (err error) {
+		var dbConn *DB
+
+		// initialize the db
+		dbConn = new(DB)
+
+		// We created this testConfig, now we set the options from the testConfig
+		if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
+			err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
+			return
+		}
+
+		// create open string for db
+		openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr.String())
+
+		// this is the root user!
+		var dbHandle *sql.DB
+		if dbHandle, err = sql.Open("mysql", openString); err != nil {
+			err = fmt.Errorf("Error opening db to create testing user: %s", err)
+			return
+		}
+
+		// make sure we close the connection at the end
+		defer dbHandle.Close()
+
+		if _, err = dbHandle.Exec(fmt.Sprintf("DROP DATABASE %s;", dbConn.dbName)); err != nil {
+			err = fmt.Errorf("Error dropping db for testing: %s", err)
+			return
+		}
+
+		return
+	}
+
+	return
+}
+
+// createOpencxUser creates a user with the root user. If it can't do that then we need to be able to skip the test.
+func createOpencxUser() (killUserFunc func() (err error), err error) {
+
+	var dbConn *DB
+
+	// initialize the db
+	dbConn = new(DB)
+
+	// We created this testConfig, now we set the options from the testConfig
+	if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
+		err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
+		return
+	}
+
+	// create open string for db
+	openString := fmt.Sprintf("%s:%s@%s(%s)/%s", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr.String(), dbConn.dbName)
+
+	// this is the root user!
+	var dbHandle *sql.DB
+	if dbHandle, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening db to create testing user: %s", err)
+		return
+	}
+
+	// make sure we close the connection at the end
+	defer dbHandle.Close()
+
+	if _, err = dbHandle.Exec(fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DROP, DELETE ON *.* TO '%s'@'%s' IDENTIFIED BY '%s';", dbConn.dbUsername, testConfig().DBHost, dbConn.dbPassword)); err != nil {
+		err = fmt.Errorf("Error creating user for testing: %s", err)
+		return
+	}
+
+	// we pass them the function to kill the user
+	killUserFunc = func() (err error) {
+		var dbConn *DB
+
+		// initialize the db
+		dbConn = new(DB)
+
+		// We created this testConfig, now we set the options from the testConfig
+		if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
+			err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
+			return
+		}
+
+		// create open string for db
+		openString := fmt.Sprintf("%s:%s@%s(%s)/%s", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr.String(), testConfig().DBName)
+
+		// this is the root user!
+		var dbHandle *sql.DB
+		if dbHandle, err = sql.Open("mysql", openString); err != nil {
+			err = fmt.Errorf("Error opening db to create testing user: %s", err)
+			return
+		}
+
+		// make sure we close the connection at the end
+		defer dbHandle.Close()
+
+		if _, err = dbHandle.Exec(fmt.Sprintf("DROP USER '%s'@'%s';", testingUser, testConfig().DBHost)); err != nil {
+			err = fmt.Errorf("Error dropping user for testing: %s", err)
+			return
+		}
+
+		return
+	}
+
+	return
+}
+
+// startupDB starts up a test db client
+func startupDB() (db *DB, err error) {
+
+	// initialize the db
+	db = new(DB)
+
+	// We created this testConfig, now we set the options from the testConfig
+	if err = db.setOptionsFromConfig(testConfig()); err != nil {
+		err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
+		return
+	}
+
+	db.gPriceMap = make(map[string]float64)
+	db.priceMapMtx = new(sync.Mutex)
+	db.coinList = constCoinParams()
+
+	// Resolve address for host and port, then set that as the network address
+	if db.dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
+		err = fmt.Errorf("Error resolving database address: \n%s", err)
+		return
+	}
+
+	// Create users and schemas and assign permissions to opencx
+	if err = db.rootInitSchemas(); err != nil {
+		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
+		return
+	}
+
+	// open db handle
+	openString := fmt.Sprintf("%s:%s@%s(%s)/%s", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr.String(), db.dbName)
+
+	if db.DBHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening database: \n%s", err)
+		return
+	}
+
+	// Get all the pairs
+	if db.pairsArray, err = match.GenerateAssetPairs(constCoinParams()); err != nil {
+		return
+	}
+
+	if err = db.setupSchemasAndTables(); err != nil {
+		err = fmt.Errorf("Error setting up schemas and tables for setupclient: %s", err)
 		return
 	}
 
@@ -86,16 +303,19 @@ func createOpencxUser() (err error) {
 // TestPlaceAuctionGoodParams should succeed with the correct coin params.
 func TestPlaceAuctionGoodParams(t *testing.T) {
 	var err error
-	if err = createOpencxUser(); err != nil {
+
+	// first create the user for the db
+	var killThemBoth func(t *testing.T)
+	if killThemBoth, err = createUserAndDatabase(); err != nil {
 		t.Skipf("Could not create user for test (error), so skipping: %s", err)
 		return
 	}
 
-	var dbConn *DB
-	dbConn = new(DB)
+	defer killThemBoth(t)
 
-	if err = dbConn.SetupClient(constCoinParams()); err != nil {
-		t.Errorf("Error setting up db client for test: %s", err)
+	var dbConn *DB
+	if dbConn, err = startupDB(); err != nil {
+		t.Skipf("Error starting db for place auction test: %s", err)
 		return
 	}
 
@@ -110,16 +330,19 @@ func TestPlaceAuctionGoodParams(t *testing.T) {
 // TestPlaceAuctionPuzzleSuccess should succeed even with bad coin params.
 func TestPlaceAuctionBadParams(t *testing.T) {
 	var err error
-	if err = createOpencxUser(); err != nil {
+
+	// first create the user for the db
+	var killThemBoth func(t *testing.T)
+	if killThemBoth, err = createUserAndDatabase(); err != nil {
 		t.Skipf("Could not create user for test (error), so skipping: %s", err)
 		return
 	}
 
-	var dbConn *DB
-	dbConn = new(DB)
+	defer killThemBoth(t)
 
-	if err = dbConn.SetupClient([]*coinparam.Params{}); err != nil {
-		t.Errorf("Error setting up db client for test: %s", err)
+	var dbConn *DB
+	if dbConn, err = startupDB(); err != nil {
+		t.Errorf("Error starting db for place auction test: %s", err)
 		return
 	}
 
@@ -134,16 +357,19 @@ func TestPlaceAuctionBadParams(t *testing.T) {
 // TestPlaceAuctionOrderbookChanges should succeed with the correct coin params.
 func TestPlaceAuctionOrderbookChanges(t *testing.T) {
 	var err error
-	if err = createOpencxUser(); err != nil {
+
+	// first create the user for the db
+	var killThemBoth func(t *testing.T)
+	if killThemBoth, err = createUserAndDatabase(); err != nil {
 		t.Skipf("Could not create user for test (error), so skipping: %s", err)
 		return
 	}
 
-	var dbConn *DB
-	dbConn = new(DB)
+	defer killThemBoth(t)
 
-	if err = dbConn.SetupClient(constCoinParams()); err != nil {
-		t.Errorf("Error setting up db client for test: %s", err)
+	var dbConn *DB
+	if dbConn, err = startupDB(); err != nil {
+		t.Errorf("Error starting db for place auction test: %s", err)
 		return
 	}
 
