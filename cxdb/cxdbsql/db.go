@@ -418,14 +418,14 @@ func (db *DB) InitializeNewTables(schemaName string, schemaSpec string) (err err
 		return
 	}
 	for _, chain := range db.coinList {
-		tableQuery := fmt.Sprintf("CREATE OR REPLACE TABLE %s (%s);", chain.Name, schemaSpec)
-		if _, err = db.DBHandler.Exec(tableQuery); err != nil {
-			err = fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
+		dropTableQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s;", chain.Name)
+		if _, err = db.DBHandler.Exec(dropTableQuery); err != nil {
+			err = fmt.Errorf("Could not drop table %s for initnewtables: \n%s", chain.Name, err)
 			return
 		}
-		deleteQuery := fmt.Sprintf("DELETE FROM %s;", chain.Name)
-		if _, err = db.DBHandler.Exec(deleteQuery); err != nil {
-			err = fmt.Errorf("Could not delete stuff from table after creating: \n%s", err)
+		createTableQuery := fmt.Sprintf("CREATE TABLE %s (%s);", chain.Name, schemaSpec)
+		if _, err = db.DBHandler.Exec(createTableQuery); err != nil {
+			err = fmt.Errorf("Could not create table %s: \n%s", chain.Name, err)
 			return
 		}
 	}
