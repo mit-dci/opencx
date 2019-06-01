@@ -282,8 +282,8 @@ func startupDB() (db *DB, err error) {
 	return
 }
 
-// TestPlaceAuctionGoodParams should succeed with the correct coin params.
-func TestPlaceAuctionGoodParams(t *testing.T) {
+// TestPlaceAuctionPuzzleGoodParams should succeed with the correct coin params.
+func TestPlaceAuctionPuzzleGoodParams(t *testing.T) {
 	var err error
 
 	// first create the user for the db
@@ -309,8 +309,8 @@ func TestPlaceAuctionGoodParams(t *testing.T) {
 	return
 }
 
-// TestPlaceAuctionPuzzleSuccess should succeed even with bad coin params.
-func TestPlaceAuctionBadParams(t *testing.T) {
+// TestPlaceAuctionPuzzleBadParams should succeed even with bad coin params.
+func TestPlaceAuctionPuzzleBadParams(t *testing.T) {
 	var err error
 
 	// first create the user for the db
@@ -336,8 +336,82 @@ func TestPlaceAuctionBadParams(t *testing.T) {
 	return
 }
 
-// TestPlaceAuctionOrderbookChanges should succeed with the correct coin params.
-func TestPlaceAuctionOrderbookChanges(t *testing.T) {
+// TestViewAuctionPuzzlebookEmpty tests that an empty orderbook doesn't error or return anything
+func TestViewAuctionPuzzlebookEmpty(t *testing.T) {
+	var err error
+
+	// first create the user for the db
+	var killThemBoth func(t *testing.T)
+	if killThemBoth, err = createUserAndDatabase(); err != nil {
+		t.Skipf("Could not create user for test (error), so skipping: %s", err)
+		return
+	}
+
+	defer killThemBoth(t)
+
+	var dbConn *DB
+	if dbConn, err = startupDB(); err != nil {
+		t.Errorf("Error starting db for place auction test: %s", err)
+		return
+	}
+
+	// Starting from an empty book, we shouldn't see anything in this auction id.
+	var returnedOrders []*match.EncryptedAuctionOrder
+	if returnedOrders, err = dbConn.ViewAuctionPuzzleBook(testEncryptedOrder.IntendedAuction); err != nil {
+		t.Errorf("Error vewing auction puzzle book, should not error: %s", err)
+		return
+	}
+
+	if len(returnedOrders) != 0 {
+		t.Errorf("Length of returned orders is %d, should be 0", len(returnedOrders))
+		return
+	}
+
+	return
+}
+
+// TestViewAuctionOrderbookEmpty tests that an empty orderbook doesn't error or return anything
+func TestViewAuctionOrderbookEmpty(t *testing.T) {
+	var err error
+
+	// first create the user for the db
+	var killThemBoth func(t *testing.T)
+	if killThemBoth, err = createUserAndDatabase(); err != nil {
+		t.Skipf("Could not create user for test (error), so skipping: %s", err)
+		return
+	}
+
+	defer killThemBoth(t)
+
+	var dbConn *DB
+	if dbConn, err = startupDB(); err != nil {
+		t.Errorf("Error starting db for place auction test: %s", err)
+		return
+	}
+
+	// Starting from an empty book, we shouldn't see anything in this auction id.
+	var retBuyOrders []*match.AuctionOrder
+	var retSellOrders []*match.AuctionOrder
+	if retBuyOrders, retSellOrders, err = dbConn.ViewAuctionOrderBook(&testAuctionOrder.TradingPair, testEncryptedOrder.IntendedAuction); err != nil {
+		t.Errorf("Error vewing auction puzzle book, should not error: %s", err)
+		return
+	}
+
+	if len(retBuyOrders) != 0 {
+		t.Errorf("Length of returned buy orders is %d, should be 0", len(retBuyOrders))
+		return
+	}
+
+	if len(retSellOrders) != 0 {
+		t.Errorf("Length of returned sell orders is %d, should be 0", len(retSellOrders))
+		return
+	}
+
+	return
+}
+
+// TestPlaceAuctionPuzzlebookChanges should succeed with the correct coin params.
+func TestPlaceAuctionPuzzlebookChanges(t *testing.T) {
 	var err error
 
 	// first create the user for the db
