@@ -112,7 +112,7 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while placing puzzle order: \n%s", err)
+			err = fmt.Errorf("Error while viewing auction order book: \n%s", err)
 			return
 		}
 		err = tx.Commit()
