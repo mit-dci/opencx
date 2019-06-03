@@ -264,16 +264,6 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 
 func (db *DB) setupSchemasAndTables() (err error) {
 
-	// // Get all the assets
-	// for i, asset := range db.coinList {
-	// 	logging.Debugf("Asset %d: %s\n", i, asset.Name)
-	// }
-
-	// // Get all the asset pairs
-	// for i, pair := range db.pairsArray {
-	// 	logging.Debugf("Pair %d: %s\n", i, pair)
-	// }
-
 	if err = db.DBHandler.Ping(); err != nil {
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
 		return
