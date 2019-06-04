@@ -290,15 +290,6 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 			}
 			currBuyOrder.AmountHave -= currSellOrder.AmountWant
 
-			// // update order with new amounts
-			// if err = db.UpdateOrderAmountsWithinTransaction(currBuyOrder, pair, tx); err != nil {
-			// 	return
-			// }
-			// // delete sell order
-			// if err = db.DeleteOrderWithinTransaction(currSellOrder, pair, tx); err != nil {
-			// 	return
-			// }
-
 			if err = db.fillOrdersByAmountsTx(currBuyOrder, currSellOrder, prevAmountHave, prevAmountWant, tx); err != nil {
 				err = fmt.Errorf("Error filling orders for different amounts (buyhave > sellwant) in matching: %s", err)
 				return
@@ -319,16 +310,6 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 				currSellOrder.AmountHave -= currBuyOrder.AmountWant
 			}
 			currSellOrder.AmountWant -= currBuyOrder.AmountHave
-
-			// // logging.Infof("less")
-			// // update order with new amounts
-			// if err = db.UpdateOrderAmountsWithinTransaction(currSellOrder, pair, tx); err != nil {
-			// 	return
-			// }
-			// // delete buy order
-			// if err = db.DeleteOrderWithinTransaction(currBuyOrder, pair, tx); err != nil {
-			// 	return
-			// }
 
 			if err = db.fillOrdersByAmountsTx(currBuyOrder, currSellOrder, prevAmountWant, prevAmountHave, tx); err != nil {
 				err = fmt.Errorf("Error filling orders for different amounts (buyhave < sellwant) in matching: %s", err)
@@ -358,6 +339,8 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 // matching engine sends messages / responses to server with executions. Server does executions.
 // Server manages accounts. Matching engine doesn't care about accounts. Do all validation in one place.
 
+// fillOrdersByAmounts fills the buy order by buyFillAmount, and the sellOrder by sellFillAmount. This has an execution part at the
+// beginning, and settlement part at the end
 func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match.LimitOrder, buyFillAmount uint64, sellFillAmount uint64, tx *sql.Tx) (err error) {
 
 	// If the two orders are on different trading pairs we can't fill them
@@ -423,6 +406,7 @@ func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match
 	// engine.
 	// use the balance schema because we're ending with balance transactions
 	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using balance schema to fill orders: %s", err)
 		return
 	}
 
