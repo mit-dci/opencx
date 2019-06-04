@@ -176,6 +176,7 @@ func (a *AuctionOrder) Price() (price float64, err error) {
 		return
 	} else if a.IsSellSide() {
 		price = float64(a.AmountHave) / float64(a.AmountWant)
+		return
 	}
 	err = fmt.Errorf("Order is not buy or sell, cannot calculate price")
 	return
