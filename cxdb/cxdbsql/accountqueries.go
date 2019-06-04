@@ -88,7 +88,6 @@ func (db *DB) InsertDepositAddresses(pubkey *koblitz.PublicKey, addressMap map[*
 		logging.Infof("Addr: %s, len: %d", addr, len(addr))
 		// insert into db
 		insertDepositAddrQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s') ON DUPLICATE KEY UPDATE address='%s';", chain.Name, pubkey.SerializeCompressed(), addr, addr)
-		logging.Infof("%s", insertDepositAddrQuery)
 		if _, err = tx.Exec(insertDepositAddrQuery); err != nil {
 			return
 		}

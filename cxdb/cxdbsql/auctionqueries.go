@@ -68,6 +68,7 @@ func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 			return
 		}
 		err = tx.Commit()
+		return
 	}()
 
 	if _, err = tx.Exec("USE " + db.auctionSchema + ";"); err != nil {
@@ -89,7 +90,7 @@ func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 	sha.Write(order.Serialize())
 	hashedOrder := sha.Sum(nil)
 
-	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", order.TradingPair.String(), order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
+	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", &order.TradingPair, order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
 	if _, err = tx.Exec(insertOrderQuery); err != nil {
 		err = fmt.Errorf("Error getting orders from db for placeauctionorder: %s", err)
 		return
@@ -119,7 +120,7 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 	}()
 
 	if _, err = tx.Exec("USE " + db.auctionSchema + ";"); err != nil {
-		err = fmt.Errorf("Error using auction order schema for viewauctionorderbook: %s", err)
+		err = fmt.Errorf("Error using auction schema for viewauctionorderbook: %s", err)
 		return
 	}
 
@@ -131,10 +132,12 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 	}
 
 	defer func() {
+		// TODO
 		if err = rows.Close(); err != nil {
 			err = fmt.Errorf("Error closing rows for viewauctionorderbook: %s", err)
 			return
 		}
+		return
 	}()
 
 	// we allocate space for new orders but only need one pointer
