@@ -320,7 +320,8 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
 	// Run the matching algorithm for every pair in the orderbook
 	for _, pair := range db.pairsArray {
-		if err = db.clearingMatchingAlgorithm(auctionID, pair, tx); err != nil {
+		// var execs []*match.OrderExecution
+		if _, err = db.clearingMatchingAlgorithm(auctionID, pair, tx); err != nil {
 			err = fmt.Errorf("Error running clearing matching algorithm for pair %s: %s", pair, err)
 			return
 		}
@@ -330,7 +331,7 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 }
 
 // clearingMatchingAlgorithm runs the matching algorithm based on clearing price for a single batch pair
-func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (err error) {
+func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (executions []*match.OrderExecution, err error) {
 
 	// We define the rows, etc here so we don't waste a bunch of stack space
 	// scanning is very tedious
@@ -395,9 +396,9 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 
 	// go through all orders and figure out which ones to match
 	for _, order := range allOrders {
-		if order.IsBuySide() && order.OrderbookPrice > clearingPrice {
+		if order.IsBuySide() && order.OrderbookPrice >= clearingPrice {
 			// Fill the buy order at the clearing price -- TODO
-		} else if order.IsSellSide() && order.OrderbookPrice < clearingPrice {
+		} else if order.IsSellSide() && order.OrderbookPrice <= clearingPrice {
 			// Fill the sell order at the clearing price -- TODO
 		}
 
@@ -444,9 +445,9 @@ func calculateClearingPrice(book map[float64][]*match.AuctionOrder) (clearingPri
 		// if there is an intersecting price, calculate clearing amounts for the price.
 		for _, order := range orderList {
 			// for all intersecting prices in the orderbook, we add the amounts
-			if order.IsBuySide() && pr > lowestIntersectingPrice {
+			if order.IsBuySide() && pr >= lowestIntersectingPrice {
 				buyClearAmount += order.AmountHave
-			} else if order.IsSellSide() && pr < highestIntersectingPrice {
+			} else if order.IsSellSide() && pr <= highestIntersectingPrice {
 				sellClearAmount += order.AmountHave
 			}
 		}
