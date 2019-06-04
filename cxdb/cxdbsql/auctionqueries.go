@@ -89,9 +89,9 @@ func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 	sha.Write(order.Serialize())
 	hashedOrder := sha.Sum(nil)
 
-	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", order.TradingPair, order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
+	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", order.TradingPair.String(), order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
 	if _, err = tx.Exec(insertOrderQuery); err != nil {
-		err = fmt.Errorf("Error getting orders from db for viewauctionorderbook: %s", err)
+		err = fmt.Errorf("Error getting orders from db for placeauctionorder: %s", err)
 		return
 	}
 
@@ -294,18 +294,19 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 }
 
 // MatchAuction calculates a single clearing price to execute orders at, and executes at that price.
+// TODO: remove "height" from the return
 func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
 	var tx *sql.Tx
 	if tx, err = db.DBHandler.Begin(); err != nil {
-		err = fmt.Errorf("Error when beginning transaction for NewAuction: %s", err)
+		err = fmt.Errorf("Error when beginning transaction for MatchAuction: %s", err)
 		return
 	}
 
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while creating new auction: \n%s", err)
+			err = fmt.Errorf("Error while matching auction: \n%s", err)
 			return
 		}
 		err = tx.Commit()
@@ -328,7 +329,7 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (err error) {
 
 	// We define the rows, etc here so we don't waste a bunch of stack space
-	// ughhhh scanning is so tedious
+	// scanning is very tedious
 	var rows *sql.Rows
 
 	// All of the things we need to serialize into then copy from for the current order

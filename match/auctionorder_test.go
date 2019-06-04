@@ -62,6 +62,70 @@ func TestIsSellSide(t *testing.T) {
 	return
 }
 
+// Test a very simple price (1) and make sure that the price calculation is the same for both buy and sell
+func TestSimplePriceValidBuy(t *testing.T) {
+	var err error
+
+	orderPair := Pair{
+		AssetWant: BTC,
+		AssetHave: VTC,
+	}
+
+	origOrder := &AuctionOrder{
+		Side:        "buy",
+		TradingPair: orderPair,
+		AmountHave:  100000000,
+		AmountWant:  100000000,
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xff, 0x12},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.00000000,
+	}
+
+	var retPriceOne float64
+	if retPriceOne, err = origOrder.Price(); err != nil {
+		t.Errorf("Calculating price for origOrder should not have failed, here's the err: %s", err)
+		return
+	}
+
+	expectedPrice := 1.0
+	if retPriceOne != expectedPrice {
+		t.Errorf("Price for origOrder should have been %f but was %f", expectedPrice, retPriceOne)
+		return
+	}
+
+	origOrderCounter := &AuctionOrder{
+		Side:        "sell",
+		TradingPair: orderPair,
+		AmountHave:  100000000,
+		AmountWant:  100000000,
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xff, 0x12},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.00000000,
+	}
+
+	var retPriceOneCounter float64
+	if retPriceOneCounter, err = origOrderCounter.Price(); err != nil {
+		t.Errorf("Calculating price for origOrderCounter should not have failed, here's the err: %s", err)
+		return
+	}
+
+	expectedPriceCounter := 1.0
+	if retPriceOneCounter != expectedPriceCounter {
+		t.Errorf("Price for origOrderCounter should have been %f but was %f", expectedPriceCounter, retPriceOneCounter)
+		return
+	}
+
+	if retPriceOneCounter != retPriceOne {
+		t.Errorf("The price for retPriceOne, which was %f, should have been the same as retPriceOneCounter, which was %f", retPriceOne, retPriceOneCounter)
+		return
+	}
+
+}
+
+// TODO add more tests for simple methods
+
 func solveVariableRC5AuctionOrder(howMany uint64, timeToSolve uint64, t *testing.T) {
 
 	orderPair := Pair{
