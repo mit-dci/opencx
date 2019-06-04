@@ -10,7 +10,6 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -112,7 +111,8 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 	return
 }
 
-// UpdateOrderAmountsWithinTransaction updates a single order within a sql transaction
+// UpdateOrderAmountsWithinTransaction updates a single order within a sql transaction. It takes the order ID from the order passed
+// in and tries to update the amounts as specified in the order passed.
 func (db *DB) UpdateOrderAmountsWithinTransaction(order *match.LimitOrder, pair *match.Pair, tx *sql.Tx) (err error) {
 	defer func() {
 		if err != nil {
@@ -123,7 +123,7 @@ func (db *DB) UpdateOrderAmountsWithinTransaction(order *match.LimitOrder, pair 
 
 	updateOrderQuery := fmt.Sprintf("UPDATE %s SET amountHave=%d, amountWant=%d WHERE orderID='%s';", pair.String(), order.AmountHave, order.AmountWant, order.OrderID)
 	if _, err = tx.Exec(updateOrderQuery); err != nil {
-		logging.Infof("weird order thing: %s", updateOrderQuery)
+		err = fmt.Errorf("Error updating order within transaction: %s", err)
 		return
 	}
 	return
