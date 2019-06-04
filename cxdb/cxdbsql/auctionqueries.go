@@ -132,9 +132,10 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 	}
 
 	defer func() {
-		// TODO
-		if err = rows.Close(); err != nil {
-			err = fmt.Errorf("Error closing rows for viewauctionorderbook: %s", err)
+		// TODO: if there's a better way to chain all these errors, figure it out
+		var newErr error
+		if newErr = rows.Close(); newErr != nil {
+			err = fmt.Errorf("Error closing rows for viewauctionorderbook: %s", newErr)
 			return
 		}
 		return
@@ -152,7 +153,7 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 	for rows.Next() {
 		// scan the things we can into this order
 		thisOrder = new(match.AuctionOrder)
-		if err = rows.Scan(&pkBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, auctionIDBytes, nonceBytes, sigBytes); err != nil {
+		if err = rows.Scan(&pkBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes, &sigBytes); err != nil {
 			err = fmt.Errorf("Error scanning into order for viewauctionorderbook: %s", err)
 			return
 		}
