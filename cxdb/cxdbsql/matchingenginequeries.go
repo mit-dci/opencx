@@ -233,6 +233,7 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 			return
 		}
 
+		sellOrder.TradingPair = *pair
 		copy(sellOrder.Pubkey[:], pubkeyBytes)
 		sellOrders = append(sellOrders, sellOrder)
 	}
@@ -261,6 +262,7 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 			return
 		}
 
+		buyOrder.TradingPair = *pair
 		copy(buyOrder.Pubkey[:], pubkeyBytes)
 		buyOrders = append(buyOrders, buyOrder)
 	}
@@ -366,8 +368,6 @@ func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match
 
 	// Since we will have errored out if they are not the same, set the pair to the buy order
 	pair := buyOrder.TradingPair
-	logging.Infof("Filling orders for buy order pair %s", buyOrder.TradingPair)
-	logging.Infof("Filling orders for sell order pair %s", sellOrder.TradingPair)
 
 	// get coinparam for assetwant
 	var assetWantCoinType *coinparam.Params
@@ -419,6 +419,8 @@ func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match
 		}
 	}
 
+	// TODO: this part gets removed in the future, done somewhere else. There should be a settlement engine aside from the matching
+	// engine.
 	// use the balance schema because we're ending with balance transactions
 	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
 		return
