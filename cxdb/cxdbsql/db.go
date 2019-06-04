@@ -1,6 +1,7 @@
 package cxdbsql
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"net"
@@ -259,6 +260,15 @@ func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 		return
 	}
 
+	return
+}
+
+func (db *DB) doesPairExist(newPair *match.Pair) (res bool) {
+	for _, pair := range db.pairsArray {
+		if bytes.Equal(pair.Serialize(), newPair.Serialize()) {
+			res = true
+		}
+	}
 	return
 }
 

@@ -298,7 +298,7 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 			// }
 
 			if err = db.fillOrdersByAmountsTx(currBuyOrder, currSellOrder, prevAmountHave, prevAmountWant, tx); err != nil {
-				err = fmt.Errorf("Error filling orders for equal amounts in matching: %s", err)
+				err = fmt.Errorf("Error filling orders for different amounts (buyhave > sellwant) in matching: %s", err)
 				return
 			}
 
@@ -329,7 +329,7 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 			// }
 
 			if err = db.fillOrdersByAmountsTx(currBuyOrder, currSellOrder, prevAmountWant, prevAmountHave, tx); err != nil {
-				err = fmt.Errorf("Error filling orders for equal amounts in matching: %s", err)
+				err = fmt.Errorf("Error filling orders for different amounts (buyhave < sellwant) in matching: %s", err)
 				return
 			}
 
@@ -352,6 +352,10 @@ func (db *DB) RunMatchingCrossedPricesWithinTransaction(pair *match.Pair, bestBu
 	return
 }
 
+// TODO: remove all accounts, create matching engine interface that only deals with orders.
+// matching engine sends messages / responses to server with executions. Server does executions.
+// Server manages accounts. Matching engine doesn't care about accounts. Do all validation in one place.
+
 func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match.LimitOrder, buyFillAmount uint64, sellFillAmount uint64, tx *sql.Tx) (err error) {
 
 	// If the two orders are on different trading pairs we can't fill them
@@ -362,6 +366,8 @@ func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match
 
 	// Since we will have errored out if they are not the same, set the pair to the buy order
 	pair := buyOrder.TradingPair
+	logging.Infof("Filling orders for buy order pair %s", buyOrder.TradingPair)
+	logging.Infof("Filling orders for sell order pair %s", sellOrder.TradingPair)
 
 	// get coinparam for assetwant
 	var assetWantCoinType *coinparam.Params
@@ -379,6 +385,7 @@ func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match
 
 	// First make sure we delete or update orders accordingly
 	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using order schema to fill orders: %s", err)
 		return
 	}
 
@@ -386,11 +393,13 @@ func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match
 	if buyFillAmount < buyOrder.AmountWant {
 		// update order with new amounts
 		if err = db.UpdateOrderAmountsWithinTransaction(sellOrder, &pair, tx); err != nil {
+			err = fmt.Errorf("Error updating order amounts when fill < buyamountwant: %s", err)
 			return
 		}
 	} else {
 		// update order with new amounts
 		if err = db.DeleteOrderWithinTransaction(sellOrder, &pair, tx); err != nil {
+			err = fmt.Errorf("Error deleting order when fill >= buyamountwant: %s", err)
 			return
 		}
 	}
@@ -399,11 +408,13 @@ func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match
 	if sellFillAmount < sellOrder.AmountWant {
 		// update order with new amounts
 		if err = db.UpdateOrderAmountsWithinTransaction(buyOrder, &pair, tx); err != nil {
+			err = fmt.Errorf("Error updating order amounts when fill < sellamountwant: %s", err)
 			return
 		}
 	} else {
 		// update order with new amounts
 		if err = db.DeleteOrderWithinTransaction(buyOrder, &pair, tx); err != nil {
+			err = fmt.Errorf("Error deleting order when fill >= sellamountwant: %s", err)
 			return
 		}
 	}
@@ -425,10 +436,12 @@ func (db *DB) fillOrdersByAmountsTx(buyOrder *match.LimitOrder, sellOrder *match
 
 	// credit buyOrder client with sellOrder amountHave
 	if err = db.AddToBalanceWithinTransaction(buyOrderPubkey, buyFillAmount, tx, assetWantCoinType); err != nil {
+		err = fmt.Errorf("Error adding to buyorder pubkey balance for fill: %s", err)
 		return
 	}
 	// credit sellOrder client with buyorder amountWant
 	if err = db.AddToBalanceWithinTransaction(sellOrderPubkey, sellFillAmount, tx, assetHaveCoinType); err != nil {
+		err = fmt.Errorf("Error adding to sellorder pubkey balance for fill: %s", err)
 		return
 	}
 

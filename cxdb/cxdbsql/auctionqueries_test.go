@@ -274,15 +274,32 @@ func TestClearingMatchingSimple(t *testing.T) {
 		return
 	}
 
-	// one of these might fail
 	if err = dbConn.PlaceAuctionOrder(equalOrderLtcBtc); err != nil {
 		t.Errorf("Error placing auction order equalOrderLtcBtc, should not error: %s", err)
 		return
 	}
 
-	// one of these might fail
 	if err = dbConn.PlaceAuctionOrder(equalOrderCounterparty); err != nil {
 		t.Errorf("Error placing auction order equalOrderCounterparty, should not error: %s", err)
+		return
+	}
+
+	var origBuys []*match.AuctionOrder
+	var origSells []*match.AuctionOrder
+	if origSells, origBuys, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
+		return
+	}
+
+	expectedBuys := 1
+	if len(origBuys) != expectedBuys {
+		t.Errorf("Length of returned buy orders is %d, should be %d", len(origBuys), expectedBuys)
+		return
+	}
+
+	expectedSells := 1
+	if len(origSells) != expectedSells {
+		t.Errorf("Length of returned sell orders is %d, should be %d", len(origSells), expectedSells)
 		return
 	}
 
@@ -302,7 +319,7 @@ func TestClearingMatchingSimple(t *testing.T) {
 	// TODO: Define lots of behavior
 	var newBuys []*match.AuctionOrder
 	var newSells []*match.AuctionOrder
-	if newBuys, newSells, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+	if newSells, newBuys, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
 	}
