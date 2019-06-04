@@ -43,10 +43,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 		return
 	}
 
-	inPairs := false
-	for _, pair := range db.pairsArray {
-		inPairs = inPairs || pair.String() == order.TradingPair.String()
-	}
+	inPairs := db.doesPairExist(&order.TradingPair)
 	if !inPairs {
 		err = fmt.Errorf("Trading pair does not exist, try the other way around (e.g. ltc/btc => btc/ltc)")
 		return
@@ -261,6 +258,12 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 		err = tx.Commit()
 	}()
 
+	inPairs := db.doesPairExist(pair)
+	if !inPairs {
+		err = fmt.Errorf("Trading pair does not exist, try the other way around (e.g. ltc/btc => btc/ltc)")
+		return
+	}
+
 	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
 		return
 	}
@@ -295,7 +298,7 @@ func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder
 		}
 
 		// this will select all sell side, ordered by time ascending so the earliest one will be at the front
-		getSellSideQuery := fmt.Sprintf("SELECT pubkey, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "sell")
+		getSellSideQuery := fmt.Sprintf("SELECT pubkey, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair, price, "sell")
 		sellRows, sellQueryErr := tx.Query(getSellSideQuery)
 		if err = sellQueryErr; err != nil {
 			return
