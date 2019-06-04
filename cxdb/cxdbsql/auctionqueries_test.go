@@ -266,7 +266,7 @@ func TestClearingMatchingSimple(t *testing.T) {
 		return
 	}
 
-	defer killThemBoth(t)
+	killThemBoth(t)
 
 	var dbConn *DB
 	if dbConn, err = startupDB(); err != nil {
