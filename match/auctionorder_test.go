@@ -1,6 +1,60 @@
 package match
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
+
+var (
+	orderPair = Pair{
+		AssetWant: BTC,
+		AssetHave: VTC,
+	}
+
+	origOrder = &AuctionOrder{
+		Side:        "buy",
+		TradingPair: orderPair,
+		AmountHave:  100000000,
+		AmountWant:  100000000,
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xff, 0x12},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.00000000,
+	}
+
+	origOrderCounter = &AuctionOrder{
+		Side:        "sell",
+		TradingPair: orderPair,
+		AmountHave:  100000000,
+		AmountWant:  100000000,
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xff, 0x12},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.00000000,
+	}
+
+	origOrderFullExec = &OrderExecution{
+		OrderID: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07},
+		Debited: Entry{
+			Amount: 100000000,
+			Asset:  BTC,
+		},
+		Credited: Entry{
+			Amount: 100000000,
+			Asset:  VTC,
+		},
+		// these are just some random number because they should not matter since the order is filled
+		NewAmountWant: 23892323,
+		NewAmountHave: 37348722,
+		Filled:        true,
+	}
+)
+
+// getOrderID is a helper method which really just hashes the nonce and signature
+func getOrderID(order *AuctionOrder) (buf []byte) {
+	// TODO
+	return
+}
 
 func TestIsBuySide(t *testing.T) {
 
@@ -62,25 +116,40 @@ func TestIsSellSide(t *testing.T) {
 	return
 }
 
+// Test some easy execution generation
+func TestGenerateEasyExecutionFromPrice(t *testing.T) {
+	var err error
+
+	// this should fill the order completely. this is the trivial case.
+	var resExec OrderExecution
+	if resExec, err = origOrder.GenerateExecutionFromPrice(float64(1), 100000000); err != nil {
+		t.Errorf("Error generating execution from price, should not error: %s", err)
+		return
+	}
+	// while they shouldn't be equal, the non Amount fields should be.
+	if resExec.Filled != origOrderFullExec.Filled {
+		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
+		return
+	}
+	if !bytes.Equal(resExec.OrderID, origOrderFullExec.OrderID) {
+		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
+		return
+	}
+	if resExec.Credited != origOrderFullExec.Credited {
+		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &resExec.Credited)
+		return
+	}
+	if resExec.Debited != origOrderFullExec.Debited {
+		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
+		return
+	}
+
+	return
+}
+
 // Test a very simple price (1) and make sure that the price calculation is the same for both buy and sell
 func TestSimplePriceValidBuy(t *testing.T) {
 	var err error
-
-	orderPair := Pair{
-		AssetWant: BTC,
-		AssetHave: VTC,
-	}
-
-	origOrder := &AuctionOrder{
-		Side:        "buy",
-		TradingPair: orderPair,
-		AmountHave:  100000000,
-		AmountWant:  100000000,
-		// Just some bytes cause why not
-		Nonce: [2]byte{0xff, 0x12},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.00000000,
-	}
 
 	var retPriceOne float64
 	if retPriceOne, err = origOrder.Price(); err != nil {
@@ -92,17 +161,6 @@ func TestSimplePriceValidBuy(t *testing.T) {
 	if retPriceOne != expectedPrice {
 		t.Errorf("Price for origOrder should have been %f but was %f", expectedPrice, retPriceOne)
 		return
-	}
-
-	origOrderCounter := &AuctionOrder{
-		Side:        "sell",
-		TradingPair: orderPair,
-		AmountHave:  100000000,
-		AmountWant:  100000000,
-		// Just some bytes cause why not
-		Nonce: [2]byte{0xff, 0x12},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.00000000,
 	}
 
 	var retPriceOneCounter float64
@@ -127,22 +185,6 @@ func TestSimplePriceValidBuy(t *testing.T) {
 // TODO add more tests for simple methods
 
 func solveVariableRC5AuctionOrder(howMany uint64, timeToSolve uint64, t *testing.T) {
-
-	orderPair := Pair{
-		AssetWant: BTC,
-		AssetHave: VTC,
-	}
-
-	// First create the order that will be puzzled and solved
-	origOrder := &AuctionOrder{
-		Side:        "buy",
-		TradingPair: orderPair,
-		AmountHave:  100000000,
-		AmountWant:  100000000,
-		// Just some bytes cause why not
-		Nonce:          [2]byte{0xff, 0x12},
-		OrderbookPrice: 1.00000000,
-	}
 
 	var encOrder *EncryptedAuctionOrder
 	var err error
