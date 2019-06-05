@@ -53,6 +53,15 @@ we'll have to go with a bool.
 
 TODO: in the future, when AmountWant and AmountHave are replaced with a new price struct, this will need to
 change as well. The NewAmountWant and NewAmountHave can be replaced.
+
+On a typical exchange, say $ per btc, if you place a buy order at a high $/btc and someone else places a sell order
+at an even lower $/btc (want/have) after, then your buy order will be executed at your price. However if someone else
+places a sell order at a low-ish price, and you place a buy order at a price higher, then it will be executed at a lower price.
+
+Buy orders can only be matched at the price they are placed, or lower.
+Sell orders can only be matched at the price they are placed, or higher.
+You should never have an order be deleted and it yield
+less than you originally requested for the same value you provided.
 */
 type OrderExecution struct {
 	OrderID       []byte `json:"orderid"`
