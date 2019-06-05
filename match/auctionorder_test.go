@@ -180,7 +180,7 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 	return
 }
 
-// Test some fill generation that should error out
+// Test some fill generation based on a bad side that should error out
 func TestGenerateBadSideFill(t *testing.T) {
 	var err error
 
@@ -192,13 +192,77 @@ func TestGenerateBadSideFill(t *testing.T) {
 	// this should just error
 	var resExec OrderExecution
 	if resExec, err = badOrder.GenerateOrderFill(origOrderID, float64(1)); err == nil {
-		t.Errorf("There was no error trying to generate an order fill for an invalid order")
+		t.Errorf("There was no error trying to generate an order fill for an order with a bad side")
 		return
 	}
 
 	emptyExec := &OrderExecution{}
 	if !(&resExec).Equal(emptyExec) {
 		t.Errorf("GenerateOrderFill created part of an execution on failure, this should not happen")
+		return
+	}
+
+	return
+}
+
+// Test some fill generation based on a zero price that should error out
+func TestGenerateBadPriceFill(t *testing.T) {
+	var err error
+
+	// Create a new order that looks like origOrder
+	badOrder := new(AuctionOrder)
+	*badOrder = *origOrder
+	// This field does not matter and should not matter
+	badOrder.OrderbookPrice = float64(0)
+
+	// this should just error
+	var resExec OrderExecution
+	if resExec, err = badOrder.GenerateOrderFill(origOrderID, float64(0)); err == nil {
+		t.Errorf("There was no error trying to generate an order fill for a price of zero")
+		return
+	}
+
+	emptyExec := &OrderExecution{}
+	if !(&resExec).Equal(emptyExec) {
+		t.Errorf("GenerateOrderFill created part of an execution on failure, this should not happen")
+		return
+	}
+
+	return
+}
+
+// Test some fill generation on an orderbook price of zero
+func TestGenerateEasyPriceFillAmounts(t *testing.T) {
+	var err error
+
+	// Create a new order that looks like origOrder
+	zeroPriceOrder := new(AuctionOrder)
+	*zeroPriceOrder = *origOrder
+	// This field does not matter and should not matter
+	zeroPriceOrder.OrderbookPrice = float64(0)
+
+	// this should just error
+	var resExec OrderExecution
+	if resExec, err = zeroPriceOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
+		t.Errorf("Error generating execution from price, should not error: %s", err)
+		return
+	}
+
+	// while they shouldn't be equal, the non Amount fields should be.
+	if resExec.Filled != origOrderFullExec.Filled {
+		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
+		return
+	}
+	if !bytes.Equal(resExec.OrderID, origOrderFullExec.OrderID) {
+		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
+		return
+	}
+	if resExec.Credited != origOrderFullExec.Credited {
+		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &resExec.Credited)
+		return
+	}
+	if resExec.Debited != origOrderFullExec.Debited {
+		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
 		return
 	}
 
