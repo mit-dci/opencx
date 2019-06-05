@@ -202,12 +202,12 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 	var creditAsset Asset
 	if a.IsBuySide() {
 		amountToDebit = uint64(float64(a.AmountHave) * execPrice)
-		debitAsset = a.TradingPair.AssetHave
-		creditAsset = a.TradingPair.AssetWant
-	} else if a.IsSellSide() {
-		amountToDebit = uint64(float64(a.AmountHave) / execPrice)
 		debitAsset = a.TradingPair.AssetWant
 		creditAsset = a.TradingPair.AssetHave
+	} else if a.IsSellSide() {
+		amountToDebit = uint64(float64(a.AmountHave) / execPrice)
+		debitAsset = a.TradingPair.AssetHave
+		creditAsset = a.TradingPair.AssetWant
 	} else {
 		err = fmt.Errorf("Error generating order fill from price, order is not buy or sell side, it's %s side", a.Side)
 		return
@@ -271,6 +271,7 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 			Amount: amountToFill,
 		}
 	} else {
+
 	}
 
 	// If it's a sell side, price is have/want. So amountToFill * execPrice = amountHave to fill
