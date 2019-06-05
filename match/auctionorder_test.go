@@ -180,6 +180,31 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 	return
 }
 
+// Test some fill generation that should error out
+func TestGenerateBadSideFill(t *testing.T) {
+	var err error
+
+	// Create a new order that looks like origOrder
+	badOrder := new(AuctionOrder)
+	*badOrder = *origOrder
+	badOrder.Side = "bad"
+
+	// this should just error
+	var resExec OrderExecution
+	if resExec, err = badOrder.GenerateOrderFill(origOrderID, float64(1)); err == nil {
+		t.Errorf("There was no error trying to generate an order fill for an invalid order")
+		return
+	}
+
+	emptyExec := &OrderExecution{}
+	if !(&resExec).Equal(emptyExec) {
+		t.Errorf("GenerateOrderFill created part of an execution on failure, this should not happen")
+		return
+	}
+
+	return
+}
+
 // Test a very simple price (1) and make sure that the price calculation is the same for both buy and sell
 func TestSimplePriceValidBuy(t *testing.T) {
 	var err error
