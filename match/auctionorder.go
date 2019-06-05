@@ -185,6 +185,8 @@ func (a *AuctionOrder) Price() (price float64, err error) {
 }
 
 // GenerateOrderFill creates an execution that will fill an order (AmountHave at the end is 0) and provide an execution.
+// This does not assume anything about the price of the order, as we can't infer what price the order was
+// placed at.
 func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (execution OrderExecution, err error) {
 
 	if a.AmountHave == 0 {
@@ -236,7 +238,9 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 // used by the matching engine when a price is determined for this order to execute at.
 // amountToFill refers to the amount of AssetWant that can be filled. So the other side's "AmountHave" can be passed
 // in as a parameter. The order ID will be filled in, as it's being passed as a parameter.
-func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice float64, amountToFill uint64) (execution OrderExecution, err error) {
+// This returns a fillRemainder, which is the amount that is left over from amountToFill after
+// filling orderID at execPrice and amountToFill
+func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice float64, amountToFill uint64) (execution OrderExecution, fillRemainder uint64, err error) {
 	// If it's a buy side, AmountWant is assetWant, and AmountHave is assetHave - but price is something different, price is want/have.
 	// So to convert from amountWant (amountToFill) to amountHave we need to multiple amountToFill by 1/execPrice
 	var amountWantToFill uint64
@@ -261,17 +265,27 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 	// In what cases would it be greater?
 	// Well we don't want to credit them more than they have. So we can only fill it up to a certain amount.
 	if amountWantToFill >= a.AmountHave {
-		execution.Filled = true
-		execution.Debited = Entry{
-			Asset:  debitAsset,
-			Amount: amountWantToFill,
+		fillRemainder = amountWantToFill - a.AmountHave
+		if execution, err = a.GenerateOrderFill(orderID, execPrice); err != nil {
+			err = fmt.Errorf("Error generating order fill while generating exec for price: %s", err)
+			return
 		}
-		execution.Credited = Entry{
-			Asset:  creditAsset,
-			Amount: amountToFill,
-		}
-	} else {
 
+	} else {
+		execution = OrderExecution{
+			OrderID: orderID,
+			Debited: Entry{
+				Amount: amountToFill,
+				Asset:  debitAsset,
+			},
+			Credited: Entry{
+				Amount: amountWantToFill,
+				Asset:  creditAsset,
+			},
+			NewAmountWant: a.AmountWant - amountToFill,
+			NewAmountHave: a.AmountHave - amountWantToFill,
+			Filled:        false,
+		}
 	}
 
 	// If it's a sell side, price is have/want. So amountToFill * execPrice = amountHave to fill

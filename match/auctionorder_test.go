@@ -45,9 +45,25 @@ var (
 			Amount: 100000000,
 			Asset:  VTC,
 		},
-		// these are just some random number because they should not matter since the order is filled
+		// these are just some random numbers because they should not matter since the order is filled
 		NewAmountWant: 23892323,
 		NewAmountHave: 37348722,
+		Filled:        true,
+	}
+
+	origOrderDoubleExec = &OrderExecution{
+		OrderID: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07},
+		Debited: Entry{
+			Amount: 200000000,
+			Asset:  BTC,
+		},
+		Credited: Entry{
+			Amount: 100000000,
+			Asset:  VTC,
+		},
+		// these are just some random numbers because they should not matter since the order is filled
+		NewAmountWant: 53872666,
+		NewAmountHave: 47666772,
 		Filled:        true,
 	}
 )
@@ -124,7 +140,8 @@ func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
-	if resExec, err = origOrder.GenerateExecutionFromPrice(origOrderID, float64(1), 100000000); err != nil {
+	var fillRemainder uint64
+	if resExec, fillRemainder, err = origOrder.GenerateExecutionFromPrice(origOrderID, float64(1), 100000000); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -143,6 +160,49 @@ func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 	}
 	if resExec.Debited != origOrderFullExec.Debited {
 		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
+		return
+	}
+	if resExec.NewAmountHave != 0 {
+		t.Errorf("A filled order should have no 'NewAmountHave' left. It has %d instead", resExec.NewAmountHave)
+		return
+	}
+	if fillRemainder != 0 {
+		t.Errorf("The remainder from this order fill should be 0 since it should be exact. Was %d instead", fillRemainder)
+		return
+	}
+
+	return
+}
+
+// Test execution generation for a price that will fill for "half price", aka give the orderID's user twice the money
+func TestGenerateDoubleFill(t *testing.T) {
+	var err error
+
+	// this should fill the order completely. this is the trivial case.
+	var resExec OrderExecution
+	if resExec, err = origOrder.GenerateOrderFill(origOrderID, float64(2)); err != nil {
+		t.Errorf("Error generating execution from price, should not error: %s", err)
+		return
+	}
+	// while they shouldn't be equal, the non Amount fields should be.
+	if resExec.Filled != origOrderDoubleExec.Filled {
+		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
+		return
+	}
+	if !bytes.Equal(resExec.OrderID, origOrderDoubleExec.OrderID) {
+		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderDoubleExec.OrderID, resExec.OrderID)
+		return
+	}
+	if resExec.Credited != origOrderDoubleExec.Credited {
+		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderDoubleExec.Credited, &resExec.Credited)
+		return
+	}
+	if resExec.Debited != origOrderDoubleExec.Debited {
+		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderDoubleExec.Debited, &resExec.Debited)
+		return
+	}
+	if resExec.NewAmountHave != 0 {
+		t.Errorf("A filled order should have no 'NewAmountHave' left. It has %d instead", resExec.NewAmountHave)
 		return
 	}
 
@@ -174,6 +234,10 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 	}
 	if resExec.Debited != origOrderFullExec.Debited {
 		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
+		return
+	}
+	if resExec.NewAmountHave != 0 {
+		t.Errorf("A filled order should have no 'NewAmountHave' left. It has %d instead", resExec.NewAmountHave)
 		return
 	}
 
@@ -263,6 +327,10 @@ func TestGenerateEasyPriceFillAmounts(t *testing.T) {
 	}
 	if resExec.Debited != origOrderFullExec.Debited {
 		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
+		return
+	}
+	if resExec.NewAmountHave != 0 {
+		t.Errorf("A filled order should have no 'NewAmountHave' left. It has %d instead", resExec.NewAmountHave)
 		return
 	}
 
