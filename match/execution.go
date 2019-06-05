@@ -1,6 +1,9 @@
 package match
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 /*
 OrderExecution contains a simple order execution struct. This is what is being used in the clearing
@@ -65,4 +68,27 @@ func (oe *OrderExecution) String() string {
 	// we are ignoring this error because we know that the struct is marshallable. All of the fields are.
 	jsonRepresentation, _ := json.Marshal(oe)
 	return string(jsonRepresentation)
+}
+
+// Equal compares one OrderExecution with another OrderExecution and returns true if all of the fields are the same.
+func (oe *OrderExecution) Equal(otherExec *OrderExecution) bool {
+	if !bytes.Equal(oe.OrderID, otherExec.OrderID) {
+		return false
+	}
+	if oe.Debited != otherExec.Debited {
+		return false
+	}
+	if oe.Credited != otherExec.Credited {
+		return false
+	}
+	if oe.NewAmountWant != otherExec.NewAmountWant {
+		return false
+	}
+	if oe.NewAmountHave != otherExec.NewAmountHave {
+		return false
+	}
+	if oe.Filled != otherExec.Filled {
+		return false
+	}
+	return true
 }
