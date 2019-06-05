@@ -405,20 +405,24 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 			// TODO: make a settlement method that takes in an execution
 			// TODO: should this be amountwant? or amounthave?
 			var resExec match.OrderExecution
-			if resExec, err = order.GenerateExecutionFromPrice(orderID[:], clearingPrice, order.AmountWant); err != nil {
+			var execRemainder uint64
+			if resExec, execRemainder, err = order.GenerateExecutionFromPrice(orderID[:], clearingPrice, order.AmountWant); err != nil {
 				err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
 				return
 			}
 			logging.Infof("Generated execution from buy order for clearing price!!: \n%s", &resExec)
+			logging.Infof("Remainder from execution: %s", execRemainder)
 			logging.Errorf("This is not implemented!!")
 		} else if order.IsSellSide() && order.OrderbookPrice <= clearingPrice {
 			// Fill the sell order at the clearing price -- TODO
 			var resExec match.OrderExecution
-			if resExec, err = order.GenerateExecutionFromPrice(orderID[:], clearingPrice, order.AmountWant); err != nil {
+			var execRemainder uint64
+			if resExec, execRemainder, err = order.GenerateExecutionFromPrice(orderID[:], clearingPrice, order.AmountWant); err != nil {
 				err = fmt.Errorf("Error generating execution from clearing price for sell: %s", err)
 				return
 			}
 			logging.Infof("Generated execution from buy order for clearing price!!: \n%s", &resExec)
+			logging.Infof("Remainder from execution: %s", execRemainder)
 			logging.Errorf("This is not implemented!!")
 		}
 	}
