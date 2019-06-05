@@ -1,10 +1,6 @@
 package match
 
-// Entry represents either a credit or debit of some asset for some amount
-type Entry struct {
-	Amount uint64 `json:"amount"`
-	Asset  Asset  `json:"asset"`
-}
+import "encoding/json"
 
 /*
 OrderExecution contains a simple order execution struct. This is what is being used in the clearing
@@ -62,4 +58,11 @@ type OrderExecution struct {
 	NewAmountWant uint64 `json:"newamtwant"`
 	NewAmountHave uint64 `json:"newamthave"`
 	Filled        bool   `json:"filled"`
+}
+
+// String returns a json representation of the OrderExecution
+func (oe *OrderExecution) String() string {
+	// we are ignoring this error because we know that the struct is marshallable. All of the fields are.
+	jsonRepresentation, _ := json.Marshal(oe)
+	return string(jsonRepresentation)
 }

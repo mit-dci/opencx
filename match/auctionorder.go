@@ -133,6 +133,8 @@ type AuctionOrder struct {
 	Signature []byte  `json:"signature"`
 }
 
+// TODO: create an order ID method that hashes the Nonce and Signature? People should be able to verify the signature whenever, even if partially filled.
+
 // TurnIntoEncryptedOrder creates a puzzle for this auction order given the time. We make no assumptions about whether or not the order is signed.
 func (a *AuctionOrder) TurnIntoEncryptedOrder(t uint64) (encrypted *EncryptedAuctionOrder, err error) {
 	encrypted = new(EncryptedAuctionOrder)
@@ -179,6 +181,13 @@ func (a *AuctionOrder) Price() (price float64, err error) {
 		return
 	}
 	err = fmt.Errorf("Order is not buy or sell, cannot calculate price")
+	return
+}
+
+// GenerateExecutionFromPrice generates a trade execution from a price and an amount to fill. This is intended to be
+// used by the matching engine when a price is determined for this order to execute at.
+func (a *AuctionOrder) GenerateExecutionFromPrice(execPrice float64, amountToFill uint64) (execution OrderExecution, err error) {
+	// TODO
 	return
 }
 
