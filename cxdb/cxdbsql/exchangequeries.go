@@ -121,7 +121,7 @@ func (db *DB) UpdateOrderAmountsWithinTransaction(order *match.LimitOrder, pair 
 		}
 	}()
 
-	updateOrderQuery := fmt.Sprintf("UPDATE %s SET amountHave=%d, amountWant=%d WHERE orderID='%s';", pair.String(), order.AmountHave, order.AmountWant, order.OrderID)
+	updateOrderQuery := fmt.Sprintf("UPDATE %s SET amountHave=%d, amountWant=%d WHERE orderID='%x';", pair.String(), order.AmountHave, order.AmountWant, order.OrderID)
 	if _, err = tx.Exec(updateOrderQuery); err != nil {
 		err = fmt.Errorf("Error updating order within transaction: %s", err)
 		return
@@ -138,7 +138,7 @@ func (db *DB) DeleteOrderWithinTransaction(order *match.LimitOrder, pair *match.
 		}
 	}()
 
-	deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%s';", pair.String(), order.OrderID)
+	deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%x';", pair.String(), order.OrderID)
 	if _, err = tx.Exec(deleteOrderQuery); err != nil {
 		return
 	}
@@ -169,7 +169,7 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 	didOrderExist := false
 	for _, pair := range db.pairsArray {
 		// figure out if there is even an order
-		getCurrentOrderQuery := fmt.Sprintf("SELECT pubkey, amountHave, amountWant, side FROM %s WHERE orderID='%s';", pair.String(), orderID)
+		getCurrentOrderQuery := fmt.Sprintf("SELECT pubkey, amountHave, amountWant, side FROM %s WHERE orderID='%x';", pair.String(), orderID)
 		rows, currOrderErr := tx.Query(getCurrentOrderQuery)
 		if err = currOrderErr; err != nil {
 			return

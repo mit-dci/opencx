@@ -270,7 +270,6 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 			err = fmt.Errorf("Error generating order fill while generating exec for price: %s", err)
 			return
 		}
-
 	} else {
 		execution = OrderExecution{
 			OrderID: orderID,

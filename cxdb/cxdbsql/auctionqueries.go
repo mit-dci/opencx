@@ -8,6 +8,8 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
+	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
@@ -320,18 +322,142 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
 	// Run the matching algorithm for every pair in the orderbook
 	for _, pair := range db.pairsArray {
-		// var execs []*match.OrderExecution
-		if _, err = db.clearingMatchingAlgorithm(auctionID, pair, tx); err != nil {
+		var execs []*match.OrderExecution
+		if execs, err = db.clearingMatchingAlgorithmTx(auctionID, pair, tx); err != nil {
 			err = fmt.Errorf("Error running clearing matching algorithm for pair %s: %s", pair, err)
 			return
+		}
+		// now process all of these matches based on the matching algorithm
+		for _, exec := range execs {
+			if err = db.ProcessExecution(exec, pair, tx); err != nil {
+				err = fmt.Errorf("Error processing a single execution for clearing matching algorithm: %s", err)
+				return
+			}
 		}
 	}
 
 	return
 }
 
-// clearingMatchingAlgorithm runs the matching algorithm based on clearing price for a single batch pair
-func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (executions []*match.OrderExecution, err error) {
+// ProcessOrderExecution handles either deleting or updating a single order that has been executed, depending on whether or not
+// it has been filled. It returns a pubkey for the order, and an error. We return a pubkey because that's usually how settlement
+// systems settle things, a pubkey is an identifier. It is not needed in matching but it is needed to settle, so that is an output.
+func (db *DB) ProcessOrderExecution(exec *match.OrderExecution, pair *match.Pair, tx *sql.Tx) (orderPubkeyBytes []byte, err error) {
+	// First use the auction schema
+	if _, err = tx.Exec("USE " + db.auctionSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using auction schema to process order execution: %s", err)
+		return
+	}
+
+	// Get the pubkey before we do anything to the order
+	var rows *sql.Rows
+	getPubkeyQuery := fmt.Sprintf("SELECT pubkey FROM %s WHERE hashedOrder='%x';", pair, exec.OrderID)
+	if rows, err = tx.Query(getPubkeyQuery); err != nil {
+		err = fmt.Errorf("Error getting pubkey from hashed order in db for process order execution: %s", err)
+		return
+	}
+
+	// init the pubkey bytes
+	if rows.Next() {
+		if err = rows.Scan(&orderPubkeyBytes); err != nil {
+			err = fmt.Errorf("Error scanning pubkeyBytes from rows for process order execution: %s", err)
+			return
+		}
+	} else {
+		err = fmt.Errorf("Could not find pubkeyBytes / order for that order ID")
+		return
+	}
+
+	// Now close the rows because you sort have to do that
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing rows for process order execution: %s", err)
+		return
+	}
+	// decode it because mysql is very frustrating
+	if orderPubkeyBytes, err = hex.DecodeString(string(orderPubkeyBytes)); err != nil {
+		err = fmt.Errorf("Error decoding orderPubkeyBytes from hex for process order executon: %s", err)
+		return
+	}
+
+	// If the order was filled then delete it. If not then update it.
+	if exec.Filled {
+		// If the order was filled, delete it from the orderbook
+		deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE hashedOrder='%s';", pair.String(), exec.OrderID)
+		if _, err = tx.Exec(deleteOrderQuery); err != nil {
+			err = fmt.Errorf("Error deleting order within tx for processorderexecution: %s", err)
+			return
+		}
+	} else {
+		// If the order was not filled, just update the amounts
+		updateOrderQuery := fmt.Sprintf("UPDATE %s SET amountHave=%d, amountWant=%d WHERE hashedOrder='%x';", pair.String(), exec.NewAmountHave, exec.NewAmountWant, exec.OrderID)
+		if _, err = tx.Exec(updateOrderQuery); err != nil {
+			err = fmt.Errorf("Error updating order within tx for processorderexecution: %s", err)
+			return
+		}
+	}
+	// TODO
+	return
+}
+
+// TODO: this part gets removed in the future, done somewhere else. There should be a settlement engine aside from the matching
+// engine. Also TODO: Lock funds while in orders and do "swaps" afterwards, crediting as well as debiting when an order is matched.
+// ProcessExecutionSettlement processes the settlement part of an order execution. For example, this changes values in a database.
+func (db *DB) ProcessExecutionSettlement(exec *match.OrderExecution, orderPubkeyBytes []byte, tx *sql.Tx) (err error) {
+	// use the balance schema because we're ending with balance transactions
+	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using balance schema to process exec settlement: %s", err)
+		return
+	}
+
+	// Do a bunch of parsing and grabbing pubkeys and coinparams and stuff
+	var orderPubkey *koblitz.PublicKey
+	if orderPubkey, err = koblitz.ParsePubKey(orderPubkeyBytes, koblitz.S256()); err != nil {
+		err = fmt.Errorf("Error parsing pubkeybytes for process execution settlement: %s", err)
+		return
+	}
+
+	var execCoinType *coinparam.Params
+	if execCoinType, err = exec.Debited.Asset.CoinParamFromAsset(); err != nil {
+		err = fmt.Errorf("Error getting coin param from debited asset while processing exec settlement: %s", err)
+		return
+	}
+
+	// Debit the pubkey associated with the order with the amount that it executed for
+	if err = db.AddToBalanceWithinTransaction(orderPubkey, exec.Debited.Amount, tx, execCoinType); err != nil {
+		err = fmt.Errorf("Error adding to buyorder pubkey balance for fill: %s", err)
+		return
+	}
+	return
+}
+
+// ProcessExecution processes an order execution on both the orderbook and settlement side for a single pair. I expect this to
+// be moved upwards to the server logic side TODO
+func (db *DB) ProcessExecution(exec *match.OrderExecution, pair *match.Pair, tx *sql.Tx) (err error) {
+
+	// First process orders for execution
+	// TODO: during the matching / settlement split-up, this should not be called. ProcessOrderExecution should be instead,
+	// and the "call settlement" should be a call to the settlement engine. This entire method should instead be part of the
+	// OpencxServer logic.
+	var orderPubkeyBytes []byte
+	if orderPubkeyBytes, err = db.ProcessOrderExecution(exec, pair, tx); err != nil {
+		err = fmt.Errorf("Error processing order execution while processing execution: %s", err)
+		return
+	}
+
+	logging.Warnf("Warning! Settlement not implemented for clearing price matching algorithm!")
+	logging.Warnf("The pubkey would have been %x", orderPubkeyBytes)
+	// Then call settlement
+	// if err = db.ProcessExecutionSettlement(exec, orderPubkeyBytes, tx); err != nil {
+	// 	err = fmt.Errorf("Error processing execution settlement while processing execution: %s", err)
+	// 	return
+	// }
+	// TODO
+
+	return
+}
+
+// clearingMatchingAlgorithmTx runs the matching algorithm based on clearing price for a single batch pair
+func (db *DB) clearingMatchingAlgorithmTx(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (executions []*match.OrderExecution, err error) {
 
 	// We define the rows, etc here so we don't waste a bunch of stack space
 	// scanning is very tedious
@@ -400,30 +526,13 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 
 	// go through all orders and figure out which ones to match
 	for orderID, order := range allOrders {
-		if order.IsBuySide() && order.OrderbookPrice >= clearingPrice {
-			// Fill the buy order at the clearing price -- TODO
-			// TODO: make a settlement method that takes in an execution
-			// TODO: should this be amountwant? or amounthave?
+		if (order.IsBuySide() && order.OrderbookPrice >= clearingPrice) || (order.IsSellSide() && order.OrderbookPrice <= clearingPrice) {
 			var resExec match.OrderExecution
-			var execRemainder uint64
-			if resExec, execRemainder, err = order.GenerateExecutionFromPrice(orderID[:], clearingPrice, order.AmountWant); err != nil {
+			if resExec, err = order.GenerateOrderFill(orderID[:], clearingPrice); err != nil {
 				err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
 				return
 			}
-			logging.Infof("Generated execution from buy order for clearing price!!: \n%s", &resExec)
-			logging.Infof("Remainder from execution: %s", execRemainder)
-			logging.Errorf("This is not implemented!!")
-		} else if order.IsSellSide() && order.OrderbookPrice <= clearingPrice {
-			// Fill the sell order at the clearing price -- TODO
-			var resExec match.OrderExecution
-			var execRemainder uint64
-			if resExec, execRemainder, err = order.GenerateExecutionFromPrice(orderID[:], clearingPrice, order.AmountWant); err != nil {
-				err = fmt.Errorf("Error generating execution from clearing price for sell: %s", err)
-				return
-			}
-			logging.Infof("Generated execution from buy order for clearing price!!: \n%s", &resExec)
-			logging.Infof("Remainder from execution: %s", execRemainder)
-			logging.Errorf("This is not implemented!!")
+			executions = append(executions, &resExec)
 		}
 	}
 
