@@ -398,10 +398,25 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 	for _, order := range allOrders {
 		if order.IsBuySide() && order.OrderbookPrice >= clearingPrice {
 			// Fill the buy order at the clearing price -- TODO
+			// TODO: make a settlement method that takes in an execution
+			// TODO: should this be amountwant? or amounthave?
+			var resExec match.OrderExecution
+			if resExec, err = order.GenerateExecutionFromPrice(clearingPrice, order.AmountWant); err != nil {
+				err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
+				return
+			}
+			logging.Infof("Generated execution from buy order for clearing price!!: \n%s", &resExec)
+			logging.Errorf("This is not implemented!!")
 		} else if order.IsSellSide() && order.OrderbookPrice <= clearingPrice {
 			// Fill the sell order at the clearing price -- TODO
+			var resExec match.OrderExecution
+			if resExec, err = order.GenerateExecutionFromPrice(clearingPrice, order.AmountWant); err != nil {
+				err = fmt.Errorf("Error generating execution from clearing price for sell: %s", err)
+				return
+			}
+			logging.Infof("Generated execution from buy order for clearing price!!: \n%s", &resExec)
+			logging.Errorf("This is not implemented!!")
 		}
-
 	}
 
 	return
