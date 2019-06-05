@@ -35,7 +35,6 @@ func (p *Pair) PrettyString() string {
 
 // GenerateAssetPairs generates unique asset pairs based on the coinparams you pass it
 func GenerateAssetPairs(coinList []*coinparam.Params) (pairList []*Pair, err error) {
-
 	coinListLen := len(coinList)
 	numPairIndeces := coinListLen * (coinListLen - 1) / 2
 	pairList = make([]*Pair, numPairIndeces)
