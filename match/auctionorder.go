@@ -184,9 +184,96 @@ func (a *AuctionOrder) Price() (price float64, err error) {
 	return
 }
 
+// GenerateOrderFill creates an execution that will fill an order (AmountHave at the end is 0) and provide an execution.
+func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (execution OrderExecution, err error) {
+
+	if a.AmountHave == 0 {
+		err = fmt.Errorf("Error generating order fill: empty order, the AmountHave cannot be 0")
+		return
+	}
+
+	if execPrice == float64(0) {
+		err = fmt.Errorf("Error generating order fill: price cannot be zero")
+		return
+	}
+	// So we want to make sure that we're filling this, so first calculate the amountWantToFill and make sure it equals amountHave
+	var amountToDebit uint64
+	var debitAsset Asset
+	var creditAsset Asset
+	if a.IsBuySide() {
+		amountToDebit = uint64(float64(a.AmountHave) * execPrice)
+		debitAsset = a.TradingPair.AssetHave
+		creditAsset = a.TradingPair.AssetWant
+	} else if a.IsSellSide() {
+		amountToDebit = uint64(float64(a.AmountHave) / execPrice)
+		debitAsset = a.TradingPair.AssetWant
+		creditAsset = a.TradingPair.AssetHave
+	} else {
+		err = fmt.Errorf("Error generating order fill from price, order is not buy or sell side, it's %s side", a.Side)
+		return
+	}
+
+	// Finally generate execution
+	execution = OrderExecution{
+		OrderID: orderID,
+		Debited: Entry{
+			Amount: amountToDebit,
+			Asset:  debitAsset,
+		},
+		Credited: Entry{
+			Amount: a.AmountHave,
+			Asset:  creditAsset,
+		},
+		NewAmountWant: 0,
+		NewAmountHave: 0,
+		Filled:        true,
+	}
+
+	return
+}
+
 // GenerateExecutionFromPrice generates a trade execution from a price and an amount to fill. This is intended to be
 // used by the matching engine when a price is determined for this order to execute at.
-func (a *AuctionOrder) GenerateExecutionFromPrice(execPrice float64, amountToFill uint64) (execution OrderExecution, err error) {
+// amountToFill refers to the amount of AssetWant that can be filled. So the other side's "AmountHave" can be passed
+// in as a parameter. The order ID will be filled in, as it's being passed as a parameter.
+func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice float64, amountToFill uint64) (execution OrderExecution, err error) {
+	// If it's a buy side, AmountWant is assetWant, and AmountHave is assetHave - but price is something different, price is want/have.
+	// So to convert from amountWant (amountToFill) to amountHave we need to multiple amountToFill by 1/execPrice
+	var amountWantToFill uint64
+	var debitAsset Asset
+	var creditAsset Asset
+	if a.IsBuySide() {
+		amountWantToFill = uint64(float64(amountToFill) / execPrice)
+		debitAsset = a.TradingPair.AssetHave
+		creditAsset = a.TradingPair.AssetWant
+	} else if a.IsSellSide() {
+		amountWantToFill = uint64(float64(amountToFill) * execPrice)
+		debitAsset = a.TradingPair.AssetWant
+		creditAsset = a.TradingPair.AssetHave
+	} else {
+		err = fmt.Errorf("Error generating execution from price, order is not buy or sell side, it's %s side", a.Side)
+		return
+	}
+
+	// Now that we have this value, we'll generate the execution.
+	// What should we do if the amountWantToFill is greater than the amountHave?
+	// We know that if it's equal we'll just mark the order as filled, return the debited, return the credited, and move on.
+	// In what cases would it be greater?
+	// Well we don't want to credit them more than they have. So we can only fill it up to a certain amount.
+	if amountWantToFill >= a.AmountHave {
+		execution.Filled = true
+		execution.Debited = Entry{
+			Asset:  debitAsset,
+			Amount: amountWantToFill,
+		}
+		execution.Credited = Entry{
+			Asset:  creditAsset,
+			Amount: amountToFill,
+		}
+	} else {
+	}
+
+	// If it's a sell side, price is have/want. So amountToFill * execPrice = amountHave to fill
 	// TODO
 	return
 }

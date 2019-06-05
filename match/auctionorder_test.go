@@ -11,7 +11,8 @@ var (
 		AssetHave: VTC,
 	}
 
-	origOrder = &AuctionOrder{
+	origOrderID = []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}
+	origOrder   = &AuctionOrder{
 		Side:        "buy",
 		TradingPair: orderPair,
 		AmountHave:  100000000,
@@ -22,7 +23,8 @@ var (
 		OrderbookPrice: 3.00000000,
 	}
 
-	origOrderCounter = &AuctionOrder{
+	origOrderCounterID = []byte{0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
+	origOrderCounter   = &AuctionOrder{
 		Side:        "sell",
 		TradingPair: orderPair,
 		AmountHave:  100000000,
@@ -122,7 +124,38 @@ func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
-	if resExec, err = origOrder.GenerateExecutionFromPrice(float64(1), 100000000); err != nil {
+	if resExec, err = origOrder.GenerateExecutionFromPrice(origOrderID, float64(1), 100000000); err != nil {
+		t.Errorf("Error generating execution from price, should not error: %s", err)
+		return
+	}
+	// while they shouldn't be equal, the non Amount fields should be.
+	if resExec.Filled != origOrderFullExec.Filled {
+		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
+		return
+	}
+	if !bytes.Equal(resExec.OrderID, origOrderFullExec.OrderID) {
+		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
+		return
+	}
+	if resExec.Credited != origOrderFullExec.Credited {
+		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &resExec.Credited)
+		return
+	}
+	if resExec.Debited != origOrderFullExec.Debited {
+		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
+		return
+	}
+
+	return
+}
+
+// Test some easy fill generation
+func TestGenerateEasyFillFromPrice(t *testing.T) {
+	var err error
+
+	// this should fill the order completely. this is the trivial case.
+	var resExec OrderExecution
+	if resExec, err = origOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}

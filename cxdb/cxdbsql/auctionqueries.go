@@ -341,6 +341,8 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 	var pubkeyBytes []byte
 	var auctionIDBytes []byte
 	var nonceBytes []byte
+	var hashedOrderBytes []byte
+	var hashOrderIDFixed [32]byte
 
 	// order to be scanned into
 	var thisOrder *match.AuctionOrder
@@ -350,10 +352,11 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 	book = make(map[float64][]*match.AuctionOrder)
 
 	// list of all orders
-	var allOrders []*match.AuctionOrder
+	var allOrders map[[32]byte]*match.AuctionOrder
+	allOrders = make(map[[32]byte]*match.AuctionOrder)
 
 	// So we get the orders, and they are supposed to be all valid.
-	queryAuctionOrders := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce FROM %s WHERE auctionID='%x';", pair, auctionID)
+	queryAuctionOrders := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce, hashedOrder FROM %s WHERE auctionID='%x';", pair, auctionID)
 	if rows, err = tx.Query(queryAuctionOrders); err != nil {
 		err = fmt.Errorf("Error querying for orders in auction: %s", err)
 		return
@@ -361,13 +364,13 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 
 	for rows.Next() {
 		thisOrder = new(match.AuctionOrder)
-		if err = rows.Scan(&pubkeyBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes); err != nil {
+		if err = rows.Scan(&pubkeyBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes, &hashedOrderBytes); err != nil {
 			err = fmt.Errorf("Error scanning row to bytes: %s", err)
 			return
 		}
 
 		// Now we do the dumb decoding thing
-		for _, byteArray := range [][]byte{pubkeyBytes, auctionIDBytes, nonceBytes} {
+		for _, byteArray := range [][]byte{pubkeyBytes, auctionIDBytes, nonceBytes, hashedOrderBytes} {
 			// just for everything in this list of things we want to decode from weird words to real bytes
 			if _, err = hex.Decode(byteArray, byteArray); err != nil {
 				err = fmt.Errorf("Error decoding bytes for auction matching: %s", err)
@@ -379,11 +382,12 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 		copy(thisOrder.Pubkey[:], pubkeyBytes)
 		copy(thisOrder.AuctionID[:], auctionIDBytes)
 		copy(thisOrder.Nonce[:], nonceBytes)
+		copy(hashOrderIDFixed[:], hashedOrderBytes)
 
 		// okay cool now add it to the orderbook
 		book[thisOrder.OrderbookPrice] = append(book[thisOrder.OrderbookPrice], thisOrder)
 		// now add it to the list of all orders
-		allOrders = append(allOrders, thisOrder)
+		allOrders[hashOrderIDFixed] = thisOrder
 
 	}
 
@@ -395,13 +399,13 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 	}
 
 	// go through all orders and figure out which ones to match
-	for _, order := range allOrders {
+	for orderID, order := range allOrders {
 		if order.IsBuySide() && order.OrderbookPrice >= clearingPrice {
 			// Fill the buy order at the clearing price -- TODO
 			// TODO: make a settlement method that takes in an execution
 			// TODO: should this be amountwant? or amounthave?
 			var resExec match.OrderExecution
-			if resExec, err = order.GenerateExecutionFromPrice(clearingPrice, order.AmountWant); err != nil {
+			if resExec, err = order.GenerateExecutionFromPrice(orderID[:], clearingPrice, order.AmountWant); err != nil {
 				err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
 				return
 			}
@@ -410,7 +414,7 @@ func (db *DB) clearingMatchingAlgorithm(auctionID [32]byte, pair *match.Pair, tx
 		} else if order.IsSellSide() && order.OrderbookPrice <= clearingPrice {
 			// Fill the sell order at the clearing price -- TODO
 			var resExec match.OrderExecution
-			if resExec, err = order.GenerateExecutionFromPrice(clearingPrice, order.AmountWant); err != nil {
+			if resExec, err = order.GenerateExecutionFromPrice(orderID[:], clearingPrice, order.AmountWant); err != nil {
 				err = fmt.Errorf("Error generating execution from clearing price for sell: %s", err)
 				return
 			}
