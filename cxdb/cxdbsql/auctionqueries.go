@@ -89,7 +89,7 @@ func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 
 	// hash order so we can use that as a primary key
 	sha := sha3.New256()
-	sha.Write(order.Serialize())
+	sha.Write(order.SerializeSignable())
 	hashedOrder := sha.Sum(nil)
 
 	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", &order.TradingPair, order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
@@ -98,7 +98,7 @@ func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 		return
 	}
 
-	logging.Infof("Placed order!")
+	logging.Infof("Placed order with id %x!", hashedOrder)
 
 	return
 }
@@ -382,17 +382,38 @@ func (db *DB) ProcessOrderExecution(exec *match.OrderExecution, pair *match.Pair
 	// If the order was filled then delete it. If not then update it.
 	if exec.Filled {
 		// If the order was filled, delete it from the orderbook
-		deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE hashedOrder='%s';", pair.String(), exec.OrderID)
-		if _, err = tx.Exec(deleteOrderQuery); err != nil {
+		deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE hashedOrder='%x';", pair.String(), exec.OrderID)
+		var res sql.Result
+		if res, err = tx.Exec(deleteOrderQuery); err != nil {
 			err = fmt.Errorf("Error deleting order within tx for processorderexecution: %s", err)
 			return
+		}
+		// Now we check that there was only one row deleted. If there were more then we log it and move on. Shouldn't have put those orders there in the first place.
+		var rowsAffected int64
+		if rowsAffected, err = res.RowsAffected(); err != nil {
+			err = fmt.Errorf("Error while getting rows affected for process order execution: %s", err)
+			return
+		}
+		if rowsAffected != 1 {
+			logging.Errorf("Error: Order delete should only have affected one row. Instead, it affected %d", rowsAffected)
 		}
 	} else {
 		// If the order was not filled, just update the amounts
 		updateOrderQuery := fmt.Sprintf("UPDATE %s SET amountHave=%d, amountWant=%d WHERE hashedOrder='%x';", pair.String(), exec.NewAmountHave, exec.NewAmountWant, exec.OrderID)
-		if _, err = tx.Exec(updateOrderQuery); err != nil {
+		var res sql.Result
+		if res, err = tx.Exec(updateOrderQuery); err != nil {
 			err = fmt.Errorf("Error updating order within tx for processorderexecution: %s", err)
 			return
+		}
+
+		// Now we check that there was only one row updated. If there were more then we log it and move on. Shouldn't have put those orders there in the first place.
+		var rowsAffected int64
+		if rowsAffected, err = res.RowsAffected(); err != nil {
+			err = fmt.Errorf("Error while getting rows affected for process order execution: %s", err)
+			return
+		}
+		if rowsAffected != 1 {
+			logging.Errorf("Error: Order update should only have affected one row. Instead, it affected %d", rowsAffected)
 		}
 	}
 	// TODO
@@ -524,15 +545,18 @@ func (db *DB) clearingMatchingAlgorithmTx(auctionID [32]byte, pair *match.Pair, 
 		return
 	}
 
+	var resExec *match.OrderExecution
 	// go through all orders and figure out which ones to match
 	for orderID, order := range allOrders {
 		if (order.IsBuySide() && order.OrderbookPrice >= clearingPrice) || (order.IsSellSide() && order.OrderbookPrice <= clearingPrice) {
-			var resExec match.OrderExecution
-			if resExec, err = order.GenerateOrderFill(orderID[:], clearingPrice); err != nil {
+			// Um so this is needed because of some weird memory issue TODO: remove this fix
+			// and put in another fix if you understand pointer black magic
+			resExec = new(match.OrderExecution)
+			if *resExec, err = order.GenerateOrderFill(orderID[:], clearingPrice); err != nil {
 				err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
 				return
 			}
-			executions = append(executions, &resExec)
+			executions = append(executions, resExec)
 		}
 	}
 
