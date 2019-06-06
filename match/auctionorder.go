@@ -215,9 +215,14 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 		return
 	}
 
+	// IMPORTANT! These lines:
+	// > OrderID: make([]byte, len(orderID),
+	// > copy(execution.OrderID, orderID)
+	// are EXTREMELY IMPORTANT because there's pretty much no other way to copy
+	// bytes. This was a really annoying issue to debug
 	// Finally generate execution
 	execution = OrderExecution{
-		OrderID: orderID,
+		OrderID: make([]byte, len(orderID)),
 		Debited: Entry{
 			Amount: amountToDebit,
 			Asset:  debitAsset,
@@ -230,6 +235,7 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 		NewAmountHave: 0,
 		Filled:        true,
 	}
+	copy(execution.OrderID, orderID)
 
 	return
 }
@@ -271,8 +277,9 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 			return
 		}
 	} else {
+		// TODO: Check if this len(orderID) as size is correct
 		execution = OrderExecution{
-			OrderID: orderID,
+			OrderID: make([]byte, len(orderID)),
 			Debited: Entry{
 				Amount: amountToFill,
 				Asset:  debitAsset,
@@ -285,6 +292,7 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 			NewAmountHave: a.AmountHave - amountWantToFill,
 			Filled:        false,
 		}
+		copy(execution.OrderID, orderID)
 	}
 
 	// If it's a sell side, price is have/want. So amountToFill * execPrice = amountHave to fill
