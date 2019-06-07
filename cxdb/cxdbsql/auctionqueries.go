@@ -589,25 +589,31 @@ func calculateClearingPrice(book map[float64][]*match.AuctionOrder) (clearingPri
 				}
 				// make sure we keep track of the lowest sell order price
 			} else if order.IsSellSide() {
-				if pr < lowestIntersectingPrice {
+				if pr > lowestIntersectingPrice {
 					lowestIntersectingPrice = pr
 				}
 			}
 		}
 	}
 
+	// fmt.Printf("highestBuy: %f\n", highestIntersectingPrice)
+	// fmt.Printf("lowestSell: %f\n", lowestIntersectingPrice)
+
 	// now that we have the prices, we go through the book again to calculate the clearing price
 	for pr, orderList := range book {
 		// if there is an intersecting price, calculate clearing amounts for the price.
 		for _, order := range orderList {
 			// for all intersecting prices in the orderbook, we add the amounts
-			if order.IsBuySide() && pr >= lowestIntersectingPrice {
+			if order.IsBuySide() && pr <= lowestIntersectingPrice {
 				buyClearAmount += order.AmountHave
-			} else if order.IsSellSide() && pr <= highestIntersectingPrice {
+			} else if order.IsSellSide() && pr >= highestIntersectingPrice {
 				sellClearAmount += order.AmountHave
 			}
 		}
 	}
+
+	// fmt.Printf("buyHave: %d\n", buyClearAmount)
+	// fmt.Printf("lowestSell: %d\n", sellClearAmount)
 
 	// TODO: this should be changed, I really don't like this floating point math (See Issue #6 and TODOs in match about price.)
 	clearingPrice = float64(buyClearAmount) / float64(sellClearAmount)
