@@ -173,14 +173,7 @@ func (a *AuctionOrder) Price() (price float64, err error) {
 		err = fmt.Errorf("The amount requested in the order is 0, so no price can be calculated")
 		return
 	}
-	if a.IsBuySide() {
-		price = float64(a.AmountWant) / float64(a.AmountHave)
-		return
-	} else if a.IsSellSide() {
-		price = float64(a.AmountHave) / float64(a.AmountWant)
-		return
-	}
-	err = fmt.Errorf("Order is not buy or sell, cannot calculate price")
+	price = float64(a.AmountWant) / float64(a.AmountHave)
 	return
 }
 
@@ -203,17 +196,16 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 	var debitAsset Asset
 	var creditAsset Asset
 	if a.IsBuySide() {
-		amountToDebit = uint64(float64(a.AmountHave) * execPrice)
 		debitAsset = a.TradingPair.AssetWant
 		creditAsset = a.TradingPair.AssetHave
 	} else if a.IsSellSide() {
-		amountToDebit = uint64(float64(a.AmountHave) / execPrice)
 		debitAsset = a.TradingPair.AssetHave
 		creditAsset = a.TradingPair.AssetWant
 	} else {
 		err = fmt.Errorf("Error generating order fill from price, order is not buy or sell side, it's %s side", a.Side)
 		return
 	}
+	amountToDebit = uint64(float64(a.AmountHave) * execPrice)
 
 	// IMPORTANT! These lines:
 	// > OrderID: make([]byte, len(orderID),
