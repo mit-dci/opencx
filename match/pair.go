@@ -15,9 +15,9 @@ type AssetAmount struct {
 
 // Pair is a struct that represents a trading pair
 type Pair struct {
-	// AssetWant is the asset that buyers want, and that sellers are selling. credit buyers with this.
+	// AssetWant is the asset that buyers want, and that sellers are selling. debit buyers with this.
 	AssetWant Asset `json:"assetWant"`
-	// AssetHave is the asset that sellers are buying, and that buyers have. credit sellers with this.
+	// AssetHave is the asset that sellers are buying, and that buyers have. debit sellers with this.
 	AssetHave Asset `json:"assetHave"`
 }
 

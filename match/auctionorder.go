@@ -169,8 +169,8 @@ func (a *AuctionOrder) OppositeSide() (sideStr string) {
 
 // Price gets a float price for the order. This determines how it will get matched. The exchange should figure out if it can take some of the
 func (a *AuctionOrder) Price() (price float64, err error) {
-	if a.AmountWant == 0 {
-		err = fmt.Errorf("The amount requested in the order is 0, so no price can be calculated. Consider it a donation")
+	if a.AmountWant == 0 || a.AmountHave == 0 {
+		err = fmt.Errorf("The amount requested in the order is 0, so no price can be calculated")
 		return
 	}
 	if a.IsBuySide() {
@@ -236,7 +236,8 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 		Filled:        true,
 	}
 	copy(execution.OrderID, orderID)
-
+	// indentedExecString, _ := json.MarshalIndent(execution, "", "\t")
+	// fmt.Printf("Execution: %s\n", indentedExecString)
 	return
 }
 
@@ -295,6 +296,8 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 		copy(execution.OrderID, orderID)
 	}
 
+	// indentedExecString, _ := json.MarshalIndent(execution, "", "\t")
+	// fmt.Printf("Execution: %s\n", indentedExecString)
 	// If it's a sell side, price is have/want. So amountToFill * execPrice = amountHave to fill
 	// TODO
 	return

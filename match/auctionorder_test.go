@@ -68,12 +68,6 @@ var (
 	}
 )
 
-// getOrderID is a helper method which really just hashes the nonce and signature
-func getOrderID(order *AuctionOrder) (buf []byte) {
-	// TODO
-	return
-}
-
 func TestIsBuySide(t *testing.T) {
 
 	buyAuction := &AuctionOrder{
@@ -370,6 +364,61 @@ func TestSimplePriceValidBuy(t *testing.T) {
 		return
 	}
 
+}
+
+// In Binance, BTC/USD price is always in the ratio USD/BTC.
+// Higher is better (for sells) and lower is better (for buys).
+// This is completely backwards, since if I see the price 9000 on the pair BTC/USD,
+// then I should treat the price as the ration BTC / USD, not the other way around.
+
+// "buy" is categorized as having usd, and wanting btc.
+// "sell" is categorized as having btc, and wanting usd.
+// So price is always in the ratio assetHave/assetWant.
+// Ideally the orderbook will show both prices assetWant/assetHave and assetHave/assetWant.
+// But for our purposes, since we've modeled it as a ratio we're sticking with that.
+var (
+	// Pair:
+	//     Want: BTC
+	//     Have: LTC
+	// This order is meant to be a test of the representation of price
+	// Since the user is a buyer (buyer of BTC in the BTC/LTC pair), they have LTC and want BTC
+	// So if the price is assetWant / assetHave, then this will be a price of 2 BTC/LTC. Simple enough.
+	// That price is formatted so well you could do dimensional analysis on it. Unlike on Binance.
+	priceTwo = &AuctionOrder{
+		Side:        "buy",
+		TradingPair: orderPair,
+		AmountWant:  200000000, // BTC - This user wants this asset
+		AmountHave:  100000000, // LTC - This user has this asset
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xff, 0x12},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.00000000,
+	}
+)
+
+func priceTest(order *AuctionOrder, expectedPrice float64, t *testing.T) {
+	var err error
+
+	var origPrice float64
+	if origPrice, err = order.Price(); err != nil {
+		t.Errorf("Error getting price for origOrder: %s", err)
+		return
+	}
+
+	if origPrice != expectedPrice {
+		t.Errorf("Test failed: origPrice should have been %f but was %f", expectedPrice, origPrice)
+		return
+	}
+}
+
+func TestPriceOneEasy(t *testing.T) {
+	priceTest(origOrder, float64(1), t)
+	return
+}
+
+func TestPriceTwoBuy(t *testing.T) {
+	priceTest(priceTwo, float64(2), t)
+	return
 }
 
 // TODO add more tests for simple methods
