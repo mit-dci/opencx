@@ -254,6 +254,104 @@ var (
 		Nonce:     [...]byte{0x00, 0x31},
 		Signature: []byte{0x23, 0x34, 0xf6, 0xd7, 0xa8, 0xb9, 0x19},
 	}
+	testingClearingPrice = &match.AuctionOrder{
+		Pubkey: [33]byte{},
+		Side:   "sell",
+		// If we switch litereg and btcreg here then the db will complain about tables
+		TradingPair: match.Pair{
+			AssetWant: btcreg,
+			AssetHave: litereg,
+		},
+		AmountWant: 1000,
+		AmountHave: 1000,
+		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
+		OrderbookPrice: 0,
+		// lets see how the engine deals with this as well
+		AuctionID: [32]byte{0x00, 0x00},
+		Nonce:     [...]byte{0x00, 0x31},
+		Signature: []byte{0x23, 0x34, 0xf6, 0xd7, 0xa8, 0xb9, 0x19},
+	}
+	/*
+		This order is a "buy" order, so they want assetWant and have assetHave.
+		They have 1000 LTC, want 2000 BTC
+		This would be 2.0 BTC/LTC, but considered a "sell" order for the pair BTC/LTC
+		This would be 0.5 BTC/LTC, but considered a "buy" order for the pair LTC/BTC
+	*/
+	testingHalfBuy = &match.AuctionOrder{
+		Pubkey: [33]byte{},
+		Side:   "buy",
+		// If we switch litereg and btcreg here then the db will complain about tables
+		TradingPair: match.Pair{
+			AssetWant: btcreg,
+			AssetHave: litereg,
+		},
+		AmountWant: 2000,
+		AmountHave: 1000,
+		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
+		OrderbookPrice: 0,
+		// lets see how the engine deals with this as well
+		AuctionID: [32]byte{0x00, 0x00},
+		Nonce:     [...]byte{0x05, 0x11},
+		Signature: []byte{0x23, 0x44, 0xf6, 0xd7, 0x58, 0xb9, 0x19},
+	}
+	/*
+		This order is a "sell" order, so they want assetHave and have assetWant.
+		They have 2000 BTC, want 1000 LTC
+		This would be 2.0 BTC/LTC, but considered a "buy" order for the pair BTC/LTC
+		This would be 0.5 BTC/LTC, but considered a "sell" order for the pair LTC/BTC
+	*/
+	testingHalfSell = &match.AuctionOrder{
+		Pubkey: [33]byte{},
+		Side:   "sell",
+		// If we switch litereg and btcreg here then the db will complain about tables
+		TradingPair: match.Pair{
+			AssetWant: btcreg,
+			AssetHave: litereg,
+		},
+		AmountWant: 2000,
+		AmountHave: 1000,
+		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
+		OrderbookPrice: 0,
+		// lets see how the engine deals with this as well
+		AuctionID: [32]byte{0x00, 0x00},
+		Nonce:     [...]byte{0x06, 0x17},
+		Signature: []byte{0x23, 0x44, 0xf7, 0xd7, 0x58, 0xb9, 0x19},
+	}
+
+	testingDoubleSell = &match.AuctionOrder{
+		Pubkey: [33]byte{},
+		Side:   "sell",
+		// If we switch litereg and btcreg here then the db will complain about tables
+		TradingPair: match.Pair{
+			AssetWant: btcreg,
+			AssetHave: litereg,
+		},
+		AmountWant: 1000,
+		AmountHave: 2000,
+		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
+		OrderbookPrice: 0,
+		// lets see how the engine deals with this as well
+		AuctionID: [32]byte{0x00, 0x00},
+		Nonce:     [...]byte{0x10, 0x31},
+		Signature: []byte{0x11, 0x34, 0xf6, 0xd7, 0xa8, 0xb9, 0x11},
+	}
+	testingDoubleBuy = &match.AuctionOrder{
+		Pubkey: [33]byte{},
+		Side:   "buy",
+		// If we switch litereg and btcreg here then the db will complain about tables
+		TradingPair: match.Pair{
+			AssetWant: btcreg,
+			AssetHave: litereg,
+		},
+		AmountWant: 1000,
+		AmountHave: 2000,
+		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
+		OrderbookPrice: 0,
+		// lets see how the engine deals with this as well
+		AuctionID: [32]byte{0x00, 0x00},
+		Nonce:     [...]byte{0x10, 0x32},
+		Signature: []byte{0x12, 0x24, 0xf6, 0xd7, 0xa8, 0xb9, 0x11},
+	}
 )
 
 func TestClearingMatchingSimple(t *testing.T) {
@@ -331,6 +429,87 @@ func TestClearingMatchingSimple(t *testing.T) {
 	}
 
 	if len(newSells) != 0 {
+		t.Errorf("Length of returned sell orders is %d, should be 0", len(newSells))
+		return
+	}
+
+}
+
+func TestClearingDoubleMatch(t *testing.T) {
+	var err error
+
+	// first create the user for the db
+	var killThemBoth func(t *testing.T)
+	if killThemBoth, err = createUserAndDatabase(); err != nil {
+		t.Skipf("Could not create user for test (error), so skipping: %s", err)
+		return
+	}
+
+	killThemBoth(t)
+
+	var dbConn *DB
+	if dbConn, err = startupDB(); err != nil {
+		t.Errorf("Error starting db for place auction test: %s", err)
+		return
+	}
+
+	if err = dbConn.PlaceAuctionOrder(testingHalfBuy); err != nil {
+		t.Errorf("Error placing auction order equalOrderLtcBtc, should not error: %s", err)
+		return
+	}
+
+	if err = dbConn.PlaceAuctionOrder(testingHalfSell); err != nil {
+		t.Errorf("Error placing auction order testingOrderDoublePrice, should not error: %s", err)
+		return
+	}
+
+	var origBuys []*match.AuctionOrder
+	var origSells []*match.AuctionOrder
+	if origSells, origBuys, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
+		return
+	}
+
+	expectedBuys := -1
+	if len(origBuys) == expectedBuys {
+		t.Errorf("Length of returned buy orders is %d, should be %d", len(origBuys), expectedBuys)
+		return
+	}
+
+	expectedSells := -1
+	if len(origSells) == expectedSells {
+		t.Errorf("Length of returned sell orders is %d, should be %d", len(origSells), expectedSells)
+		return
+	}
+
+	// The intended behavior is for these two to be matched since they have equal order sizes, should be the same trading pair,
+	// and have equal auction IDs.
+	var height uint64
+	if height, err = dbConn.MatchAuction(equalOrderLtcBtc.AuctionID); err != nil {
+		t.Errorf("The matching for the simple clearing test should not error: %s", err)
+		return
+	}
+
+	// TODO: If height is removed, this height stuff is absolutely not necessary, change this test if refactoring auction matching
+	t.Logf("Matched auction at height %d", height)
+
+	// Since they are both matched, the orderbook should be empty... Or should it? Since this is an auction, should we just
+	// create execution reports? The auctions are themselves points in time essentially, and having them immutable may be nice.
+	// TODO: Define lots of behavior
+	var newBuys []*match.AuctionOrder
+	var newSells []*match.AuctionOrder
+	if newSells, newBuys, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
+		return
+	}
+
+	// okay so for now there should be nothing in here.
+	if len(newBuys) == -1 {
+		t.Errorf("Length of returned buy orders is %d, should be 0", len(newBuys))
+		return
+	}
+
+	if len(newSells) == -1 {
 		t.Errorf("Length of returned sell orders is %d, should be 0", len(newSells))
 		return
 	}
