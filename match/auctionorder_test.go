@@ -384,7 +384,7 @@ var (
 	// Since the user is a buyer (buyer of BTC in the BTC/LTC pair), they have LTC and want BTC
 	// So if the price is assetWant / assetHave, then this will be a price of 2 BTC/LTC. Simple enough.
 	// That price is formatted so well you could do dimensional analysis on it. Unlike on Binance.
-	priceTwo = &AuctionOrder{
+	priceTwoBuy = &AuctionOrder{
 		Side:        "buy",
 		TradingPair: orderPair,
 		AmountWant:  200000000, // BTC - This user wants this asset
@@ -394,30 +394,110 @@ var (
 		// it's different because this shouldn't matter at all
 		OrderbookPrice: 3.00000000,
 	}
+	// So if the price is assetWant / assetHave (To get the ratio BTC/LTC), then this will be a price of 2 BTC/LTC.
+	priceTwoSell = &AuctionOrder{
+		Side:        "sell",
+		TradingPair: orderPair,
+		AmountWant:  200000000, // BTC - This user has this asset
+		AmountHave:  100000000, // LTC - This user wants this asset
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xf1, 0x23},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.12345678,
+	}
+	// This should error on price because AmountWant = 0
+	priceErrorWant = &AuctionOrder{
+		Side:        "sell",
+		TradingPair: orderPair,
+		AmountWant:  0,         // BTC - This user has this asset
+		AmountHave:  100000000, // LTC - This user wants this asset
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xf1, 0x23},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.14159265358979323846264338327950288,
+	}
+	// This should error on price because AmountHave = 0
+	priceErrorHave = &AuctionOrder{
+		Side:        "buy",
+		TradingPair: orderPair,
+		AmountWant:  200000000, // BTC - This user has this asset
+		AmountHave:  0,         // LTC - This user wants this asset
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xf1, 0x23},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.14159265358979323846264338327950288,
+	}
+	// This should error on price because both are = 0
+	priceErrorBoth = &AuctionOrder{
+		Side:        "buy",
+		TradingPair: orderPair,
+		AmountWant:  0, // BTC - This user has this asset
+		AmountHave:  0, // LTC - This user wants this asset
+		// Just some bytes cause why not
+		Nonce: [2]byte{0xf1, 0x23},
+		// it's different because this shouldn't matter at all
+		OrderbookPrice: 3.14159265358979323846264338327950288,
+	}
 )
 
-func priceTest(order *AuctionOrder, expectedPrice float64, t *testing.T) {
+// validPriceTest runs a test to make sure the order has price expectedPrice
+func validPriceTest(order *AuctionOrder, expectedPrice float64, t *testing.T) {
 	var err error
 
 	var origPrice float64
 	if origPrice, err = order.Price(); err != nil {
-		t.Errorf("Error getting price for origOrder: %s", err)
+		t.Errorf("Error getting price for order: %s", err)
 		return
 	}
 
 	if origPrice != expectedPrice {
-		t.Errorf("Test failed: origPrice should have been %f but was %f", expectedPrice, origPrice)
+		t.Errorf("Test failed: price should have been %f but was %f", expectedPrice, origPrice)
 		return
 	}
+
+	return
+}
+
+// validPriceTest runs a test to make sure the order has an error for calculating its price
+func errorPriceTest(order *AuctionOrder, t *testing.T) {
+	var err error
+
+	var origPrice float64
+	if origPrice, err = order.Price(); err == nil {
+		t.Errorf("There was no error while calculating price for order, instead a price of %f was returned", origPrice)
+		return
+	}
+
+	return
 }
 
 func TestPriceOneEasy(t *testing.T) {
-	priceTest(origOrder, float64(1), t)
+	validPriceTest(origOrder, float64(1), t)
 	return
 }
 
 func TestPriceTwoBuy(t *testing.T) {
-	priceTest(priceTwo, float64(2), t)
+	validPriceTest(priceTwoBuy, float64(2), t)
+	return
+}
+
+func TestPriceTwoSell(t *testing.T) {
+	validPriceTest(priceTwoSell, float64(2), t)
+	return
+}
+
+func TestErrorHave(t *testing.T) {
+	errorPriceTest(priceErrorHave, t)
+	return
+}
+
+func TestErrorWant(t *testing.T) {
+	errorPriceTest(priceErrorWant, t)
+	return
+}
+
+func TestErrorBoth(t *testing.T) {
+	errorPriceTest(priceErrorBoth, t)
 	return
 }
 
