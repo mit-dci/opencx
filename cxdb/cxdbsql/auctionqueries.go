@@ -176,8 +176,8 @@ func (db *DB) ViewAuctionOrderBookTx(auctionID [32]byte, tradingPair *match.Pair
 		}
 
 		// decode them all weirdly because of the way mysql may store the bytes
-		for _, byteArrayPtr := range [][]byte{pkBytes, auctionIDBytes, nonceBytes, sigBytes, hashedOrderBytes} {
-			if byteArrayPtr, err = hex.DecodeString(string(byteArrayPtr)); err != nil {
+		for _, byteArrayPtr := range []*[]byte{&pkBytes, &auctionIDBytes, &nonceBytes, &sigBytes, &hashedOrderBytes} {
+			if *byteArrayPtr, err = hex.DecodeString(string(*byteArrayPtr)); err != nil {
 				err = fmt.Errorf("Error decoding bytes for viewauctionorderbook: %s", err)
 				return
 			}
@@ -242,7 +242,7 @@ func (db *DB) ViewAuctionPuzzleBook(auctionID [32]byte) (orders []*match.Encrypt
 		}
 
 		// These are all encoded as hex in the db, so decode them
-		if _, err = hex.Decode(encodedOrder, encodedOrder); err != nil {
+		if encodedOrder, err = hex.DecodeString(string(encodedOrder)); err != nil {
 			err = fmt.Errorf("Error decoding puzzle hex returned by database for viewing puzzle book: %s", err)
 			return
 		}
