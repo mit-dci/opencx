@@ -19,8 +19,6 @@ var (
 		AmountWant:  100000000,
 		// Just some bytes cause why not
 		Nonce: [2]byte{0xff, 0x12},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.00000000,
 	}
 
 	origOrderCounterID = []byte{0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
@@ -31,8 +29,6 @@ var (
 		AmountWant:  100000000,
 		// Just some bytes cause why not
 		Nonce: [2]byte{0xff, 0x12},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.00000000,
 	}
 
 	origOrderFullExec = &OrderExecution{
@@ -270,8 +266,6 @@ func TestGenerateBadPriceFill(t *testing.T) {
 	// Create a new order that looks like origOrder
 	badOrder := new(AuctionOrder)
 	*badOrder = *origOrder
-	// This field does not matter and should not matter
-	badOrder.OrderbookPrice = float64(0)
 
 	// this should just error
 	var resExec OrderExecution
@@ -296,8 +290,6 @@ func TestGenerateEasyPriceFillAmounts(t *testing.T) {
 	// Create a new order that looks like origOrder
 	zeroPriceOrder := new(AuctionOrder)
 	*zeroPriceOrder = *origOrder
-	// This field does not matter and should not matter
-	zeroPriceOrder.OrderbookPrice = float64(0)
 
 	// this should just error
 	var resExec OrderExecution
@@ -391,8 +383,6 @@ var (
 		AmountHave:  100000000, // LTC - This user has this asset
 		// Just some bytes cause why not
 		Nonce: [2]byte{0xff, 0x12},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.00000000,
 	}
 	// So if the price is assetWant / assetHave (To get the ratio BTC/LTC), then this will be a price of 2 BTC/LTC.
 	priceTwoSell = &AuctionOrder{
@@ -402,8 +392,6 @@ var (
 		AmountHave:  100000000, // LTC - This user wants this asset
 		// Just some bytes cause why not
 		Nonce: [2]byte{0xf1, 0x23},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.12345678,
 	}
 	// This should error on price because AmountWant = 0
 	priceErrorWant = &AuctionOrder{
@@ -413,8 +401,6 @@ var (
 		AmountHave:  100000000, // LTC - This user wants this asset
 		// Just some bytes cause why not
 		Nonce: [2]byte{0xf1, 0x23},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.14159265358979323846264338327950288,
 	}
 	// This should error on price because AmountHave = 0
 	priceErrorHave = &AuctionOrder{
@@ -424,8 +410,6 @@ var (
 		AmountHave:  0,         // LTC - This user wants this asset
 		// Just some bytes cause why not
 		Nonce: [2]byte{0xf1, 0x23},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.14159265358979323846264338327950288,
 	}
 	// This should error on price because both are = 0
 	priceErrorBoth = &AuctionOrder{
@@ -435,8 +419,6 @@ var (
 		AmountHave:  0, // LTC - This user wants this asset
 		// Just some bytes cause why not
 		Nonce: [2]byte{0xf1, 0x23},
-		// it's different because this shouldn't matter at all
-		OrderbookPrice: 3.14159265358979323846264338327950288,
 	}
 )
 

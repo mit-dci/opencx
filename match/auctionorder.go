@@ -122,8 +122,6 @@ type AuctionOrder struct {
 	AmountHave uint64 `json:"amounthave"`
 	// amount of assetWant the user wants for their assetHave
 	AmountWant uint64 `json:"amountwant"`
-	// only exists for returning orders back
-	OrderbookPrice float64 `json:"orderbookprice"`
 	// IntendedAuction as the auctionID this should be in. We need this to protect against
 	// the exchange withholding an order.
 	AuctionID [32]byte `json:"auctionid"`
@@ -228,8 +226,8 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 		Filled:        true,
 	}
 	copy(execution.OrderID, orderID)
-	// indentedExecString, _ := json.MarshalIndent(execution, "", "\t")
-	// fmt.Printf("Execution: %s\n", indentedExecString)
+	indentedExecString, _ := json.MarshalIndent(execution, "", "\t")
+	fmt.Printf("Execution: %s\n", indentedExecString)
 	return
 }
 
@@ -377,7 +375,6 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	// TODO: remove all of this serialization code entirely and use protobufs or something else
 	minimumDataLength := len(a.Nonce) +
 		len(a.AuctionID) +
-		binary.Size(a.OrderbookPrice) +
 		binary.Size(a.AmountWant) +
 		binary.Size(a.AmountHave) +
 		a.TradingPair.Size() +
