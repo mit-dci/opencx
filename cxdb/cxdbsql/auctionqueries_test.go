@@ -155,7 +155,7 @@ func TestViewAuctionOrderbookEmpty(t *testing.T) {
 		return
 	}
 
-	if len(book) != 0 {
+	if match.NumberOfOrders(book) != 0 {
 		t.Errorf("Length of returned orderbook is %d, should be 0", len(book))
 		return
 	}
@@ -368,8 +368,8 @@ func TestClearingMatchingSimple(t *testing.T) {
 		return
 	}
 
-	expectedOrders := 2
-	if len(book) != expectedOrders {
+	expectedOrders := uint64(2)
+	if match.NumberOfOrders(book) != expectedOrders {
 		t.Errorf("Length of returned orderbook is %d, should be %d", len(book), expectedOrders)
 		return
 	}
@@ -394,7 +394,7 @@ func TestClearingMatchingSimple(t *testing.T) {
 	}
 
 	// okay so for now there should be nothing in here.
-	if len(book) != 0 {
+	if match.NumberOfOrders(book) != 0 {
 		t.Errorf("Length of returned orderbook is %d, should be 0", len(book))
 		return
 	}
@@ -436,8 +436,8 @@ func TestClearingDoubleMatch(t *testing.T) {
 		return
 	}
 
-	expectedOrders := 0
-	if len(book) != expectedOrders {
+	expectedOrders := uint64(0)
+	if match.NumberOfOrders(book) != expectedOrders {
 		t.Errorf("Length of returned orderbook is %d, should be %d", len(book), expectedOrders)
 		return
 	}
@@ -461,8 +461,8 @@ func TestClearingDoubleMatch(t *testing.T) {
 		return
 	}
 
-	expectedOrders = 0
-	if len(book) != expectedOrders {
+	expectedOrders = uint64(0)
+	if match.NumberOfOrders(book) != expectedOrders {
 		t.Errorf("Length of returned orderbook is %d, should be %d", len(book), expectedOrders)
 		return
 	}

@@ -109,3 +109,11 @@ func ClearingMatchingAlgorithm(book map[float64][]*OrderIDPair, clearingPrice fl
 
 	return
 }
+
+// NumberOfOrders computes the number of order pairs in a map representation of an orderbook
+func NumberOfOrders(book map[float64][]*OrderIDPair) (numberOfOrders uint64) {
+	for _, orderPairList := range book {
+		numberOfOrders += uint64(len(orderPairList))
+	}
+	return
+}
