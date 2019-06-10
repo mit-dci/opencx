@@ -65,7 +65,7 @@ type OpencxAuctionStore interface {
 	// PlaceAuctionOrder places an order in the unencrypted datastore.
 	PlaceAuctionOrder(*match.AuctionOrder) error
 	// ViewAuctionOrderBook takes in a trading pair and auction ID, and returns auction orders.
-	ViewAuctionOrderBook(*match.Pair, [32]byte) ([]*match.AuctionOrder, []*match.AuctionOrder, error)
+	ViewAuctionOrderBook(*match.Pair, [32]byte) (map[float64][]*match.OrderIDPair, error)
 	// ViewAuctionPuzzleBook takes in an auction ID, and returns encrypted auction orders, and puzzles.
 	// You don't know what auction IDs should be in the orders encrypted in the puzzle book, but this is
 	// what was submitted.
@@ -74,4 +74,3 @@ type OpencxAuctionStore interface {
 	// of the auction.
 	NewAuction([32]byte) (uint64, error)
 }
-
