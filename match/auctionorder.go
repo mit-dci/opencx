@@ -129,8 +129,6 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 		Filled:        true,
 	}
 	copy(execution.OrderID, orderID)
-	// indentedExecString, _ := json.MarshalIndent(execution, "", "\t")
-	// fmt.Printf("Execution: %s\n", indentedExecString)
 	return
 }
 
@@ -189,8 +187,6 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 		copy(execution.OrderID, orderID)
 	}
 
-	// indentedExecString, _ := json.MarshalIndent(execution, "", "\t")
-	// fmt.Printf("Execution: %s\n", indentedExecString)
 	// If it's a sell side, price is have/want. So amountToFill * execPrice = amountHave to fill
 	// TODO
 	return
