@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"math"
 
 	"golang.org/x/crypto/sha3"
 
@@ -104,7 +103,7 @@ func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 }
 
 // ViewAuctionOrderBook takes in a trading pair and auction ID, and returns auction orders.
-func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) (sellOrderBook []*match.AuctionOrder, buyOrderBook []*match.AuctionOrder, err error) {
+func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) (orderbook map[float64][]*match.OrderIDPair, err error) {
 
 	var tx *sql.Tx
 	if tx, err = db.DBHandler.Begin(); err != nil {
@@ -119,15 +118,27 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 			return
 		}
 		err = tx.Commit()
+		return
 	}()
 
+	if orderbook, err = db.ViewAuctionOrderBookTx(auctionID, tradingPair, tx); err != nil {
+		err = fmt.Errorf("Error viewing auction orderbook for tx: %s", err)
+		return
+	}
+
+	return
+}
+
+func (db *DB) ViewAuctionOrderBookTx(auctionID [32]byte, tradingPair *match.Pair, tx *sql.Tx) (orderbook map[float64][]*match.OrderIDPair, err error) {
+
+	orderbook = make(map[float64][]*match.OrderIDPair)
 	if _, err = tx.Exec("USE " + db.auctionSchema + ";"); err != nil {
 		err = fmt.Errorf("Error using auction schema for viewauctionorderbook: %s", err)
 		return
 	}
 
 	var rows *sql.Rows
-	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce, sig FROM %s WHERE auctionID = '%x';", tradingPair, auctionID)
+	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce, sig, hashedOrder FROM %s WHERE auctionID = '%x';", tradingPair, auctionID)
 	if rows, err = tx.Query(selectOrderQuery); err != nil {
 		err = fmt.Errorf("Error getting orders from db for viewauctionorderbook: %s", err)
 		return
@@ -145,23 +156,27 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 
 	// we allocate space for new orders but only need one pointer
 	var thisOrder *match.AuctionOrder
+	var thisOrderPair *match.OrderIDPair
 
 	// we create these here so we don't take up a ton of memory allocating space for new intermediate arrays
 	var pkBytes []byte
 	var auctionIDBytes []byte
 	var nonceBytes []byte
 	var sigBytes []byte
+	var hashedOrderBytes []byte
+	var thisPrice float64
 
 	for rows.Next() {
 		// scan the things we can into this order
 		thisOrder = new(match.AuctionOrder)
-		if err = rows.Scan(&pkBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes, &sigBytes); err != nil {
+		thisOrderPair = new(match.OrderIDPair)
+		if err = rows.Scan(&pkBytes, &thisOrder.Side, &thisPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes, &sigBytes, &hashedOrderBytes); err != nil {
 			err = fmt.Errorf("Error scanning into order for viewauctionorderbook: %s", err)
 			return
 		}
 
 		// decode them all weirdly because of the way mysql may store the bytes
-		for _, byteArrayPtr := range [][]byte{pkBytes, auctionIDBytes, nonceBytes, sigBytes} {
+		for _, byteArrayPtr := range [][]byte{pkBytes, auctionIDBytes, nonceBytes, sigBytes, hashedOrderBytes} {
 			if byteArrayPtr, err = hex.DecodeString(string(byteArrayPtr)); err != nil {
 				err = fmt.Errorf("Error decoding bytes for viewauctionorderbook: %s", err)
 				return
@@ -172,16 +187,11 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 		copy(thisOrder.Pubkey[:], pkBytes)
 		copy(thisOrder.AuctionID[:], auctionIDBytes)
 		copy(thisOrder.Signature[:], sigBytes)
+		copy(thisOrderPair.OrderID[:], hashedOrderBytes)
 
-		// now we just add the order to what we're going to return
-		if thisOrder.IsBuySide() {
-			buyOrderBook = append(buyOrderBook, thisOrder)
-		} else if thisOrder.IsSellSide() {
-			sellOrderBook = append(sellOrderBook, thisOrder)
-		} else {
-			err = fmt.Errorf("order retreived for viewauctionorderbook is not a buy or sell order, stopping scan")
-			return
-		}
+		orderbook[thisPrice] = append(orderbook[thisPrice], thisOrderPair)
+		thisOrderPair.Order = thisOrder
+
 	}
 
 	return
@@ -480,143 +490,24 @@ func (db *DB) ProcessExecution(exec *match.OrderExecution, pair *match.Pair, tx 
 // clearingMatchingAlgorithmTx runs the matching algorithm based on clearing price for a single batch pair
 func (db *DB) clearingMatchingAlgorithmTx(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (executions []*match.OrderExecution, err error) {
 
-	// We define the rows, etc here so we don't waste a bunch of stack space
-	// scanning is very tedious
-	var rows *sql.Rows
-
-	// All of the things we need to serialize into then copy from for the current order
-	var pubkeyBytes []byte
-	var auctionIDBytes []byte
-	var nonceBytes []byte
-	var hashedOrderBytes []byte
-	var hashOrderIDFixed [32]byte
-
-	// order to be scanned into
-	var thisOrder *match.AuctionOrder
-
 	// map representation of orderbook
-	var book map[float64][]*match.AuctionOrder
-	book = make(map[float64][]*match.AuctionOrder)
-
-	// list of all orders
-	var allOrders map[[32]byte]*match.AuctionOrder
-	allOrders = make(map[[32]byte]*match.AuctionOrder)
-
-	// So we get the orders, and they are supposed to be all valid.
-	queryAuctionOrders := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce, hashedOrder FROM %s WHERE auctionID='%x';", pair, auctionID)
-	if rows, err = tx.Query(queryAuctionOrders); err != nil {
-		err = fmt.Errorf("Error querying for orders in auction: %s", err)
+	var book map[float64][]*match.OrderIDPair
+	if book, err = db.ViewAuctionOrderBookTx(auctionID, pair, tx); err != nil {
+		err = fmt.Errorf("Error viewing orderbook tx for clearing matching algorithm tx: %s", err)
 		return
-	}
-
-	for rows.Next() {
-		thisOrder = new(match.AuctionOrder)
-		if err = rows.Scan(&pubkeyBytes, &thisOrder.Side, &thisOrder.OrderbookPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes, &hashedOrderBytes); err != nil {
-			err = fmt.Errorf("Error scanning row to bytes: %s", err)
-			return
-		}
-
-		// Now we do the dumb decoding thing
-		for _, byteArray := range [][]byte{pubkeyBytes, auctionIDBytes, nonceBytes, hashedOrderBytes} {
-			// just for everything in this list of things we want to decode from weird words to real bytes
-			if _, err = hex.Decode(byteArray, byteArray); err != nil {
-				err = fmt.Errorf("Error decoding bytes for auction matching: %s", err)
-				return
-			}
-		}
-
-		// Now we put the data into the auction order
-		copy(thisOrder.Pubkey[:], pubkeyBytes)
-		copy(thisOrder.AuctionID[:], auctionIDBytes)
-		copy(thisOrder.Nonce[:], nonceBytes)
-		copy(hashOrderIDFixed[:], hashedOrderBytes)
-
-		// okay cool now add it to the orderbook
-		book[thisOrder.OrderbookPrice] = append(book[thisOrder.OrderbookPrice], thisOrder)
-		// now add it to the list of all orders
-		allOrders[hashOrderIDFixed] = thisOrder
-
 	}
 
 	// We can now calculate a clearing price:
 	var clearingPrice float64
-	if clearingPrice, err = calculateClearingPrice(book); err != nil {
+	if clearingPrice, err = match.CalculateClearingPrice(book); err != nil {
 		err = fmt.Errorf("Error calculating clearing price in clearing match algorithm: %s", err)
 		return
 	}
 
-	var resExec *match.OrderExecution
-	// go through all orders and figure out which ones to match
-	for orderID, order := range allOrders {
-		if (order.IsBuySide() && order.OrderbookPrice >= clearingPrice) || (order.IsSellSide() && order.OrderbookPrice <= clearingPrice) {
-			// Um so this is needed because of some weird memory issue TODO: remove this fix
-			// and put in another fix if you understand pointer black magic
-			resExec = new(match.OrderExecution)
-			if *resExec, err = order.GenerateOrderFill(orderID[:], clearingPrice); err != nil {
-				err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
-				return
-			}
-			executions = append(executions, resExec)
-		}
+	if executions, err = match.ClearingMatchingAlgorithm(book, clearingPrice); err != nil {
+		err = fmt.Errorf("Error running clearing matching algorithm for match auction: %s", err)
+		return
 	}
-
-	return
-}
-
-// calculateClearingPrice calculates the clearing price for orders based on their intersections.
-// In the future the error will be used potentially since the divide operation at the end might be real bad.
-func calculateClearingPrice(book map[float64][]*match.AuctionOrder) (clearingPrice float64, err error) {
-
-	// sellClearAmount and buyClearAmount are uint64's, and technically should be amounts of tokens (Issue #22).
-	var sellClearAmount uint64
-	var buyClearAmount uint64
-
-	// price that is the lowest sell price so far
-	var lowestIntersectingPrice float64
-	lowestIntersectingPrice = math.MaxFloat64
-
-	// price that is the highest buy price so far
-	var highestIntersectingPrice float64
-	highestIntersectingPrice = 0
-
-	// Now go through every price in the orderbook, finding the lowest sell order and highest buy order
-	for pr, orderList := range book {
-		for _, order := range orderList {
-			// make sure that we keep track of the highest buy order price
-			if order.IsBuySide() {
-				if pr < lowestIntersectingPrice {
-					lowestIntersectingPrice = pr
-				}
-				// make sure we keep track of the lowest sell order price
-			} else if order.IsSellSide() {
-				if pr > highestIntersectingPrice {
-					highestIntersectingPrice = pr
-				}
-			}
-		}
-	}
-
-	// fmt.Printf("highestBuy: %f\n", highestIntersectingPrice)
-	// fmt.Printf("lowestSell: %f\n", lowestIntersectingPrice)
-
-	// now that we have the prices, we go through the book again to calculate the clearing price
-	for pr, orderList := range book {
-		// if there is an intersecting price, calculate clearing amounts for the price.
-		for _, order := range orderList {
-			// for all intersecting prices in the orderbook, we add the amounts
-			if order.IsBuySide() && pr <= highestIntersectingPrice {
-				buyClearAmount += order.AmountHave
-			} else if order.IsSellSide() && pr >= lowestIntersectingPrice {
-				sellClearAmount += order.AmountHave
-			}
-		}
-	}
-
-	// fmt.Printf("buyHave: %d\n", buyClearAmount)
-	// fmt.Printf("lowestSell: %d\n", sellClearAmount)
-
-	// TODO: this should be changed, I really don't like this floating point math (See Issue #6 and TODOs in match about price.)
-	clearingPrice = float64(buyClearAmount) / float64(sellClearAmount)
 
 	return
 }

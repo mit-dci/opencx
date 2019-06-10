@@ -149,20 +149,14 @@ func TestViewAuctionOrderbookEmpty(t *testing.T) {
 	}
 
 	// Starting from an empty book, we shouldn't see anything in this auction id.
-	var retBuyOrders []*match.AuctionOrder
-	var retSellOrders []*match.AuctionOrder
-	if retBuyOrders, retSellOrders, err = dbConn.ViewAuctionOrderBook(&testAuctionOrder.TradingPair, testEncryptedOrder.IntendedAuction); err != nil {
+	var book map[float64][]*match.OrderIDPair
+	if book, err = dbConn.ViewAuctionOrderBook(&testAuctionOrder.TradingPair, testEncryptedOrder.IntendedAuction); err != nil {
 		t.Errorf("Error vewing auction puzzle book, should not error: %s", err)
 		return
 	}
 
-	if len(retBuyOrders) != 0 {
-		t.Errorf("Length of returned buy orders is %d, should be 0", len(retBuyOrders))
-		return
-	}
-
-	if len(retSellOrders) != 0 {
-		t.Errorf("Length of returned sell orders is %d, should be 0", len(retSellOrders))
+	if len(book) != 0 {
+		t.Errorf("Length of returned orderbook is %d, should be 0", len(book))
 		return
 	}
 
@@ -230,8 +224,6 @@ var (
 		},
 		AmountWant: 1000,
 		AmountHave: 1000,
-		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
-		OrderbookPrice: 0,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x00, 0x01},
@@ -247,8 +239,6 @@ var (
 		},
 		AmountWant: 1000,
 		AmountHave: 1000,
-		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
-		OrderbookPrice: 0,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x00, 0x31},
@@ -264,8 +254,6 @@ var (
 		},
 		AmountWant: 1000,
 		AmountHave: 1000,
-		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
-		OrderbookPrice: 0,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x00, 0x31},
@@ -287,8 +275,6 @@ var (
 		},
 		AmountWant: 2000,
 		AmountHave: 1000,
-		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
-		OrderbookPrice: 0,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x05, 0x11},
@@ -310,8 +296,6 @@ var (
 		},
 		AmountWant: 2000,
 		AmountHave: 1000,
-		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
-		OrderbookPrice: 0,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x06, 0x17},
@@ -328,8 +312,6 @@ var (
 		},
 		AmountWant: 1000,
 		AmountHave: 2000,
-		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
-		OrderbookPrice: 0,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x10, 0x31},
@@ -345,8 +327,6 @@ var (
 		},
 		AmountWant: 1000,
 		AmountHave: 2000,
-		// OrderbookPrice = 0. This shouldn't matter, and OrderbookPrice should be replaced.
-		OrderbookPrice: 0,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x10, 0x32},
@@ -382,22 +362,15 @@ func TestClearingMatchingSimple(t *testing.T) {
 		return
 	}
 
-	var origBuys []*match.AuctionOrder
-	var origSells []*match.AuctionOrder
-	if origSells, origBuys, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+	var book map[float64][]*match.OrderIDPair
+	if book, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
 	}
 
-	expectedBuys := 1
-	if len(origBuys) != expectedBuys {
-		t.Errorf("Length of returned buy orders is %d, should be %d", len(origBuys), expectedBuys)
-		return
-	}
-
-	expectedSells := 1
-	if len(origSells) != expectedSells {
-		t.Errorf("Length of returned sell orders is %d, should be %d", len(origSells), expectedSells)
+	expectedOrders := 2
+	if len(book) != expectedOrders {
+		t.Errorf("Length of returned orderbook is %d, should be %d", len(book), expectedOrders)
 		return
 	}
 
@@ -415,26 +388,20 @@ func TestClearingMatchingSimple(t *testing.T) {
 	// Since they are both matched, the orderbook should be empty... Or should it? Since this is an auction, should we just
 	// create execution reports? The auctions are themselves points in time essentially, and having them immutable may be nice.
 	// TODO: Define lots of behavior
-	var newBuys []*match.AuctionOrder
-	var newSells []*match.AuctionOrder
-	if newSells, newBuys, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+	if book, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
 	}
 
 	// okay so for now there should be nothing in here.
-	if len(newBuys) != 0 {
-		t.Errorf("Length of returned buy orders is %d, should be 0", len(newBuys))
-		return
-	}
-
-	if len(newSells) != 0 {
-		t.Errorf("Length of returned sell orders is %d, should be 0", len(newSells))
+	if len(book) != 0 {
+		t.Errorf("Length of returned orderbook is %d, should be 0", len(book))
 		return
 	}
 
 }
 
+// TestClearingDoubleMatch is a test that places two orders that should both be matched at their midpoint clearing price.
 func TestClearingDoubleMatch(t *testing.T) {
 	var err error
 
@@ -454,31 +421,24 @@ func TestClearingDoubleMatch(t *testing.T) {
 	}
 
 	if err = dbConn.PlaceAuctionOrder(testingHalfBuy); err != nil {
-		t.Errorf("Error placing auction order equalOrderLtcBtc, should not error: %s", err)
+		t.Errorf("Error placing auction order testingHalfBuy, should not error: %s", err)
 		return
 	}
 
-	if err = dbConn.PlaceAuctionOrder(testingHalfSell); err != nil {
-		t.Errorf("Error placing auction order testingOrderDoublePrice, should not error: %s", err)
+	if err = dbConn.PlaceAuctionOrder(testingDoubleSell); err != nil {
+		t.Errorf("Error placing auction order testingDoubleSell, should not error: %s", err)
 		return
 	}
 
-	var origBuys []*match.AuctionOrder
-	var origSells []*match.AuctionOrder
-	if origSells, origBuys, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+	var book map[float64][]*match.OrderIDPair
+	if book, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
 	}
 
-	expectedBuys := -1
-	if len(origBuys) == expectedBuys {
-		t.Errorf("Length of returned buy orders is %d, should be %d", len(origBuys), expectedBuys)
-		return
-	}
-
-	expectedSells := -1
-	if len(origSells) == expectedSells {
-		t.Errorf("Length of returned sell orders is %d, should be %d", len(origSells), expectedSells)
+	expectedOrders := 0
+	if len(book) != expectedOrders {
+		t.Errorf("Length of returned orderbook is %d, should be %d", len(book), expectedOrders)
 		return
 	}
 
@@ -496,21 +456,14 @@ func TestClearingDoubleMatch(t *testing.T) {
 	// Since they are both matched, the orderbook should be empty... Or should it? Since this is an auction, should we just
 	// create execution reports? The auctions are themselves points in time essentially, and having them immutable may be nice.
 	// TODO: Define lots of behavior
-	var newBuys []*match.AuctionOrder
-	var newSells []*match.AuctionOrder
-	if newSells, newBuys, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+	if book, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
 	}
 
-	// okay so for now there should be nothing in here.
-	if len(newBuys) == -1 {
-		t.Errorf("Length of returned buy orders is %d, should be 0", len(newBuys))
-		return
-	}
-
-	if len(newSells) == -1 {
-		t.Errorf("Length of returned sell orders is %d, should be 0", len(newSells))
+	expectedOrders = 0
+	if len(book) != expectedOrders {
+		t.Errorf("Length of returned orderbook is %d, should be %d", len(book), expectedOrders)
 		return
 	}
 
