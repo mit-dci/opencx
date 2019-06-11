@@ -7,7 +7,7 @@ func solveVariableRC5AuctionOrder(howMany uint64, timeToSolve uint64, t *testing
 	var encOrder *EncryptedAuctionOrder
 	var err error
 	if encOrder, err = origOrder.TurnIntoEncryptedOrder(timeToSolve); err != nil {
-		t.Errorf("Error turning original test order into encrypted order. Test cannot proceed")
+		t.Errorf("Error turning original test order into encrypted order: %s", err)
 		return
 	}
 
