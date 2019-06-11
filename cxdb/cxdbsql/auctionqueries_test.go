@@ -273,8 +273,8 @@ var (
 			AssetWant: btcreg,
 			AssetHave: litereg,
 		},
-		AmountWant: 2000,
-		AmountHave: 1000,
+		AmountWant: 1000,
+		AmountHave: 2000,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x05, 0x11},
@@ -294,8 +294,8 @@ var (
 			AssetWant: btcreg,
 			AssetHave: litereg,
 		},
-		AmountWant: 2000,
-		AmountHave: 1000,
+		AmountWant: 1000,
+		AmountHave: 2000,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x06, 0x17},
@@ -310,8 +310,8 @@ var (
 			AssetWant: btcreg,
 			AssetHave: litereg,
 		},
-		AmountWant: 1000,
-		AmountHave: 2000,
+		AmountWant: 2000,
+		AmountHave: 1000,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x10, 0x31},
@@ -325,8 +325,8 @@ var (
 			AssetWant: btcreg,
 			AssetHave: litereg,
 		},
-		AmountWant: 1000,
-		AmountHave: 2000,
+		AmountWant: 2000,
+		AmountHave: 1000,
 		// lets see how the engine deals with this as well
 		AuctionID: [32]byte{0x00, 0x00},
 		Nonce:     [...]byte{0x10, 0x32},
@@ -431,12 +431,13 @@ func TestClearingDoubleMatch(t *testing.T) {
 	}
 
 	var book map[float64][]*match.OrderIDPair
-	if book, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+	if book, err = dbConn.ViewAuctionOrderBook(&testingHalfSell.TradingPair, testingHalfSell.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
 	}
 
-	expectedOrders := uint64(0)
+	// There will be two orders in the orderbook now
+	expectedOrders := uint64(2)
 	if match.NumberOfOrders(book) != expectedOrders {
 		t.Errorf("Length of returned orderbook is %d, should be %d", len(book), expectedOrders)
 		return
@@ -445,7 +446,7 @@ func TestClearingDoubleMatch(t *testing.T) {
 	// The intended behavior is for these two to be matched since they have equal order sizes, should be the same trading pair,
 	// and have equal auction IDs.
 	var height uint64
-	if height, err = dbConn.MatchAuction(equalOrderLtcBtc.AuctionID); err != nil {
+	if height, err = dbConn.MatchAuction(testingHalfSell.AuctionID); err != nil {
 		t.Errorf("The matching for the simple clearing test should not error: %s", err)
 		return
 	}
@@ -456,11 +457,12 @@ func TestClearingDoubleMatch(t *testing.T) {
 	// Since they are both matched, the orderbook should be empty... Or should it? Since this is an auction, should we just
 	// create execution reports? The auctions are themselves points in time essentially, and having them immutable may be nice.
 	// TODO: Define lots of behavior
-	if book, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
+	if book, err = dbConn.ViewAuctionOrderBook(&testingHalfSell.TradingPair, testingHalfSell.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
 	}
 
+	// There will be 0 now that it's been matched
 	expectedOrders = uint64(0)
 	if match.NumberOfOrders(book) != expectedOrders {
 		t.Errorf("Length of returned orderbook is %d, should be %d", len(book), expectedOrders)
