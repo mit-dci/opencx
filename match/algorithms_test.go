@@ -8,6 +8,25 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// Rationale behind clearing price matching:
+// On a typical exchange, if, for example you have US dollars and are trying to buy BTC,
+// then a higher price for your order will get you priority, but a lower price is always better
+// for you, and you will always take a lower price if you can get it.
+// The price is determined as USD/BTC, or have/want.
+// In our model, if you have one asset and are trying to buy another asset then your price will
+// be in want/have.
+// If you are a buyer, this means a lower price will get you priority, but you will take any
+// price that is higher.
+// If you are a seller, the opposite is true.
+// So in clearing matching, if I were to have an order that is priced at $5/btc, and I am a buyer
+// then I will get priority over an order that is $4/btc because 1/5 < 1/4. If I receive a price
+// of 1btc/4usd, or $4/btc, then I will still be satisfied. I will only have to give up 4 of my
+// dollars.
+// If I am a seller, and I put in an order priced at $3/btc, or 1btc/3usd, then I will get priority
+// over any sell order > 1/3, since that means those orders want more usd for the same amount of btc.
+// If I receive a price of 1btc/4usd, or $4/btc, then I will still be satisfied, since I will get
+// more usd and give up the same amount of btc.
+// This price of $4/btc, or 1btc/4usd, will be one of our trivial tests.
 var (
 	litereg, _ = AssetFromCoinParam(&coinparam.LiteRegNetParams)
 	btcreg, _  = AssetFromCoinParam(&coinparam.RegressionNetParams)
@@ -27,6 +46,18 @@ var (
 		AmountWant:  1000,
 		AmountHave:  1000,
 	}
+	trivialQuarterBuy = &AuctionOrder{
+		Side:        "buy",
+		TradingPair: *BTC_LTC,
+		AmountWant:  1000,
+		AmountHave:  5000,
+	}
+	trivialQuarterSell = &AuctionOrder{
+		Side:        "sell",
+		TradingPair: *BTC_LTC,
+		AmountWant:  1000,
+		AmountHave:  3000,
+	}
 )
 
 // generateLargeClearingBook puts a bunch of sell orders on the side that should be cleared, and a bunch of buy orders on the side that should be cleared
@@ -39,11 +70,11 @@ func generateLargeClearingBook(midpoint float64, radius uint64) (book map[float6
 
 	var orders []*AuctionOrder
 	var thisOrder *AuctionOrder
-	for i := uint64(0); i < 2*radius; i++ {
+	for i := uint64(1); i < 2*radius; i++ {
 		thisOrder = &AuctionOrder{
 			TradingPair: *BTC_LTC,
-			AmountWant:  1000,
-			AmountHave:  1000,
+			AmountWant:  uint64(float64(100000000) * midpoint / float64(radius)),
+			AmountHave:  100000000,
 		}
 		if i < radius {
 			thisOrder.Side = "buy"
@@ -162,7 +193,17 @@ func TestClearingPriceSamePriceBook(t *testing.T) {
 	return
 }
 
+func TestClearingPrice1000_250Clear(t *testing.T) {
+	runLargeClearingBookTest(float64(250), 1000, t)
+	return
+}
+
 func TestClearingPrice1000_25Clear(t *testing.T) {
 	runLargeClearingBookTest(float64(25), 1000, t)
+	return
+}
+
+func TestClearingPrice10000_1Clear(t *testing.T) {
+	runLargeClearingBookTest(float64(1), 10000, t)
 	return
 }
