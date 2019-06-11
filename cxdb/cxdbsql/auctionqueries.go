@@ -497,14 +497,8 @@ func (db *DB) clearingMatchingAlgorithmTx(auctionID [32]byte, pair *match.Pair, 
 		return
 	}
 
-	// We can now calculate a clearing price:
-	var clearingPrice float64
-	if clearingPrice, err = match.CalculateClearingPrice(book); err != nil {
-		err = fmt.Errorf("Error calculating clearing price in clearing match algorithm: %s", err)
-		return
-	}
-
-	if executions, err = match.ClearingMatchingAlgorithm(book, clearingPrice); err != nil {
+	// We can now calculate a clearing price and run the matching algorithm
+	if executions, err = match.MatchClearingAlgorithm(book); err != nil {
 		err = fmt.Errorf("Error running clearing matching algorithm for match auction: %s", err)
 		return
 	}

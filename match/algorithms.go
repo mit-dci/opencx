@@ -40,9 +40,6 @@ func CalculateClearingPrice(book map[float64][]*OrderIDPair) (clearingPrice floa
 		}
 	}
 
-	// fmt.Printf("highestBuy: %f\n", highestIntersectingPrice)
-	// fmt.Printf("lowestSell: %f\n", lowestIntersectingPrice)
-
 	// sellClearAmount and buyClearAmount are uint64's, and technically should be amounts of tokens (Issue #22).
 	var sellClearAmount uint64
 	var buyClearAmount uint64
@@ -58,43 +55,39 @@ func CalculateClearingPrice(book map[float64][]*OrderIDPair) (clearingPrice floa
 	for pr, orderPairList := range book {
 		// if there is an intersecting price, calculate clearing amounts for the price.
 		for _, orderPair := range orderPairList {
-			// for all intersecting prices in the orderbook, we add the amounts
-			if orderPair.Order.IsBuySide() && pr >= highestIntersectingPrice {
-				buyClearAmount += orderPair.Order.AmountHave
-				totalBuyHave += orderPair.Order.AmountHave
-				totalBuyWant += orderPair.Order.AmountWant
-			} else if orderPair.Order.IsSellSide() && pr <= lowestIntersectingPrice {
-				sellClearAmount += orderPair.Order.AmountHave
-				totalSellHave += orderPair.Order.AmountHave
-				totalSellWant += orderPair.Order.AmountWant
+			if pr <= highestIntersectingPrice && pr >= lowestIntersectingPrice {
+				// for all intersecting prices in the orderbook, we add the amounts
+				if orderPair.Order.IsBuySide() {
+					buyClearAmount += orderPair.Order.AmountHave
+					totalBuyHave += orderPair.Order.AmountHave
+					totalBuyWant += orderPair.Order.AmountWant
+				} else if orderPair.Order.IsSellSide() {
+					sellClearAmount += orderPair.Order.AmountHave
+					totalSellHave += orderPair.Order.AmountHave
+					totalSellWant += orderPair.Order.AmountWant
+				}
 			}
 		}
 	}
 
-	// fmt.Printf("buyHave: %d\n", buyClearAmount)
-	// fmt.Printf("lowestSell: %d\n", sellClearAmount)
+	// Uncomment if looking for a slightly fancier but probably incorrect matching algorithm
+	// clearingPrice = (float64(totalBuyWant)/float64(totalBuyHave) + float64(totalSellWant)/float64(totalSellHave)) / 2
 
 	// TODO: this should be changed, I really don't like this floating point math (See Issue #6 and TODOs in match about price.)
-	// clearingPrice = (float64(totalBuyWant)/float64(totalBuyHave) + float64(totalSellWant)/float64(totalSellHave)) / 2
 	clearingPrice = float64(totalBuyWant+totalSellWant) / float64(totalBuyHave+totalSellHave)
-	// fmt.Printf("total buy want: %d\n", totalBuyWant)
-	// fmt.Printf("total buy have: %d\n", totalBuyHave)
-	// fmt.Printf("total sell want: %d\n", totalSellWant)
-	// fmt.Printf("total sell have: %d\n", totalSellHave)
-	// fmt.Printf("Clearing price: %f\n", clearingPrice)
 
 	return
 }
 
-// ClearingMatchingAlgorithm goes through an orderbook with a clearing price, and generates executions
+// GenerateClearingExecs goes through an orderbook with a clearing price, and generates executions
 // based on the clearing matching algorithm
-func ClearingMatchingAlgorithm(book map[float64][]*OrderIDPair, clearingPrice float64) (executions []*OrderExecution, err error) {
+func GenerateClearingExecs(book map[float64][]*OrderIDPair, clearingPrice float64) (executions []*OrderExecution, err error) {
 
 	var resExec *OrderExecution
 	// go through all orders and figure out which ones to match
 	for price, orderPairList := range book {
 		for _, orderPair := range orderPairList {
-			if (orderPair.Order.IsBuySide() && price >= clearingPrice) || (orderPair.Order.IsSellSide() && price <= clearingPrice) {
+			if (orderPair.Order.IsBuySide() && price <= clearingPrice) || (orderPair.Order.IsSellSide() && price >= clearingPrice) {
 				// Um so this is needed because of some weird memory issue TODO: remove this fix
 				// and put in another fix if you understand pointer black magic
 				resExec = new(OrderExecution)
@@ -105,6 +98,24 @@ func ClearingMatchingAlgorithm(book map[float64][]*OrderIDPair, clearingPrice fl
 				executions = append(executions, resExec)
 			}
 		}
+	}
+
+	return
+}
+
+// MatchClearingAlgorithm runs the matching algorithm based on a uniform clearing price, first calculating the
+// clearing price and then generating executions based on it.
+func MatchClearingAlgorithm(book map[float64][]*OrderIDPair) (executions []*OrderExecution, err error) {
+
+	var clearingPrice float64
+	if clearingPrice, err = CalculateClearingPrice(book); err != nil {
+		err = fmt.Errorf("Error calculating clearing price while running clearing matching algorithm: %s", err)
+		return
+	}
+
+	if executions, err = GenerateClearingExecs(book, clearingPrice); err != nil {
+		err = fmt.Errorf("Error generating clearing execs while running match clearing algorithm: %s", err)
+		return
 	}
 
 	return
