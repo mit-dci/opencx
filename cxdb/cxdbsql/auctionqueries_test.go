@@ -344,7 +344,7 @@ func TestClearingMatchingSimple(t *testing.T) {
 		return
 	}
 
-	killThemBoth(t)
+	defer killThemBoth(t)
 
 	var dbConn *DB
 	if dbConn, err = startupDB(); err != nil {
@@ -412,7 +412,7 @@ func TestClearingDoubleMatch(t *testing.T) {
 		return
 	}
 
-	killThemBoth(t)
+	defer killThemBoth(t)
 
 	var dbConn *DB
 	if dbConn, err = startupDB(); err != nil {
