@@ -22,7 +22,8 @@ var (
 // SetupBenchmarkClient sets up the benchmark and returns the client
 func SetupBenchmarkClient() (client *benchclient.BenchClient, err error) {
 
-	logging.SetLogLevel(3)
+	// TODO: Figure out why this is here and remove if unnecessary, uncomment if necessary
+	// logging.SetLogLevel(3)
 
 	// have to set this for non noise client because while we don't use things for authentication we do use it for signing
 	var clientPrivKey *koblitz.PrivateKey
@@ -46,7 +47,8 @@ func SetupBenchmarkClient() (client *benchclient.BenchClient, err error) {
 // SetupNoiseBenchmarkClient sets up the benchmark and returns the client
 func SetupNoiseBenchmarkClient() (client *benchclient.BenchClient, err error) {
 
-	logging.SetLogLevel(3)
+	// TODO: Figure out why this is here and remove if unnecessary, uncomment if necessary
+	// logging.SetLogLevel(3)
 
 	var clientPrivKey *koblitz.PrivateKey
 	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {

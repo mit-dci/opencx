@@ -73,13 +73,19 @@ func generateLargeClearingBook(midpoint float64, radius uint64) (book map[float6
 	for i := uint64(1); i < 2*radius; i++ {
 		thisOrder = &AuctionOrder{
 			TradingPair: *BTC_LTC,
-			AmountWant:  uint64(float64(100000000) * midpoint / float64(radius)),
+			AmountWant:  uint64(float64(100000000) * float64(i) * floatIncrement),
 			AmountHave:  100000000,
 		}
+		// Lower end of the price range for buy means it's more competitive. The least competitive buy order still matches.
 		if i < radius {
 			thisOrder.Side = "buy"
+			// Higher end of the price range for sell means it's more competitive. The least competitive sell order still matches.
 		} else {
 			thisOrder.Side = "sell"
+		}
+		if i == radius {
+			priceForRadius, _ := thisOrder.Price()
+			fmt.Printf("Order at radius price: %f\n", priceForRadius)
 		}
 		orders = append(orders, thisOrder)
 	}
@@ -118,14 +124,17 @@ func runLargeClearingBookTest(midpoint float64, orderRadius uint64, t *testing.T
 		return
 	}
 
+	// We get the number of orders here because we know all of them should execute.
+	numOrders := NumberOfOrders(fakeNeutralBook)
+
 	// Test execs at clearing price 1 (thats the price so yeah)
 	var execs []*OrderExecution
-	if execs, err = ClearingMatchingAlgorithm(fakeNeutralBook, midpoint); err != nil {
+	if execs, err = MatchClearingAlgorithm(fakeNeutralBook); err != nil {
 		t.Errorf("Error running clearing matching algorithm for test: %s", err)
 		return
 	}
-	if uint64(len(execs)) != orderRadius {
-		t.Errorf("There should have been %d executions, instead there are %d", orderRadius, len(execs))
+	if uint64(len(execs)) != numOrders {
+		t.Errorf("There should have been %d executions, instead there are %d", numOrders, len(execs))
 		return
 	}
 	for _, exec := range execs {
@@ -159,7 +168,7 @@ func TestClearingPriceSamePriceBook(t *testing.T) {
 
 	// Test execs at clearing price 1 (thats the price so yeah)
 	var execs []*OrderExecution
-	if execs, err = ClearingMatchingAlgorithm(fakeNeutralBook, float64(1)); err != nil {
+	if execs, err = MatchClearingAlgorithm(fakeNeutralBook); err != nil {
 		t.Errorf("Error running clearing matching algorithm for test: %s", err)
 		return
 	}
@@ -186,6 +195,45 @@ func TestClearingPriceSamePriceBook(t *testing.T) {
 		}
 		if exec.Debited.Amount != 1000 {
 			t.Errorf("All orders should have debited amount = 1000, this was %d", exec.Debited.Amount)
+			return
+		}
+	}
+
+	return
+}
+
+func TestClearingTrivial(t *testing.T) {
+	var err error
+
+	ordersToInsert := []*AuctionOrder{trivialQuarterBuy, trivialQuarterSell}
+
+	var fakeNeutralBook map[float64][]*OrderIDPair
+	if fakeNeutralBook, err = createBookFromOrders(ordersToInsert); err != nil {
+		t.Errorf("Error creating book from orders for test: %s", err)
+		return
+	}
+
+	// Test execs at clearing price 1 (thats the price so yeah)
+	var execs []*OrderExecution
+	if execs, err = MatchClearingAlgorithm(fakeNeutralBook); err != nil {
+		t.Errorf("Error running clearing matching algorithm for test: %s", err)
+		return
+	}
+	if len(execs) != 2 {
+		t.Errorf("There should have been 2 executions, instead there are %d", len(execs))
+		return
+	}
+	for _, exec := range execs {
+		if !exec.Filled {
+			t.Errorf("All orders should have been filled. There is an unfilled order.")
+			return
+		}
+		if exec.NewAmountWant != 0 {
+			t.Errorf("All orders should have zero NewAmountWant, this was %d", exec.NewAmountWant)
+			return
+		}
+		if exec.NewAmountHave != 0 {
+			t.Errorf("All orders should have zero NewAmountHave, this was %d", exec.NewAmountHave)
 			return
 		}
 	}
