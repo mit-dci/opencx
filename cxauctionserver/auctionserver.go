@@ -16,6 +16,7 @@ type OpencxAuctionServer struct {
 	OrderBatcher match.AuctionBatcher
 	dbLock       *sync.Mutex
 	orderChannel chan *match.OrderPuzzleResult
+	orderChanMap map[[32]byte]chan *match.OrderPuzzleResult
 
 	// auction params -- we'll store them in here for now
 	auctionID [32]byte
@@ -45,6 +46,7 @@ func InitServerWithBatcher(db cxdb.OpencxAuctionStore, batcher match.AuctionBatc
 		OrderBatcher: batcher,
 		dbLock:       new(sync.Mutex),
 		orderChannel: make(chan *match.OrderPuzzleResult, orderChanSize),
+		orderChanMap: make(map[[32]byte]chan *match.OrderPuzzleResult),
 		t:            standardAuctionTime,
 	}
 
