@@ -83,9 +83,6 @@ func generateLargeClearingBook(midpoint float64, radius uint64) (book map[float6
 		} else {
 			thisOrder.Side = "sell"
 		}
-		if i == radius {
-			priceForRadius, _ := thisOrder.Price()
-		}
 		orders = append(orders, thisOrder)
 	}
 
