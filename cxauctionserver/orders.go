@@ -89,6 +89,7 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 	for _, pz := range puzzles {
 		var pzRaw []byte
 		if pzRaw, err = pz.Serialize(); err != nil {
+			s.dbLock.Unlock()
 			err = fmt.Errorf("Error serializing puzzle for commitment: %s", err)
 			return
 		}
@@ -101,6 +102,7 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 
 	var height uint64
 	if height, err = s.OpencxDB.NewAuction(s.auctionID); err != nil {
+		s.dbLock.Unlock()
 		err = fmt.Errorf("Error updating auction in DB while committing orders and creating new auction: %s", err)
 		return
 	}

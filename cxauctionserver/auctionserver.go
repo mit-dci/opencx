@@ -32,10 +32,13 @@ func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctio
 	}
 
 	// Set auctionID to something random
-	if _, err = rand.Read(server.auctionID[:]); err != nil {
+	var bytesRead int
+	if bytesRead, err = rand.Read(server.auctionID[:]); err != nil {
 		err = fmt.Errorf("Error getting random auction ID for initializing server: %s", err)
 		return
 	}
+
+	logging.Infof("Read %d bytes for auctionID! Starting first auction.", bytesRead)
 
 	// Start the solved order handler (TODO: is this the right place to put this?)
 	go server.AuctionOrderHandler(server.orderChannel)
