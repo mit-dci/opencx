@@ -115,13 +115,6 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err erro
 	// Make this boi wait for the batch to come in
 	go s.asyncBatchPlacer(commitOrderChannel)
 
-	logging.Infof("engine for puzzles: %v", pzEngine)
-	if err = pzEngine.PlaceAuctionPuzzle(&match.EncryptedAuctionOrder{}); err != nil {
-		s.dbLock.Unlock()
-		err = fmt.Errorf("CALLED WITHOUT SEGFAULT!")
-		return
-	}
-
 	// Then get the puzzles
 	var puzzles []*match.EncryptedAuctionOrder
 	if puzzles, err = pzEngine.ViewAuctionPuzzleBook(matchAuctionID); err != nil {
@@ -161,6 +154,12 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err erro
 		return
 	}
 
+	// Start the new auction by registering
+	if err = s.OrderBatcher.RegisterAuction(s.auctionID); err != nil {
+		err = fmt.Errorf("Error registering auction while committing / creating new auction: %s", err)
+		return
+	}
+
 	// Unlock!
 	s.dbLock.Unlock()
 
@@ -187,6 +186,41 @@ func (s *OpencxAuctionServer) asyncBatchPlacer(batchChan chan *match.AuctionBatc
 	batchRes = s.validateBatch(batch)
 
 	logging.Infof("Got a batch result for %x! \n\tValid orders: %d\n\tInvalid orders: %d", batchRes.OriginalBatch.AuctionID, len(batchRes.AcceptedResults), len(batchRes.RejectedResults))
+
+	for _, acceptedOrder := range batchRes.AcceptedResults {
+		if acceptedOrder.Err != nil {
+			err = fmt.Errorf("Accepted order has a non-nil error: %s", acceptedOrder.Err)
+			return
+		}
+
+		if err = s.OpencxDB.PlaceAuctionOrder(acceptedOrder.Auction); err != nil {
+			err = fmt.Errorf("Error placing auction order with async batch placer: %s", err)
+			return
+		}
+	}
+
+	s.dbLock.Unlock()
+	return
+}
+
+// asyncBatchPlacer waits for a batch and places it. This should be done in a goroutine
+func (s *OpencxAuctionServer) asyncBatchPlacer(batchChan chan *match.AuctionBatch) {
+	var err error
+
+	defer func() {
+		if err != nil {
+			logging.Errorf("Error placing order asynchronously: %s", err)
+		}
+	}()
+
+	batch := <-batchChan
+
+	s.dbLock.Lock()
+
+	var batchRes *match.BatchResult
+	batchRes = s.validateBatch(batch)
+
+	logging.Infof("Got a batch result for %x! \n\tValid orders: %d\n\tInvalid orders: %d", batchRes.OriginalBatch, len(batchRes.AcceptedResults), len(batchRes.RejectedResults))
 
 	for _, acceptedOrder := range batchRes.AcceptedResults {
 		if acceptedOrder.Err != nil {

@@ -19,10 +19,10 @@ type OpencxAuctionServer struct {
 	MatchingEngines   map[match.Pair]match.AuctionEngine
 	Orderbooks        map[match.Pair]match.AuctionOrderbook
 	PuzzleEngines     map[match.Pair]cxdb.PuzzleStore
-
-	dbLock       *sync.Mutex
-	orderChannel chan *match.OrderPuzzleResult
-	orderChanMap map[[32]byte]chan *match.OrderPuzzleResult
+	OrderBatchers     map[match.Pair]match.AuctionBatcher
+	dbLock            *sync.Mutex
+	orderChannel      chan *match.OrderPuzzleResult
+	orderChanMap      map[[32]byte]chan *match.OrderPuzzleResult
 
 	// auction params -- we'll store them in here for now
 	auctionID [32]byte
@@ -104,7 +104,13 @@ func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, st
 		return
 	}
 
-	if server, err = InitServer(setEngines, mengines, aucBooks, pzEngines, orderChanSize, standardAuctionTime); err != nil {
+	var batchers map[match.Pair]match.AuctionBatcher
+	if batchers, err = CreateAuctionBatcherMap(pairList); err != nil {
+		err = fmt.Errorf("Error creating batcher map for InitServerSQLDefault: %s", err)
+		return
+	}
+
+	if server, err = InitServer(setEngines, mengines, aucBooks, pzEngines, batchers, orderChanSize, standardAuctionTime); err != nil {
 		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
 		return
 	}
@@ -112,31 +118,35 @@ func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, st
 }
 
 // InitServer creates a new server
-func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.AuctionEngine, books map[match.Pair]match.AuctionOrderbook, pzengines map[match.Pair]cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.AuctionEngine, books map[match.Pair]match.AuctionOrderbook, pzengines map[match.Pair]cxdb.PuzzleStore, batchers map[match.Pair]match.AuctionBatcher, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
 	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
 		SettlementEngines: setEngines,
 		MatchingEngines:   matchEngines,
 		Orderbooks:        books,
 		PuzzleEngines:     pzengines,
+		OrderBatchers:     batchers,
 		dbLock:            new(sync.Mutex),
 		orderChannel:      make(chan *match.OrderPuzzleResult, orderChanSize),
 		orderChanMap:      make(map[[32]byte]chan *match.OrderPuzzleResult),
 		t:                 standardAuctionTime,
 	}
 
-	// Set auctionID to something random
+	var randBuf [32]byte
 	var bytesRead int
-	if bytesRead, err = rand.Read(server.auctionID[:]); err != nil {
-		err = fmt.Errorf("Error getting random auction ID for initializing server: %s", err)
-		return
+	for _, batcher := range server.OrderBatchers {
+
+		// Set auctionID to something random for each batcher
+		if bytesRead, err = rand.Read(randBuf[:]); err != nil {
+			err = fmt.Errorf("Error getting random auction ID for initializing server: %s", err)
+			return
+		}
+
+		logging.Infof("Read %d bytes for auctionID! Starting first auction.", bytesRead)
+
+		// // Start the solved order handler (TODO: is this the right place to put this?)
+		batcher.RegisterAuction(randBuf)
 	}
-
-	logging.Infof("Read %d bytes for auctionID! Starting first auction.", bytesRead)
-
-	// // Start the solved order handler (TODO: is this the right place to put this?)
-	// go server.AuctionOrderHandler(server.orderChannel)
-	// batcher.RegisterAuction(server.auctionID)
 
 	// Start the auction clock (also TODO: is this the right place to put this?)
 	go server.AuctionClock()

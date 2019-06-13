@@ -176,6 +176,40 @@ func (ab *ABatcher) AddEncrypted(order *match.EncryptedAuctionOrder) (err error)
 	return
 }
 
+// solveSingleOrder solves a single order and deposits the result into the sendResChan. This should
+// be done in a goroutine.
+func solveSingleOrder(eOrder *match.EncryptedAuctionOrder, sendResChan chan *match.OrderPuzzleResult) {
+	var err error
+	result := new(match.OrderPuzzleResult)
+	result.Encrypted = eOrder
+
+	// send to channel at end of method
+	defer func() {
+		// Make sure we can actually send to this channel
+		logging.Infof("sendResChan cap: %d, len: %d", cap(sendResChan), len(sendResChan))
+		select {
+		case sendResChan <- result:
+			return
+		default:
+			panic("Couldn't send result to channel! panicking!")
+		}
+	}()
+
+	var orderBytes []byte
+	if orderBytes, err = timelockencoders.SolvePuzzleRC5(eOrder.OrderCiphertext, eOrder.OrderPuzzle); err != nil {
+		result.Err = fmt.Errorf("Error solving RC5 puzzle for solve single order: %s", err)
+		return
+	}
+
+	result.Auction = new(match.AuctionOrder)
+	if err = result.Auction.Deserialize(orderBytes); err != nil {
+		result.Err = fmt.Errorf("Error deserializing order from puzzle for solve single order: %s", err)
+		return
+	}
+
+	return
+}
+
 // EndAuction ends the auction with the specified auction ID, and returns the channel which will
 // receive a batch of orders puzzle results. This is like a promise. This channel should be of size 1.
 // TODO: add commitment to this?
@@ -204,5 +238,22 @@ func (ab *ABatcher) EndAuction(auctionID [32]byte) (batchChan chan *match.Auctio
 	interBatch.active = false
 	batchChan = interBatch.solvedChan
 	interBatch.orderUpdateMtx.Unlock()
+	return
+}
+
+func CreateAuctionBatcherMap(pairList []*match.Pair) (batchers map[match.Pair]match.AuctionBatcher, err error) {
+	batchers = make(map[match.Pair]match.AuctionBatcher)
+
+	// We just create a new struct because that's all we really need, we satisfy the interface
+	var currBatcher *ABatcher
+	for _, pair := range pairList {
+		// TODO: make sure that this one pointer being reused doesn't cause any issues
+		if currBatcher, err = NewABatcher(); err != nil {
+			err = fmt.Errorf("Error creating new batcher for %s pair: %s", pair.String(), err)
+			return
+		}
+		batcher[*pair] = currBatcher
+	}
+
 	return
 }
