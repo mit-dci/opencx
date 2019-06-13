@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -72,7 +73,7 @@ func (ib *intermediateBatch) orderSolver() {
 		case currResult = <-ib.orderChan:
 			// Lock things. minus numOrders.
 			// Check if it's 0 and active is false.
-			// If so, add to the solved channel
+			// If so, add to the solved channel.
 			ib.orderUpdateMtx.Lock()
 			// invariant: if numOrders is already 0 and we try to minus it. I think we've covered this
 			// case with everything already but just noting it down here.
@@ -137,6 +138,7 @@ func solveSingleOrder(eOrder *match.EncryptedAuctionOrder, sendResChan chan *mat
 	// send to channel at end of method
 	defer func() {
 		// Make sure we can actually send to this channel
+		logging.Infof("sendResChan cap: %d, len: %d", cap(sendResChan), len(sendResChan))
 		select {
 		case sendResChan <- result:
 			return

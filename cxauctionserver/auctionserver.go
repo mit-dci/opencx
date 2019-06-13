@@ -13,6 +13,7 @@ import (
 // OpencxAuctionServer is what will hopefully help handle and manage the auction logic, rpc, and db
 type OpencxAuctionServer struct {
 	OpencxDB     cxdb.OpencxAuctionStore
+	OrderBatcher match.AuctionBatcher
 	dbLock       *sync.Mutex
 	orderChannel chan *match.OrderPuzzleResult
 
@@ -21,11 +22,27 @@ type OpencxAuctionServer struct {
 	t         uint64
 }
 
-// InitServer creates a new server
+// InitServer creates a new server, with the default batcher ABatcher
 func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+	logging.Infof("Starting ABatcher!")
+	var batcher *ABatcher
+	if batcher, err = NewABatcher(); err != nil {
+		err = fmt.Errorf("Error starting ABatcher while init server: %s", err)
+		return
+	}
+
+	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
+
+	server, err = InitServerWithBatcher(db, batcher, orderChanSize, standardAuctionTime)
+	return
+}
+
+// InitServerWithBatcher creates a new server with a specified batcher
+func InitServerWithBatcher(db cxdb.OpencxAuctionStore, batcher match.AuctionBatcher, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
 	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
 		OpencxDB:     db,
+		OrderBatcher: batcher,
 		dbLock:       new(sync.Mutex),
 		orderChannel: make(chan *match.OrderPuzzleResult, orderChanSize),
 		t:            standardAuctionTime,
@@ -40,8 +57,9 @@ func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctio
 
 	logging.Infof("Read %d bytes for auctionID! Starting first auction.", bytesRead)
 
-	// Start the solved order handler (TODO: is this the right place to put this?)
-	go server.AuctionOrderHandler(server.orderChannel)
+	// // Start the solved order handler (TODO: is this the right place to put this?)
+	// go server.AuctionOrderHandler(server.orderChannel)
+	batcher.RegisterAuction(server.auctionID)
 
 	// Start the auction clock (also TODO: is this the right place to put this?)
 	go server.AuctionClock()

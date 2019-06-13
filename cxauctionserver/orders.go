@@ -1,6 +1,7 @@
 package cxauctionserver
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/btcsuite/golangcrypto/sha3"
@@ -16,6 +17,10 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 
 	logging.Infof("Got a new puzzle for auction %x", order.IntendedAuction)
 
+	if err = s.validateEncryptedOrder(order); err != nil {
+		logging.Errorf("Error validating order: %s", err)
+	}
+
 	// Placing an auction puzzle is how the exchange will then recall and commit to a set of puzzles.
 	s.dbLock.Lock()
 	if err = s.OpencxDB.PlaceAuctionPuzzle(order); err != nil {
@@ -25,11 +30,8 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 	}
 	s.dbLock.Unlock()
 
-	if err = s.validateEncryptedOrder(order); err != nil {
-		logging.Errorf("Error validating order: %s", err)
-	}
-
-	go s.solveOrderIntoResChan(order)
+	// This will add to the batcher
+	s.OrderBatcher.AddEncrypted(order)
 
 	return
 }
@@ -74,6 +76,16 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 		return
 	}
 
+	// First, get the commitorderschannel
+	var commitOrderChannel chan *match.AuctionBatch
+	if commitOrderChannel, err = s.OrderBatcher.EndAuction(auctionID); err != nil {
+		err = fmt.Errorf("Error ending auction while committing orders for new auction: %s", err)
+		return
+	}
+
+	// Make this boi wait for the batch to come in
+	go s.asyncBatchPlacer(commitOrderChannel)
+
 	// Then get the puzzles
 	var puzzles []*match.EncryptedAuctionOrder
 	if puzzles, err = s.OpencxDB.ViewAuctionPuzzleBook(auctionID); err != nil {
@@ -100,6 +112,12 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 	// instead is a good idea, and if the dependence on the previous commitment is a good idea.
 	copy(s.auctionID[:], sha3.Sum(nil))
 
+	// Start the new auction by registering
+	if err = s.OrderBatcher.RegisterAuction(s.auctionID); err != nil {
+		err = fmt.Errorf("Error registering auction while committing / creating new auction: %s", err)
+		return
+	}
+
 	var height uint64
 	if height, err = s.OpencxDB.NewAuction(s.auctionID); err != nil {
 		s.dbLock.Unlock()
@@ -112,6 +130,41 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 
 	logging.Infof("Done creating new auction %x at height %d", auctionID, height)
 
+	return
+}
+
+// asyncBatchPlacer waits for a batch and places it. This should be done in a goroutine
+func (s *OpencxAuctionServer) asyncBatchPlacer(batchChan chan *match.AuctionBatch) {
+	var err error
+
+	defer func() {
+		if err != nil {
+			logging.Errorf("Error placing order asynchronously: %s", err)
+		}
+	}()
+
+	batch := <-batchChan
+
+	s.dbLock.Lock()
+
+	var batchRes *match.BatchResult
+	batchRes = s.validateBatch(batch)
+
+	logging.Infof("Got a batch result for %x! \n\tValid orders: %d\n\tInvalid orders: %d", batchRes.OriginalBatch, len(batchRes.AcceptedResults), len(batchRes.RejectedResults))
+
+	for _, acceptedOrder := range batchRes.AcceptedResults {
+		if acceptedOrder.Err != nil {
+			err = fmt.Errorf("Accepted order has a non-nil error: %s", acceptedOrder.Err)
+			return
+		}
+
+		if err = s.OpencxDB.PlaceAuctionOrder(acceptedOrder.Auction); err != nil {
+			err = fmt.Errorf("Error placing auction order with async batch placer: %s", err)
+			return
+		}
+	}
+
+	s.dbLock.Unlock()
 	return
 }
 
@@ -133,35 +186,62 @@ func (s *OpencxAuctionServer) validateEncryptedOrder(order *match.EncryptedAucti
 	return
 }
 
+// validateBatch validates a batch of orders, sorting into accepted and rejected piles using validateOrder
+func (s *OpencxAuctionServer) validateBatch(auctionBatch *match.AuctionBatch) (batchResult *match.BatchResult) {
+	var err error
+
+	batchResult = &match.BatchResult{
+		OriginalBatch:   auctionBatch,
+		RejectedResults: []*match.OrderPuzzleResult{},
+		AcceptedResults: []*match.OrderPuzzleResult{},
+	}
+
+	for _, orderPzRes := range auctionBatch.Batch {
+		if err = s.validateOrderResult(auctionBatch.AuctionID, orderPzRes); err != nil {
+			orderPzRes.Err = fmt.Errorf("Order invalid: %s", err)
+			batchResult.RejectedResults = append(batchResult.RejectedResults, orderPzRes)
+		} else {
+			batchResult.AcceptedResults = append(batchResult.AcceptedResults, orderPzRes)
+		}
+	}
+
+	return
+}
+
 // validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
-func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, encryptedOrder *match.EncryptedAuctionOrder) (err error) {
+func (s *OpencxAuctionServer) validateOrderResult(claimedAuction [32]byte, result *match.OrderPuzzleResult) (err error) {
 
-	logging.Infof("Validating order by pubkey %x", decryptedOrder.Pubkey)
+	logging.Infof("Validating order by pubkey %x", result.Auction.Pubkey)
 
-	if _, err = decryptedOrder.Price(); err != nil {
+	if result.Err != nil {
+		err = fmt.Errorf("Validation detected error early: %s", result.Err)
+		return
+	}
+
+	if _, err = result.Auction.Price(); err != nil {
 		err = fmt.Errorf("Orders with an indeterminable price are invalid: %s", err)
 		return
 	}
 
-	if !decryptedOrder.IsBuySide() && !decryptedOrder.IsSellSide() {
+	if !result.Auction.IsBuySide() && !result.Auction.IsSellSide() {
 		err = fmt.Errorf("Orders that aren't buy or sell side are invalid: %s", err)
 		return
 	}
 
 	// We could use pub key hashes here but there might not be any reason for it
 	var orderPublicKey *koblitz.PublicKey
-	if orderPublicKey, err = koblitz.ParsePubKey(decryptedOrder.Pubkey[:], koblitz.S256()); err != nil {
+	if orderPublicKey, err = koblitz.ParsePubKey(result.Auction.Pubkey[:], koblitz.S256()); err != nil {
 		err = fmt.Errorf("Orders with a public key that cannot be parsed are invalid: %s", err)
 		return
 	}
 
 	// e = h(asset)
 	sha3 := sha3.New256()
-	sha3.Write(decryptedOrder.SerializeSignable())
+	sha3.Write(result.Auction.SerializeSignable())
 	e := sha3.Sum(nil)
 
 	var recoveredPublickey *koblitz.PublicKey
-	if recoveredPublickey, _, err = koblitz.RecoverCompact(koblitz.S256(), decryptedOrder.Signature, e); err != nil {
+	if recoveredPublickey, _, err = koblitz.RecoverCompact(koblitz.S256(), result.Auction.Signature, e); err != nil {
 		err = fmt.Errorf("Orders whose signature cannot be verified with pubkey recovery are invalid: %s", err)
 		return
 	}
@@ -171,11 +251,15 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 		return
 	}
 
-	// TODO: figure out how to deal with auctionID
-	// if !bytes.Equal(s.auctionID[:], decryptedOrder.AuctionID[:]) {
-	// 	err = fmt.Errorf("Auction ID must equal current auction")
-	// 	return
-	// }
+	if !bytes.Equal(result.Encrypted.IntendedAuction[:], result.Auction.AuctionID[:]) {
+		err = fmt.Errorf("Auction ID for decrypted and encrypted order must be equal")
+		return
+	}
+
+	if !bytes.Equal(claimedAuction[:], result.Auction.AuctionID[:]) {
+		err = fmt.Errorf("Auction ID must equal current auction")
+		return
+	}
 
 	return
 }

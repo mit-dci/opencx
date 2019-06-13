@@ -1,5 +1,6 @@
 package match
 
+// AuctionBatch is a struct that represents a batch of auction order results
 type AuctionBatch struct {
 	Batch     []*OrderPuzzleResult
 	AuctionID [32]byte
@@ -23,4 +24,12 @@ type AuctionBatcher interface {
 	// EndAuction ends the auction with the specified auction ID, and returns the channel which will
 	// receive a batch of orders puzzle results. This is like a promise. This channel should be of size 1.
 	EndAuction(auctionID [32]byte) (batchChan chan *AuctionBatch, err error)
+}
+
+// BatchResult is a struct that represents the result of a batch auction.
+type BatchResult struct {
+	OriginalBatch *AuctionBatch
+	// RejectedResults and AcceptedResults should be disjoint sets
+	RejectedResults []*OrderPuzzleResult
+	AcceptedResults []*OrderPuzzleResult
 }
