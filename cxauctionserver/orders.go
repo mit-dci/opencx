@@ -150,7 +150,7 @@ func (s *OpencxAuctionServer) asyncBatchPlacer(batchChan chan *match.AuctionBatc
 	var batchRes *match.BatchResult
 	batchRes = s.validateBatch(batch)
 
-	logging.Infof("Got a batch result for %x! \n\tValid orders: %d\n\tInvalid orders: %d", batchRes.OriginalBatch, len(batchRes.AcceptedResults), len(batchRes.RejectedResults))
+	logging.Infof("Got a batch result for %x! \n\tValid orders: %d\n\tInvalid orders: %d", batchRes.OriginalBatch.AuctionID, len(batchRes.AcceptedResults), len(batchRes.RejectedResults))
 
 	for _, acceptedOrder := range batchRes.AcceptedResults {
 		if acceptedOrder.Err != nil {
