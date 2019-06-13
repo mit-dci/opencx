@@ -128,7 +128,7 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 	// Unlock!
 	s.dbLock.Unlock()
 
-	logging.Infof("Done creating new auction %x at height %d", auctionID, height)
+	logging.Infof("New height: %d", height)
 
 	return
 }

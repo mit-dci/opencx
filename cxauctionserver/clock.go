@@ -28,19 +28,13 @@ func (s *OpencxAuctionServer) AuctionClock() {
 		// Read mem stats FOR STATISTICS
 		runtime.ReadMemStats(m)
 
-		logging.Debugf("MEMORY STATS BEFORE: %d heap allocated, %d allocated", m.HeapAlloc, m.Alloc)
-		logging.Infof("Auction clock tick!")
-
 		// TODO: configurable time, work out schedule, base it on the AuctionTime option
 		time.AfterFunc(time.Duration(s.t)*time.Microsecond, afterTick)
-
-		logging.Infof("Waiting for tick")
 
 		// retrieve the tick from the channel
 		tickDone = <-doneChan
 
 		logging.Infof("Tick done at %s", tickDone.String())
-		logging.Debugf("MEMORY STATS AFTER: %d heap allocated, %d allocated", m.HeapAlloc, m.Alloc)
 	}
 }
 

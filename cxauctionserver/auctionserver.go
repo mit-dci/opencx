@@ -23,10 +23,10 @@ type OpencxAuctionServer struct {
 }
 
 // InitServer creates a new server, with the default batcher ABatcher
-func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctionTime uint64, maxBatchSize uint64) (server *OpencxAuctionServer, err error) {
 	logging.Infof("Starting ABatcher!")
 	var batcher *ABatcher
-	if batcher, err = NewABatcher(); err != nil {
+	if batcher, err = NewABatcher(maxBatchSize); err != nil {
 		err = fmt.Errorf("Error starting ABatcher while init server: %s", err)
 		return
 	}

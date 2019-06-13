@@ -24,15 +24,17 @@ type intermediateBatch struct {
 
 // ABather is a very simple, small scale, non-persistent batcher.
 type ABatcher struct {
-	batchMap    map[[32]byte]*intermediateBatch
-	batchMapMtx sync.Mutex
+	batchMap     map[[32]byte]*intermediateBatch
+	batchMapMtx  sync.Mutex
+	maxBatchSize uint64
 }
 
 // NewABatcher creates a new AuctionBatcher.
-func NewABatcher() (batcher *ABatcher, err error) {
+func NewABatcher(maxBatchSize uint64) (batcher *ABatcher, err error) {
 	batcher = &ABatcher{
-		batchMap:    make(map[[32]byte]*intermediateBatch),
-		batchMapMtx: sync.Mutex{},
+		batchMap:     make(map[[32]byte]*intermediateBatch),
+		batchMapMtx:  sync.Mutex{},
+		maxBatchSize: maxBatchSize,
 	}
 	return
 }
@@ -44,10 +46,14 @@ func (ab *ABatcher) RegisterAuction(auctionID [32]byte) (err error) {
 		err = fmt.Errorf("Cannot send order to batcher that isn't set up")
 		return
 	}
+	if ab.maxBatchSize == 0 {
+		err = fmt.Errorf("Cannot have a max batch size of 0")
+		return
+	}
 	ab.batchMapMtx.Lock()
 	var thisBatch *intermediateBatch
 	thisBatch = &intermediateBatch{
-		orderChan:      make(chan *match.OrderPuzzleResult),
+		orderChan:      make(chan *match.OrderPuzzleResult, ab.maxBatchSize),
 		solvedOrders:   []*match.OrderPuzzleResult{},
 		solvedChan:     make(chan *match.AuctionBatch, 1),
 		id:             auctionID,
@@ -57,12 +63,16 @@ func (ab *ABatcher) RegisterAuction(auctionID [32]byte) (err error) {
 		offChan:        make(chan bool, 1),
 	}
 	ab.batchMap[auctionID] = thisBatch
+	// Start the solver
+	go thisBatch.OrderSolver()
+
 	ab.batchMapMtx.Unlock()
+	logging.Infof("Auction with ID %x registered", auctionID)
 	return
 }
 
 // orderSolver spawns an order solver. This should be done in a goroutine.
-func (ib *intermediateBatch) orderSolver() {
+func (ib *intermediateBatch) OrderSolver() {
 	var currResult *match.OrderPuzzleResult
 	for {
 		select {
@@ -95,6 +105,43 @@ func (ib *intermediateBatch) orderSolver() {
 	return
 }
 
+// solveSingleOrder solves a single order and deposits the result into the sendResChan. This should
+// be done in a goroutine.
+func (ib *intermediateBatch) solveSingleOrder(eOrder *match.EncryptedAuctionOrder) {
+	var err error
+	result := new(match.OrderPuzzleResult)
+	result.Encrypted = eOrder
+
+	logging.Infof("Start of solve, num orders left: %d", ib.numOrders)
+
+	// send to channel at end of method
+	defer func() {
+		// Make sure we can actually send to this channel
+		logging.Infof("Try send, num orders left: %d", ib.numOrders)
+		select {
+		case ib.orderChan <- result:
+			logging.Infof("Sent order to channel")
+			return
+		default:
+			panic("Couldn't send result to channel! panicking!")
+		}
+	}()
+
+	var orderBytes []byte
+	if orderBytes, err = timelockencoders.SolvePuzzleRC5(eOrder.OrderCiphertext, eOrder.OrderPuzzle); err != nil {
+		result.Err = fmt.Errorf("Error solving RC5 puzzle for solve single order: %s", err)
+		return
+	}
+
+	result.Auction = new(match.AuctionOrder)
+	if err = result.Auction.Deserialize(orderBytes); err != nil {
+		result.Err = fmt.Errorf("Error deserializing order from puzzle for solve single order: %s", err)
+		return
+	}
+
+	return
+}
+
 // AddEncrypted adds an encrypted order to an auction. This should error if either the auction doesn't
 // exist, or the auction is ended.
 func (ab *ABatcher) AddEncrypted(order *match.EncryptedAuctionOrder) (err error) {
@@ -122,43 +169,9 @@ func (ab *ABatcher) AddEncrypted(order *match.EncryptedAuctionOrder) (err error)
 
 	interBatch.numOrders++
 
-	go solveSingleOrder(order, interBatch.orderChan)
+	go interBatch.solveSingleOrder(order)
 
 	interBatch.orderUpdateMtx.Unlock()
-	return
-}
-
-// solveSingleOrder solves a single order and deposits the result into the sendResChan. This should
-// be done in a goroutine.
-func solveSingleOrder(eOrder *match.EncryptedAuctionOrder, sendResChan chan *match.OrderPuzzleResult) {
-	var err error
-	result := new(match.OrderPuzzleResult)
-	result.Encrypted = eOrder
-
-	// send to channel at end of method
-	defer func() {
-		// Make sure we can actually send to this channel
-		logging.Infof("sendResChan cap: %d, len: %d", cap(sendResChan), len(sendResChan))
-		select {
-		case sendResChan <- result:
-			return
-		default:
-			panic("Couldn't send result to channel! panicking!")
-		}
-	}()
-
-	var orderBytes []byte
-	if orderBytes, err = timelockencoders.SolvePuzzleRC5(eOrder.OrderCiphertext, eOrder.OrderPuzzle); err != nil {
-		result.Err = fmt.Errorf("Error solving RC5 puzzle for solve single order: %s", err)
-		return
-	}
-
-	result.Auction = new(match.AuctionOrder)
-	if err = result.Auction.Deserialize(orderBytes); err != nil {
-		result.Err = fmt.Errorf("Error deserializing order from puzzle for solve single order: %s", err)
-		return
-	}
-
 	return
 }
 

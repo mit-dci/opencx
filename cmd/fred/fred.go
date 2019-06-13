@@ -70,7 +70,8 @@ type fredConfig struct {
 	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
 
 	// Auction server options
-	AuctionTime uint64 `long:"auctiontime" description:"Time it should take to generate a timelock puzzle protected order"`
+	AuctionTime  uint64 `long:"auctiontime" description:"Time it should take to generate a timelock puzzle protected order"`
+	MaxBatchSize uint64 `long:"maxbatchsize" description:"Maximum number of orders that can go in a batch"`
 }
 
 var (
@@ -98,7 +99,8 @@ var (
 	defaultDBPort     = uint16(3306)
 
 	// default auction options
-	defaultAuctionTime = uint64(30000)
+	defaultAuctionTime  = uint64(30000)
+	defaultMaxBatchSize = uint64(1000)
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -125,6 +127,7 @@ func main() {
 		DBHost:           defaultDBHost,
 		DBPort:           defaultDBPort,
 		AuctionTime:      defaultAuctionTime,
+		MaxBatchSize:     defaultMaxBatchSize,
 	}
 
 	// Check and load config params
@@ -145,7 +148,7 @@ func main() {
 
 	// Anyways, here's where we set the server
 	var fredServer *cxauctionserver.OpencxAuctionServer
-	if fredServer, err = cxauctionserver.InitServer(db, 100, conf.AuctionTime); err != nil {
+	if fredServer, err = cxauctionserver.InitServer(db, 100, conf.AuctionTime, conf.MaxBatchSize); err != nil {
 		logging.Fatalf("Error initializing server: \n%s", err)
 	}
 
