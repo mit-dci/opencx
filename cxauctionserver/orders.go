@@ -163,43 +163,6 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err erro
 	// Unlock!
 	s.dbLock.Unlock()
 
-	logging.Infof("New height: %d", height)
-
-	return
-}
-
-// asyncBatchPlacer waits for a batch and places it. This should be done in a goroutine
-func (s *OpencxAuctionServer) asyncBatchPlacer(batchChan chan *match.AuctionBatch) {
-	var err error
-
-	defer func() {
-		if err != nil {
-			logging.Errorf("Error placing order asynchronously: %s", err)
-		}
-	}()
-
-	batch := <-batchChan
-
-	s.dbLock.Lock()
-
-	var batchRes *match.BatchResult
-	batchRes = s.validateBatch(batch)
-
-	logging.Infof("Got a batch result for %x! \n\tValid orders: %d\n\tInvalid orders: %d", batchRes.OriginalBatch.AuctionID, len(batchRes.AcceptedResults), len(batchRes.RejectedResults))
-
-	for _, acceptedOrder := range batchRes.AcceptedResults {
-		if acceptedOrder.Err != nil {
-			err = fmt.Errorf("Accepted order has a non-nil error: %s", acceptedOrder.Err)
-			return
-		}
-
-		if err = s.OpencxDB.PlaceAuctionOrder(acceptedOrder.Auction); err != nil {
-			err = fmt.Errorf("Error placing auction order with async batch placer: %s", err)
-			return
-		}
-	}
-
-	s.dbLock.Unlock()
 	return
 }
 
@@ -225,13 +188,15 @@ func (s *OpencxAuctionServer) asyncBatchPlacer(batchChan chan *match.AuctionBatc
 	for _, acceptedOrder := range batchRes.AcceptedResults {
 		if acceptedOrder.Err != nil {
 			err = fmt.Errorf("Accepted order has a non-nil error: %s", acceptedOrder.Err)
+			s.dbLock.Unlock()
 			return
 		}
 
-		if err = s.OpencxDB.PlaceAuctionOrder(acceptedOrder.Auction); err != nil {
-			err = fmt.Errorf("Error placing auction order with async batch placer: %s", err)
-			return
-		}
+		// TODO work out auction placing
+		// if err = s.OpencxDB.PlaceAuctionOrder(acceptedOrder.Auction); err != nil {
+		// 	err = fmt.Errorf("Error placing auction order with async batch placer: %s", err)
+		// 	return
+		// }
 	}
 
 	s.dbLock.Unlock()

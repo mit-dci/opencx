@@ -31,7 +31,7 @@ type OpencxAuctionServer struct {
 
 // InitServerMemoryDefault initializes an auction server with in memory auction engines, settlement engines,
 // and puzzle stores
-func InitServerMemoryDefault(coinList []*coinparam.Params, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+func InitServerMemoryDefault(coinList []*coinparam.Params, orderChanSize uint64, standardAuctionTime uint64, maxBatchSize uint64) (server *OpencxAuctionServer, err error) {
 
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
@@ -63,6 +63,12 @@ func InitServerMemoryDefault(coinList []*coinparam.Params, orderChanSize uint64,
 		return
 	}
 
+	var batchers map[match.Pair]match.AuctionBatcher
+	if batchers, err = CreateAuctionBatcherMap(pairList, maxBatchSize); err != nil {
+		err = fmt.Errorf("Error creating batcher map for InitServerSQLDefault: %s", err)
+		return
+	}
+
 	if server, err = InitServer(setEngines, mengines, aucBooks, pzEngines, orderChanSize, standardAuctionTime); err != nil {
 		err = fmt.Errorf("Error initializing server for InitServerMemoryDefault: %s", err)
 		return
@@ -72,7 +78,7 @@ func InitServerMemoryDefault(coinList []*coinparam.Params, orderChanSize uint64,
 
 // InitServerSQLDefault initializes an auction server with SQL engines, orderbooks, and puzzle stores.
 // This generates everything using built in methods
-func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, standardAuctionTime uint64, maxBatchSize) (server *OpencxAuctionServer, err error) {
 
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
@@ -105,7 +111,7 @@ func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, st
 	}
 
 	var batchers map[match.Pair]match.AuctionBatcher
-	if batchers, err = CreateAuctionBatcherMap(pairList); err != nil {
+	if batchers, err = CreateAuctionBatcherMap(pairList, maxBatchSize); err != nil {
 		err = fmt.Errorf("Error creating batcher map for InitServerSQLDefault: %s", err)
 		return
 	}
