@@ -20,6 +20,7 @@ type intermediateBatch struct {
 	active         bool
 	orderUpdateMtx sync.Mutex
 	offChan        chan bool
+	maxOrders      uint64
 }
 
 // ABather is a very simple, small scale, non-persistent batcher.
@@ -61,6 +62,7 @@ func (ab *ABatcher) RegisterAuction(auctionID [32]byte) (err error) {
 		active:         true,
 		orderUpdateMtx: sync.Mutex{},
 		offChan:        make(chan bool, 1),
+		maxOrders:      ab.maxBatchSize,
 	}
 	ab.batchMap[auctionID] = thisBatch
 	// Start the solver
@@ -74,7 +76,7 @@ func (ab *ABatcher) RegisterAuction(auctionID [32]byte) (err error) {
 // orderSolver spawns an order solver. This should be done in a goroutine.
 func (ib *intermediateBatch) OrderSolver() {
 	var currResult *match.OrderPuzzleResult
-	for {
+	for i := ib.maxOrders; i > 0; i-- {
 		select {
 		case <-ib.offChan:
 			close(ib.offChan)
@@ -99,7 +101,6 @@ func (ib *intermediateBatch) OrderSolver() {
 				ib.offChan <- true
 			}
 			ib.orderUpdateMtx.Unlock()
-		default:
 		}
 	}
 	return
