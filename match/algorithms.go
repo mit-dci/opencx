@@ -5,15 +5,15 @@ import (
 	"math"
 )
 
-// OrderIDPair is a pair of order ID and order, used for generating executions in the matching algorithm
-type OrderIDPair struct {
+// AuctionOrderIDPair is a pair of order ID and auction order, used for generating executions in the auction matching algorithm
+type AuctionOrderIDPair struct {
 	OrderID [32]byte
 	Order   *AuctionOrder
 }
 
 // CalculateClearingPrice calculates the clearing price for orders based on their intersections.
 // In the future the error will be used potentially since the divide operation at the end might be real bad.
-func CalculateClearingPrice(book map[float64][]*OrderIDPair) (clearingPrice float64, err error) {
+func CalculateClearingPrice(book map[float64][]*AuctionOrderIDPair) (clearingPrice float64, err error) {
 
 	// price that is the lowest sell price so far
 	var lowestIntersectingPrice float64
@@ -81,21 +81,23 @@ func CalculateClearingPrice(book map[float64][]*OrderIDPair) (clearingPrice floa
 
 // GenerateClearingExecs goes through an orderbook with a clearing price, and generates executions
 // based on the clearing matching algorithm
-func GenerateClearingExecs(book map[float64][]*OrderIDPair, clearingPrice float64) (executions []*OrderExecution, err error) {
+func GenerateClearingExecs(book map[float64][]*AuctionOrderIDPair, clearingPrice float64) (orderExecs []*OrderExecution, settlementExecs []*SettlementExecution, err error) {
 
-	var resExec *OrderExecution
+	var resOrderExec *OrderExecution
+	var resSetExec *SettlementExecution
 	// go through all orders and figure out which ones to match
 	for price, orderPairList := range book {
 		for _, orderPair := range orderPairList {
 			if (orderPair.Order.IsBuySide() && price <= clearingPrice) || (orderPair.Order.IsSellSide() && price >= clearingPrice) {
 				// Um so this is needed because of some weird memory issue TODO: remove this fix
 				// and put in another fix if you understand pointer black magic
-				resExec = new(OrderExecution)
-				if *resExec, err = orderPair.Order.GenerateOrderFill(orderPair.OrderID[:], clearingPrice); err != nil {
+				resOrderExec = new(OrderExecution)
+				resSetExec = new(SettlementExecution)
+				if *resOrderExec, *resSetExec, err = orderPair.Order.GenerateOrderFill(orderPair.OrderID[:], clearingPrice); err != nil {
 					err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
 					return
 				}
-				executions = append(executions, resExec)
+				orderExecs = append(orderExecs, resOrderExec)
 			}
 		}
 	}
@@ -105,7 +107,7 @@ func GenerateClearingExecs(book map[float64][]*OrderIDPair, clearingPrice float6
 
 // MatchClearingAlgorithm runs the matching algorithm based on a uniform clearing price, first calculating the
 // clearing price and then generating executions based on it.
-func MatchClearingAlgorithm(book map[float64][]*OrderIDPair) (executions []*OrderExecution, err error) {
+func MatchClearingAlgorithm(book map[float64][]*AuctionOrderIDPair) (orderExecs []*OrderExecution, settlementExecs []*SettlementExecution, err error) {
 
 	var clearingPrice float64
 	if clearingPrice, err = CalculateClearingPrice(book); err != nil {
@@ -113,7 +115,7 @@ func MatchClearingAlgorithm(book map[float64][]*OrderIDPair) (executions []*Orde
 		return
 	}
 
-	if executions, err = GenerateClearingExecs(book, clearingPrice); err != nil {
+	if orderExecs, settlementExecs, err = GenerateClearingExecs(book, clearingPrice); err != nil {
 		err = fmt.Errorf("Error generating clearing execs while running match clearing algorithm: %s", err)
 		return
 	}
@@ -122,7 +124,7 @@ func MatchClearingAlgorithm(book map[float64][]*OrderIDPair) (executions []*Orde
 }
 
 // NumberOfOrders computes the number of order pairs in a map representation of an orderbook
-func NumberOfOrders(book map[float64][]*OrderIDPair) (numberOfOrders uint64) {
+func NumberOfOrders(book map[float64][]*AuctionOrderIDPair) (numberOfOrders uint64) {
 	for _, orderPairList := range book {
 		numberOfOrders += uint64(len(orderPairList))
 	}

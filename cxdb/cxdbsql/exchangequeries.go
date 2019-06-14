@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/opencx/util"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
 
@@ -18,9 +19,16 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 
 	// Check that they have the balance for the order
 	// if they do, place the order and update their balance
-	if err = order.SetID(); err != nil {
+
+	// hash order so we can use that as a primary key
+	sha := sha3.New256()
+	var orderBytes []byte
+	if orderBytes, err = order.Serialize(); err != nil {
+		err = fmt.Errorf("Error serializing while placing order: %s", err)
 		return
 	}
+	sha.Write(orderBytes)
+	hashedOrder := sha.Sum(nil)
 
 	var tx *sql.Tx
 	if tx, err = db.DBHandler.Begin(); err != nil {
@@ -49,7 +57,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 	}
 
 	var balCheckAsset string
-	if order.IsBuySide() {
+	if order.Side == match.Buy {
 		balCheckAsset = order.TradingPair.AssetHave.String()
 	} else {
 		balCheckAsset = order.TradingPair.AssetWant.String()
@@ -88,7 +96,7 @@ func (db *DB) PlaceOrder(order *match.LimitOrder) (orderid string, err error) {
 				return
 			}
 
-			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Pubkey[:], order.OrderID, order.Side, realPrice, order.AmountHave, order.AmountWant)
+			placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', '%s', %f, %d, %d, NOW());", order.TradingPair.String(), order.Pubkey[:], order.Side, realPrice, order.AmountHave, order.AmountWant)
 			if _, err = tx.Exec(placeOrderQuery); err != nil {
 				return
 			}
@@ -242,126 +250,90 @@ func (db *DB) CancelOrder(orderID string) (err error) {
 	return
 }
 
-// ViewOrderBook returns a list of orders that is the orderbook
-func (db *DB) ViewOrderBook(pair *match.Pair) (sellOrderBook []*match.LimitOrder, buyOrderBook []*match.LimitOrder, err error) {
+// ViewLimitOrderBook takes in a trading pair, and returns limit orders.
+func (db *DB) ViewLimitOrderBook(tradingPair *match.Pair) (orderbook map[float64][]*match.LimitOrderIDPair, err error) {
 
-	tx, err := db.DBHandler.Begin()
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
+	var tx *sql.Tx
+	if tx, err = db.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for ViewLimitOrderBook: %s", err)
+		return
 	}
+
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while viewing order book: \n%s", err)
+			err = fmt.Errorf("Error while viewing auction order book: \n%s", err)
 			return
 		}
 		err = tx.Commit()
+		return
 	}()
 
-	inPairs := db.doesPairExist(pair)
-	if !inPairs {
-		err = fmt.Errorf("Trading pair does not exist, try the other way around (e.g. ltc/btc => btc/ltc)")
+	if orderbook, err = db.ViewLimitOrderBookTx(tradingPair, tx); err != nil {
+		err = fmt.Errorf("Error viewing auction orderbook for tx: %s", err)
 		return
 	}
 
+	return
+}
+
+func (db *DB) ViewLimitOrderBookTx(tradingPair *match.Pair, tx *sql.Tx) (orderbook map[float64][]*match.LimitOrderIDPair, err error) {
+
+	orderbook = make(map[float64][]*match.LimitOrderIDPair)
 	if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using order schema for viewlimitorderbook: %s", err)
 		return
 	}
 
-	// First get all the prices so we have something to iterate through and match
-	getPricesQuery := fmt.Sprintf("SELECT DISTINCT price FROM %s ORDER BY price ASC;", pair.String())
-	rows, err := tx.Query(getPricesQuery)
-	if err != nil {
+	var rows *sql.Rows
+	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, orderID FROM %s;", tradingPair)
+	if rows, err = tx.Query(selectOrderQuery); err != nil {
+		err = fmt.Errorf("Error getting orders from db for viewlimitorderbook: %s", err)
 		return
 	}
 
-	var prices []float64
+	defer func() {
+		// TODO: if there's a better way to chain all these errors, figure it out
+		var newErr error
+		if newErr = rows.Close(); newErr != nil {
+			err = fmt.Errorf("Error closing rows for viewlimitorderbook: %s", newErr)
+			return
+		}
+		return
+	}()
+
+	// we allocate space for new orders but only need one pointer
+	var thisOrder *match.LimitOrder
+	var thisOrderPair *match.LimitOrderIDPair
+
+	// we create these here so we don't take up a ton of memory allocating space for new intermediate arrays
+	var pkBytes []byte
+	var hashedOrderBytes []byte
+	var thisPrice float64
 
 	for rows.Next() {
-		var price float64
-		if err = rows.Scan(&price); err != nil {
+		// scan the things we can into this order
+		thisOrder = new(match.LimitOrder)
+		thisOrderPair = new(match.LimitOrderIDPair)
+		if err = rows.Scan(&pkBytes, &thisOrder.Side, &thisPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &hashedOrderBytes); err != nil {
+			err = fmt.Errorf("Error scanning into order for viewlimitorderbook: %s", err)
 			return
 		}
 
-		prices = append(prices, price)
-	}
-	if err = rows.Close(); err != nil {
-		return
-	}
-
-	for _, price := range prices {
-
-		// logging.Infof("Matching all orders with price %f\n", price)
-
-		if _, err = tx.Exec("USE " + db.orderSchema + ";"); err != nil {
-			return
-		}
-
-		// this will select all sell side, ordered by time ascending so the earliest one will be at the front
-		getSellSideQuery := fmt.Sprintf("SELECT pubkey, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair, price, "sell")
-		sellRows, sellQueryErr := tx.Query(getSellSideQuery)
-		if err = sellQueryErr; err != nil {
-			return
-		}
-
-		var sellOrders []*match.LimitOrder
-		for sellRows.Next() {
-			var pubkeyBytes []byte
-			sellOrder := new(match.LimitOrder)
-			if err = sellRows.Scan(&pubkeyBytes, &sellOrder.OrderID, &sellOrder.Side, &sellOrder.AmountHave, &sellOrder.AmountWant); err != nil {
+		// decode them all weirdly because of the way mysql may store the bytes
+		for _, byteArrayPtr := range []*[]byte{&pkBytes, &hashedOrderBytes} {
+			if *byteArrayPtr, err = hex.DecodeString(string(*byteArrayPtr)); err != nil {
+				err = fmt.Errorf("Error decoding bytes for viewlimitorderbook: %s", err)
 				return
 			}
-
-			// we have to do this because ugh they return my byte arrays as hex strings...
-			if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
-				return
-			}
-
-			// copy pubkey bytes into 33 order byte arr
-			copy(sellOrder.Pubkey[:], pubkeyBytes)
-
-			// set price to return to clients
-			sellOrder.OrderbookPrice = price
-
-			sellOrders = append(sellOrders, sellOrder)
-		}
-		if err = sellRows.Close(); err != nil {
-			return
 		}
 
-		sellOrderBook = append(sellOrderBook, sellOrders[:]...)
-		getBuySideQuery := fmt.Sprintf("SELECT pubkey, orderID, side, amountHave, amountWant FROM %s WHERE price=%f AND side='%s' ORDER BY time ASC;", pair.String(), price, "buy")
-		buyRows, buyQueryErr := tx.Query(getBuySideQuery)
-		if err = buyQueryErr; err != nil {
-			return
-		}
+		// Copy all of the bytes
+		copy(thisOrder.Pubkey[:], pkBytes)
+		copy(thisOrderPair.OrderID[:], hashedOrderBytes)
 
-		var buyOrders []*match.LimitOrder
-		for buyRows.Next() {
-			var pubkeyBytes []byte
-			buyOrder := new(match.LimitOrder)
-			if err = buyRows.Scan(&pubkeyBytes, &buyOrder.OrderID, &buyOrder.Side, &buyOrder.AmountHave, &buyOrder.AmountWant); err != nil {
-				return
-			}
-
-			// we have to do this because ugh they return my byte arrays as hex strings...
-			if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
-				return
-			}
-
-			// copy pubkey bytes into 33 order byte arr
-			copy(buyOrder.Pubkey[:], pubkeyBytes)
-
-			// set price to return to clients
-			buyOrder.OrderbookPrice = price
-
-			buyOrders = append(buyOrders, buyOrder)
-		}
-		if err = buyRows.Close(); err != nil {
-			return
-		}
-
-		buyOrderBook = append(buyOrderBook, buyOrders[:]...)
+		orderbook[thisPrice] = append(orderbook[thisPrice], thisOrderPair)
+		thisOrderPair.Order = thisOrder
 
 	}
 
@@ -390,7 +362,7 @@ func (db *DB) GetOrder(orderID string) (order *match.LimitOrder, err error) {
 
 	for _, pair := range db.pairsArray {
 		// figure out if there is even an order
-		getCurrentOrderQuery := fmt.Sprintf("SELECT pubkey, amountHave, amountWant, side, timestamp, price FROM %s WHERE orderID='%s';", pair.String(), orderID)
+		getCurrentOrderQuery := fmt.Sprintf("SELECT pubkey, amountHave, amountWant, side, timestamp FROM %s WHERE orderID='%s';", pair.String(), orderID)
 		rows, currOrderErr := tx.Query(getCurrentOrderQuery)
 		if err = currOrderErr; err != nil {
 			return
@@ -398,7 +370,7 @@ func (db *DB) GetOrder(orderID string) (order *match.LimitOrder, err error) {
 
 		if rows.Next() {
 			var pubkeyBytes []byte
-			if err = rows.Scan(&pubkeyBytes, &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp, &order.OrderbookPrice); err != nil {
+			if err = rows.Scan(&pubkeyBytes, &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp); err != nil {
 				return
 			}
 
@@ -429,7 +401,7 @@ func (db *DB) GetOrder(orderID string) (order *match.LimitOrder, err error) {
 }
 
 // GetOrdersForPubkey gets orders for a specific pubkey
-func (db *DB) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders []*match.LimitOrder, err error) {
+func (db *DB) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders map[float64][]*match.LimitOrderIDPair, err error) {
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
 		err = fmt.Errorf("Error cancelling order: \n%s", err)
@@ -448,6 +420,9 @@ func (db *DB) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders []*match.Lim
 		return
 	}
 
+	orders = make(map[float64][]*match.LimitOrderIDPair)
+	var currPrice float64
+
 	for _, pair := range db.pairsArray {
 		// figure out if there is even an order
 		getCurrentOrderQuery := fmt.Sprintf("SELECT orderID, amountHave, amountWant, side, timestamp, price FROM %s WHERE pubkey='%x';", pair.String(), pubkey.SerializeCompressed())
@@ -456,10 +431,13 @@ func (db *DB) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders []*match.Lim
 			return
 		}
 
+		var orderpair *match.LimitOrderIDPair
+		var order *match.LimitOrder
 		for rows.Next() {
-			var order *match.LimitOrder
+			order = new(match.LimitOrder)
+			orderpair = new(match.LimitOrderIDPair)
 
-			if err = rows.Scan(&order.OrderID, &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp, &order.OrderbookPrice); err != nil {
+			if err = rows.Scan(&order.OrderID, &order.AmountHave, &order.AmountWant, &order.Side, &order.Timestamp, &currPrice); err != nil {
 				return
 			}
 
@@ -467,7 +445,7 @@ func (db *DB) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders []*match.Lim
 			copy(order.Pubkey[:], pubkey.SerializeCompressed())
 			order.TradingPair = *pair
 
-			orders = append(orders, order)
+			orders[currPrice] = append(orders[currPrice], order)
 
 		}
 		// do this so we don't get bad connection / busy buffer issues

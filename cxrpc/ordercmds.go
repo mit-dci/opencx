@@ -72,15 +72,14 @@ type ViewOrderBookArgs struct {
 
 // ViewOrderBookReply holds the reply for the vieworderbook command
 type ViewOrderBookReply struct {
-	SellOrderBook []*match.LimitOrder
-	BuyOrderBook  []*match.LimitOrder
+	Orderbook map[float64][]*match.LimitOrderIDPair
 }
 
 // ViewOrderBook handles the vieworderbook command
 func (cl *OpencxRPC) ViewOrderBook(args ViewOrderBookArgs, reply *ViewOrderBookReply) (err error) {
 
 	cl.Server.LockIngests()
-	if reply.SellOrderBook, reply.BuyOrderBook, err = cl.Server.OpencxDB.ViewOrderBook(args.TradingPair); err != nil {
+	if reply.Orderbook, err = cl.Server.OpencxDB.ViewLimitOrderBook(args.TradingPair); err != nil {
 		cl.Server.UnlockIngests()
 		return
 	}
@@ -243,7 +242,7 @@ type GetOrdersForPubkeyArgs struct {
 
 // GetOrdersForPubkeyReply holds the reply for the GetOrdersForPubkey command
 type GetOrdersForPubkeyReply struct {
-	Orders []*match.LimitOrder
+	Orders map[float64][]*match.LimitOrderIDPair
 }
 
 // GetOrdersForPubkey gets the orders for the pubkey which has signed the getOrdersString

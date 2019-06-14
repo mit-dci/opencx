@@ -130,8 +130,9 @@ func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
+	var setExec SettlementExecution
 	var fillRemainder uint64
-	if resExec, fillRemainder, err = origOrder.GenerateExecutionFromPrice(origOrderID, float64(1), 100000000); err != nil {
+	if resExec, setExec, fillRemainder, err = origOrder.GenerateExecutionFromPrice(origOrderID, float64(1), 100000000); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -144,12 +145,12 @@ func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}
-	if resExec.Credited != origOrderFullExec.Credited {
-		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &resExec.Credited)
+	if setExec.Credited != origOrderFullExec.Credited {
+		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &setExec.Credited)
 		return
 	}
-	if resExec.Debited != origOrderFullExec.Debited {
-		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
+	if setExec.Debited != origOrderFullExec.Debited {
+		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &setExec.Debited)
 		return
 	}
 	if resExec.NewAmountHave != 0 {
@@ -170,7 +171,8 @@ func TestGenerateDoubleFill(t *testing.T) {
 
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
-	if resExec, err = origOrder.GenerateOrderFill(origOrderID, float64(2)); err != nil {
+	var setExec SettlementExecution
+	if resExec, setExec, err = origOrder.GenerateOrderFill(origOrderID, float64(2)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -183,12 +185,12 @@ func TestGenerateDoubleFill(t *testing.T) {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderDoubleExec.OrderID, resExec.OrderID)
 		return
 	}
-	if resExec.Credited != origOrderDoubleExec.Credited {
-		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderDoubleExec.Credited, &resExec.Credited)
+	if setExec.Credited != origOrderDoubleExec.Credited {
+		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderDoubleExec.Credited, &setExec.Credited)
 		return
 	}
-	if resExec.Debited != origOrderDoubleExec.Debited {
-		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderDoubleExec.Debited, &resExec.Debited)
+	if setExec.Debited != origOrderDoubleExec.Debited {
+		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderDoubleExec.Debited, &setExec.Debited)
 		return
 	}
 	if resExec.NewAmountHave != 0 {
@@ -205,7 +207,8 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
-	if resExec, err = origOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
+	var setExec SettlementExecution
+	if resExec, setExec, err = origOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -218,12 +221,12 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}
-	if resExec.Credited != origOrderFullExec.Credited {
-		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &resExec.Credited)
+	if setExec.Credited != origOrderFullExec.Credited {
+		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &setExec.Credited)
 		return
 	}
-	if resExec.Debited != origOrderFullExec.Debited {
-		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
+	if setExec.Debited != origOrderFullExec.Debited {
+		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &setExec.Debited)
 		return
 	}
 	if resExec.NewAmountHave != 0 {
@@ -245,14 +248,21 @@ func TestGenerateBadSideFill(t *testing.T) {
 
 	// this should just error
 	var resExec OrderExecution
-	if resExec, err = badOrder.GenerateOrderFill(origOrderID, float64(1)); err == nil {
+	var setExec SettlementExecution
+	if resExec, setExec, err = badOrder.GenerateOrderFill(origOrderID, float64(1)); err == nil {
 		t.Errorf("There was no error trying to generate an order fill for an order with a bad side")
 		return
 	}
 
 	emptyExec := &OrderExecution{}
 	if !(&resExec).Equal(emptyExec) {
-		t.Errorf("GenerateOrderFill created part of an execution on failure, this should not happen")
+		t.Errorf("GenerateOrderFill created part of an order execution on failure, this should not happen")
+		return
+	}
+
+	emptySetExec := &SettlementExecution{}
+	if !(&setExec).Equal(emptySetExec) {
+		t.Errorf("GenerateOrderFill created part of a settlement execution on failure, this should not happen")
 		return
 	}
 
@@ -269,14 +279,21 @@ func TestGenerateBadPriceFill(t *testing.T) {
 
 	// this should just error
 	var resExec OrderExecution
-	if resExec, err = badOrder.GenerateOrderFill(origOrderID, float64(0)); err == nil {
+	var setExec SettlementExecution
+	if resExec, setExec, err = badOrder.GenerateOrderFill(origOrderID, float64(0)); err == nil {
 		t.Errorf("There was no error trying to generate an order fill for a price of zero")
 		return
 	}
 
 	emptyExec := &OrderExecution{}
 	if !(&resExec).Equal(emptyExec) {
-		t.Errorf("GenerateOrderFill created part of an execution on failure, this should not happen")
+		t.Errorf("GenerateOrderFill created part of an order execution on failure, this should not happen")
+		return
+	}
+
+	emptySetExec := &SettlementExecution{}
+	if !(&setExec).Equal(emptySetExec) {
+		t.Errorf("GenerateOrderFill created part of a settlement execution on failure, this should not happen")
 		return
 	}
 
@@ -293,7 +310,8 @@ func TestGenerateEasyPriceFillAmounts(t *testing.T) {
 
 	// this should just error
 	var resExec OrderExecution
-	if resExec, err = zeroPriceOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
+	var setExec SettlementExecution
+	if resExec, setExec, err = zeroPriceOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -307,12 +325,12 @@ func TestGenerateEasyPriceFillAmounts(t *testing.T) {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}
-	if resExec.Credited != origOrderFullExec.Credited {
-		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &resExec.Credited)
+	if setExec.Credited != origOrderFullExec.Credited {
+		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &setExec.Credited)
 		return
 	}
-	if resExec.Debited != origOrderFullExec.Debited {
-		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &resExec.Debited)
+	if setExec.Debited != origOrderFullExec.Debited {
+		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &setExec.Debited)
 		return
 	}
 	if resExec.NewAmountHave != 0 {

@@ -18,7 +18,7 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 
 	// Placing an auction puzzle is how the exchange will then recall and commit to a set of puzzles.
 	s.dbLock.Lock()
-	if err = s.OpencxDB.PlaceAuctionPuzzle(order); err != nil {
+	if err = s.PuzzleEngine.PlaceAuctionPuzzle(order); err != nil {
 		s.dbLock.Unlock()
 		err = fmt.Errorf("Error placing puzzled order: \n%s", err)
 		return
@@ -76,7 +76,7 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 
 	// Then get the puzzles
 	var puzzles []*match.EncryptedAuctionOrder
-	if puzzles, err = s.OpencxDB.ViewAuctionPuzzleBook(auctionID); err != nil {
+	if puzzles, err = s.PuzzleEngine.ViewAuctionPuzzleBook(auctionID); err != nil {
 		s.dbLock.Unlock()
 		err = fmt.Errorf("Error getting auction puzzle book for commit: %s", err)
 		return
@@ -100,7 +100,7 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 	copy(s.auctionID[:], sha3.Sum(nil))
 
 	var height uint64
-	if height, err = s.OpencxDB.NewAuction(s.auctionID); err != nil {
+	if height, err = s.MatchingEngine.NewAuctionHeight(s.auctionID); err != nil {
 		err = fmt.Errorf("Error updating auction in DB while committing orders and creating new auction: %s", err)
 		return
 	}
@@ -174,6 +174,26 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 	// 	err = fmt.Errorf("Auction ID must equal current auction")
 	// 	return
 	// }
+
+	return
+}
+
+func (s *OpencxAuctionServer) runMatching(auctionID [32]byte, pair *match.Pair) (err error) {
+
+	// map representation of orderbook
+	var book map[float64][]*match.AuctionOrderIDPair
+	if book, err = s.MatchingEngine.ViewAuctionOrderBook(pair, auctionID); err != nil {
+		err = fmt.Errorf("Error viewing auction orderbook for runmatching in server: %s", err)
+		return
+	}
+
+	// We can now calculate a clearing price and run the matching algorithm
+	var orderExecs []*match.OrderExecution
+	var setExecs []*match.SettlementExecution
+	if orderExecs, setExecs, err = match.MatchClearingAlgorithm(book); err != nil {
+		err = fmt.Errorf("Error running clearing matching algorithm for running matching: %s", err)
+		return
+	}
 
 	return
 }
