@@ -34,7 +34,7 @@ func (db *CXDBMemory) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 }
 
 // ViewAuctionOrderBook takes in a trading pair and auction ID, and returns auction orders.
-func (db *CXDBMemory) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) (book map[float64][]*match.OrderIDPair, err error) {
+func (db *CXDBMemory) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) (book map[float64][]*match.AuctionOrderIDPair, err error) {
 
 	db.ordersMtx.Lock()
 	var allOrders []*match.AuctionOrder
@@ -45,7 +45,7 @@ func (db *CXDBMemory) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [3
 		return
 	}
 	var orderPrice float64
-	var thisOrderPair *match.OrderIDPair
+	var thisOrderPair *match.AuctionOrderIDPair
 	for _, order := range allOrders {
 		if order.TradingPair == *tradingPair {
 			if orderPrice, err = order.Price(); err != nil {
@@ -57,7 +57,7 @@ func (db *CXDBMemory) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [3
 			// get hash of order lol
 			hasher := sha3.New256()
 			hasher.Write(order.SerializeSignable())
-			thisOrderPair = new(match.OrderIDPair)
+			thisOrderPair = new(match.AuctionOrderIDPair)
 			copy(thisOrderPair.OrderID[:], hasher.Sum(nil))
 			book[orderPrice] = append(book[orderPrice], thisOrderPair)
 		}

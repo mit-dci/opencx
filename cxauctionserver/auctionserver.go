@@ -12,7 +12,11 @@ import (
 
 // OpencxAuctionServer is what will hopefully help handle and manage the auction logic, rpc, and db
 type OpencxAuctionServer struct {
-	OpencxDB     cxdb.OpencxAuctionStore
+	// OpencxDB     cxdb.OpencxAuctionStore
+	SettlementEngine cxdb.SettlementStore
+	MatchingEngine   cxdb.AuctionOrderbookStore
+	PuzzleEngine     cxdb.PuzzleStore
+
 	dbLock       *sync.Mutex
 	orderChannel chan *match.OrderPuzzleResult
 	orderChanMap map[[32]byte]chan *match.OrderPuzzleResult
@@ -23,14 +27,16 @@ type OpencxAuctionServer struct {
 }
 
 // InitServer creates a new server
-func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+func InitServer(sengine cxdb.SettlementStore, mengine cxdb.AuctionOrderbookStore, pzengine cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
 	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
-		OpencxDB:     db,
-		dbLock:       new(sync.Mutex),
-		orderChannel: make(chan *match.OrderPuzzleResult, orderChanSize),
-		orderChanMap: make(map[[32]byte]chan *match.OrderPuzzleResult),
-		t:            standardAuctionTime,
+		SettlementEngine: sengine,
+		MatchingEngine:   mengine,
+		PuzzleEngine:     pzengine,
+		dbLock:           new(sync.Mutex),
+		orderChannel:     make(chan *match.OrderPuzzleResult, orderChanSize),
+		orderChanMap:     make(map[[32]byte]chan *match.OrderPuzzleResult),
+		t:                standardAuctionTime,
 	}
 
 	// Set auctionID to something random

@@ -62,6 +62,8 @@ Buy orders can only be matched at the price they are placed, or lower.
 Sell orders can only be matched at the price they are placed, or higher.
 You should never have an order be deleted and it yield
 less than you originally requested for the same value you provided.
+
+The good thing is, order executions do not depend on the type of order.
 */
 type OrderExecution struct {
 	OrderID       []byte `json:"orderid"`
