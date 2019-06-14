@@ -78,10 +78,11 @@ func (a *AuctionOrder) Price() (price float64, err error) {
 	return
 }
 
-// GenerateOrderFill creates an execution that will fill an order (AmountHave at the end is 0) and provide an execution.
+// GenerateOrderFill creates an execution that will fill an order (AmountHave at the end is 0) and provides an order and settlement execution.
 // This does not assume anything about the price of the order, as we can't infer what price the order was
 // placed at.
-func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (execution OrderExecution, err error) {
+// TODO: Figure out whether or not these should be pointers
+func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (orderExec OrderExecution, setExec SettlementExecution, err error) {
 
 	if a.AmountHave == 0 {
 		err = fmt.Errorf("Error generating order fill: empty order, the AmountHave cannot be 0")
@@ -114,8 +115,13 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 	// are EXTREMELY IMPORTANT because there's pretty much no other way to copy
 	// bytes. This was a really annoying issue to debug
 	// Finally generate execution
-	execution = OrderExecution{
-		OrderID: make([]byte, len(orderID)),
+	orderExec = OrderExecution{
+		OrderID:       make([]byte, len(orderID)),
+		NewAmountWant: 0,
+		NewAmountHave: 0,
+		Filled:        true,
+	}
+	setExec = SettlementExecution{
 		Debited: Entry{
 			Amount: amountToDebit,
 			Asset:  debitAsset,
@@ -124,11 +130,9 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 			Amount: a.AmountHave,
 			Asset:  creditAsset,
 		},
-		NewAmountWant: 0,
-		NewAmountHave: 0,
-		Filled:        true,
 	}
-	copy(execution.OrderID, orderID)
+	copy(setExec.Pubkey[:], a.Pubkey[:])
+	copy(orderExec.OrderID, orderID)
 	return
 }
 
@@ -138,24 +142,23 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (exe
 // in as a parameter. The order ID will be filled in, as it's being passed as a parameter.
 // This returns a fillRemainder, which is the amount that is left over from amountToFill after
 // filling orderID at execPrice and amountToFill
-func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice float64, amountToFill uint64) (execution OrderExecution, fillRemainder uint64, err error) {
+func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice float64, amountToFill uint64) (orderExec OrderExecution, setExec SettlementExecution, fillRemainder uint64, err error) {
 	// If it's a buy side, AmountWant is assetWant, and AmountHave is assetHave - but price is something different, price is want/have.
 	// So to convert from amountWant (amountToFill) to amountHave we need to multiple amountToFill by 1/execPrice
 	var amountWantToFill uint64
 	var debitAsset Asset
 	var creditAsset Asset
 	if a.IsBuySide() {
-		amountWantToFill = uint64(float64(amountToFill) / execPrice)
 		debitAsset = a.TradingPair.AssetHave
 		creditAsset = a.TradingPair.AssetWant
 	} else if a.IsSellSide() {
-		amountWantToFill = uint64(float64(amountToFill) * execPrice)
 		debitAsset = a.TradingPair.AssetWant
 		creditAsset = a.TradingPair.AssetHave
 	} else {
 		err = fmt.Errorf("Error generating execution from price, order is not buy or sell side, it's %s side", a.Side)
 		return
 	}
+	amountWantToFill = uint64(float64(amountToFill) * execPrice)
 
 	// Now that we have this value, we'll generate the execution.
 	// What should we do if the amountWantToFill is greater than the amountHave?
@@ -164,13 +167,13 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 	// Well we don't want to credit them more than they have. So we can only fill it up to a certain amount.
 	if amountWantToFill >= a.AmountHave {
 		fillRemainder = amountWantToFill - a.AmountHave
-		if execution, err = a.GenerateOrderFill(orderID, execPrice); err != nil {
+		if orderExec, setExec, err = a.GenerateOrderFill(orderID, execPrice); err != nil {
 			err = fmt.Errorf("Error generating order fill while generating exec for price: %s", err)
 			return
 		}
 	} else {
 		// TODO: Check if this len(orderID) as size is correct
-		execution = OrderExecution{
+		orderExec = OrderExecution{
 			OrderID: make([]byte, len(orderID)),
 			Debited: Entry{
 				Amount: amountToFill,
@@ -184,7 +187,18 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 			NewAmountHave: a.AmountHave - amountWantToFill,
 			Filled:        false,
 		}
-		copy(execution.OrderID, orderID)
+		setExec = SettlementExecution{
+			Pubkey: a.Pubkey,
+			Debited: Entry{
+				Amount: amountToFill,
+				Asset:  debitAsset,
+			},
+			Credited: Entry{
+				Amount: amountWantToFill,
+				Asset:  creditAsset,
+			},
+		}
+		copy(orderExec.OrderID, orderID)
 	}
 
 	// If it's a sell side, price is have/want. So amountToFill * execPrice = amountHave to fill

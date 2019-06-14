@@ -12,8 +12,11 @@ import (
 
 // OpencxAuctionServer is what will hopefully help handle and manage the auction logic, rpc, and db
 type OpencxAuctionServer struct {
-	OpencxDB     cxdb.OpencxAuctionStore
-	OrderBatcher match.AuctionBatcher
+	OrderBatcher     match.AuctionBatcher
+	SettlementEngine cxdb.SettlementStore
+	MatchingEngine   cxdb.AuctionOrderbookStore
+	PuzzleEngine     cxdb.PuzzleStore
+
 	dbLock       *sync.Mutex
 	orderChannel chan *match.OrderPuzzleResult
 	orderChanMap map[[32]byte]chan *match.OrderPuzzleResult
@@ -23,31 +26,17 @@ type OpencxAuctionServer struct {
 	t         uint64
 }
 
-// InitServer creates a new server, with the default batcher ABatcher
-func InitServer(db cxdb.OpencxAuctionStore, orderChanSize uint64, standardAuctionTime uint64, maxBatchSize uint64) (server *OpencxAuctionServer, err error) {
-	logging.Infof("Starting ABatcher!")
-	var batcher *ABatcher
-	if batcher, err = NewABatcher(maxBatchSize); err != nil {
-		err = fmt.Errorf("Error starting ABatcher while init server: %s", err)
-		return
-	}
-
-	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
-
-	server, err = InitServerWithBatcher(db, batcher, orderChanSize, standardAuctionTime)
-	return
-}
-
-// InitServerWithBatcher creates a new server with a specified batcher
-func InitServerWithBatcher(db cxdb.OpencxAuctionStore, batcher match.AuctionBatcher, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+// InitServer creates a new server
+func InitServer(sengine cxdb.SettlementStore, mengine cxdb.AuctionOrderbookStore, pzengine cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
 	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
-		OpencxDB:     db,
-		OrderBatcher: batcher,
-		dbLock:       new(sync.Mutex),
-		orderChannel: make(chan *match.OrderPuzzleResult, orderChanSize),
-		orderChanMap: make(map[[32]byte]chan *match.OrderPuzzleResult),
-		t:            standardAuctionTime,
+		SettlementEngine: sengine,
+		MatchingEngine:   mengine,
+		PuzzleEngine:     pzengine,
+		dbLock:           new(sync.Mutex),
+		orderChannel:     make(chan *match.OrderPuzzleResult, orderChanSize),
+		orderChanMap:     make(map[[32]byte]chan *match.OrderPuzzleResult),
+		t:                standardAuctionTime,
 	}
 
 	// Set auctionID to something random

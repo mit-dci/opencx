@@ -103,7 +103,7 @@ func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
 }
 
 // ViewAuctionOrderBook takes in a trading pair and auction ID, and returns auction orders.
-func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) (orderbook map[float64][]*match.OrderIDPair, err error) {
+func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) (orderbook map[float64][]*match.AuctionOrderIDPair, err error) {
 
 	var tx *sql.Tx
 	if tx, err = db.DBHandler.Begin(); err != nil {
@@ -129,9 +129,9 @@ func (db *DB) ViewAuctionOrderBook(tradingPair *match.Pair, auctionID [32]byte) 
 	return
 }
 
-func (db *DB) ViewAuctionOrderBookTx(auctionID [32]byte, tradingPair *match.Pair, tx *sql.Tx) (orderbook map[float64][]*match.OrderIDPair, err error) {
+func (db *DB) ViewAuctionOrderBookTx(auctionID [32]byte, tradingPair *match.Pair, tx *sql.Tx) (orderbook map[float64][]*match.AuctionOrderIDPair, err error) {
 
-	orderbook = make(map[float64][]*match.OrderIDPair)
+	orderbook = make(map[float64][]*match.AuctionOrderIDPair)
 	if _, err = tx.Exec("USE " + db.auctionSchema + ";"); err != nil {
 		err = fmt.Errorf("Error using auction schema for viewauctionorderbook: %s", err)
 		return
@@ -156,7 +156,7 @@ func (db *DB) ViewAuctionOrderBookTx(auctionID [32]byte, tradingPair *match.Pair
 
 	// we allocate space for new orders but only need one pointer
 	var thisOrder *match.AuctionOrder
-	var thisOrderPair *match.OrderIDPair
+	var thisOrderPair *match.AuctionOrderIDPair
 
 	// we create these here so we don't take up a ton of memory allocating space for new intermediate arrays
 	var pkBytes []byte
@@ -169,7 +169,7 @@ func (db *DB) ViewAuctionOrderBookTx(auctionID [32]byte, tradingPair *match.Pair
 	for rows.Next() {
 		// scan the things we can into this order
 		thisOrder = new(match.AuctionOrder)
-		thisOrderPair = new(match.OrderIDPair)
+		thisOrderPair = new(match.AuctionOrderIDPair)
 		if err = rows.Scan(&pkBytes, &thisOrder.Side, &thisPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes, &sigBytes, &hashedOrderBytes); err != nil {
 			err = fmt.Errorf("Error scanning into order for viewauctionorderbook: %s", err)
 			return
@@ -187,6 +187,7 @@ func (db *DB) ViewAuctionOrderBookTx(auctionID [32]byte, tradingPair *match.Pair
 		copy(thisOrder.Pubkey[:], pkBytes)
 		copy(thisOrder.AuctionID[:], auctionIDBytes)
 		copy(thisOrder.Signature[:], sigBytes)
+		copy(thisOrder.Nonce[:], nonceBytes)
 		copy(thisOrderPair.OrderID[:], hashedOrderBytes)
 
 		orderbook[thisPrice] = append(orderbook[thisPrice], thisOrderPair)
@@ -332,8 +333,9 @@ func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
 	// Run the matching algorithm for every pair in the orderbook
 	for _, pair := range db.pairsArray {
-		var execs []*match.OrderExecution
-		if execs, err = db.clearingMatchingAlgorithmTx(auctionID, pair, tx); err != nil {
+		var orderExecs []*match.OrderExecution
+		var settlementExecs []*match.SettlementExecution
+		if orderExecs, settlementExecs, err = db.clearingMatchingAlgorithmTx(auctionID, pair, tx); err != nil {
 			err = fmt.Errorf("Error running clearing matching algorithm for pair %s: %s", pair, err)
 			return
 		}
@@ -488,17 +490,17 @@ func (db *DB) ProcessExecution(exec *match.OrderExecution, pair *match.Pair, tx 
 }
 
 // clearingMatchingAlgorithmTx runs the matching algorithm based on clearing price for a single batch pair
-func (db *DB) clearingMatchingAlgorithmTx(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (executions []*match.OrderExecution, err error) {
+func (db *DB) clearingMatchingAlgorithmTx(auctionID [32]byte, pair *match.Pair, tx *sql.Tx) (orderExecs []*match.OrderExecution, settlementExecs []*match.SettlementExecution, err error) {
 
 	// map representation of orderbook
-	var book map[float64][]*match.OrderIDPair
+	var book map[float64][]*match.AuctionOrderIDPair
 	if book, err = db.ViewAuctionOrderBookTx(auctionID, pair, tx); err != nil {
 		err = fmt.Errorf("Error viewing orderbook tx for clearing matching algorithm tx: %s", err)
 		return
 	}
 
 	// We can now calculate a clearing price and run the matching algorithm
-	if executions, err = match.MatchClearingAlgorithm(book); err != nil {
+	if orderExecs, settlementExecs, err = match.MatchClearingAlgorithm(book); err != nil {
 		err = fmt.Errorf("Error running clearing matching algorithm for match auction: %s", err)
 		return
 	}
