@@ -99,16 +99,17 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 	// instead is a good idea, and if the dependence on the previous commitment is a good idea.
 	copy(s.auctionID[:], sha3.Sum(nil))
 
-	var height uint64
-	if height, err = s.MatchingEngine.NewAuctionHeight(s.auctionID); err != nil {
-		err = fmt.Errorf("Error updating auction in DB while committing orders and creating new auction: %s", err)
-		return
-	}
+	// TODO: abstract out height storage, in batcher
+	// var height uint64
+	// if height, err = s.MatchingEngine.NewAuctionHeight(s.auctionID); err != nil {
+	// 	err = fmt.Errorf("Error updating auction in DB while committing orders and creating new auction: %s", err)
+	// 	return
+	// }
 
 	// Unlock!
 	s.dbLock.Unlock()
 
-	logging.Infof("Done creating new auction %x at height %d", auctionID, height)
+	// logging.Infof("Done creating new auction %x at height %d", auctionID, height)
 
 	return
 }
@@ -178,22 +179,33 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 	return
 }
 
-func (s *OpencxAuctionServer) runMatching(auctionID [32]byte, pair *match.Pair) (err error) {
+func (s *OpencxAuctionServer) runMatching(auctionID *match.AuctionID, pair *match.Pair) (err error) {
 
-	// map representation of orderbook
-	var book map[float64][]*match.AuctionOrderIDPair
-	if book, err = s.MatchingEngine.ViewAuctionOrderBook(pair, auctionID); err != nil {
-		err = fmt.Errorf("Error viewing auction orderbook for runmatching in server: %s", err)
-		return
-	}
-
+	s.dbLock.Lock()
 	// We can now calculate a clearing price and run the matching algorithm
 	var orderExecs []*match.OrderExecution
-	var setExecs []*match.SettlementExecution
-	if orderExecs, setExecs, err = match.MatchClearingAlgorithm(book); err != nil {
-		err = fmt.Errorf("Error running clearing matching algorithm for running matching: %s", err)
+	// var setExecs []*match.SettlementExecution
+	// if orderExecs, setExecs, err = s.MatchingEngine.MatchOrders(auctionID, pair); err != nil {
+	if orderExecs, _, err = s.MatchingEngine.MatchOrders(auctionID, pair); err != nil {
+		err = fmt.Errorf("Error matching orders for running matching: %s", err)
+		s.dbLock.Unlock()
 		return
 	}
+
+	for _, orderExec := range orderExecs {
+		if err = s.Orderbook.UpdateBookExec(orderExec); err != nil {
+			err = fmt.Errorf("Error updating book for order execution: %s", err)
+			s.dbLock.Unlock()
+			return
+		}
+	}
+
+	// TODO: this
+	// for _, settlementExec := range setExecs {
+	// 	// TODO: Update settlement engine
+	// }
+
+	s.dbLock.Unlock()
 
 	return
 }
