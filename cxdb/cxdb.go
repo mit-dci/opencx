@@ -58,7 +58,7 @@ type PuzzleStore interface {
 	PlaceAuctionPuzzle(*match.EncryptedAuctionOrder) error
 }
 
-// AuctionOrderbookStore is an interface defining a storage layer for limit orders
+// AuctionOrderbookStore is an interface defining a storage layer for auction orders
 type AuctionOrderbookStore interface {
 	// GetPairs gets all the trading pairs that we can trade on
 	GetPairs() []*match.Pair
