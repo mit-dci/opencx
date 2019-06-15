@@ -24,7 +24,7 @@ func (a *AuctionID) UnmarshalBinary(data []byte) (err error) {
 
 // MarshalText encodes the receiver into UTF-8-encoded text and returns the result. This conforms to the TextMarshaler interface
 func (a *AuctionID) MarshalText() (text []byte, err error) {
-	copy(text, []byte(hex.EncodeToString(o[:])))
+	copy(text, []byte(hex.EncodeToString(a[:])))
 	return
 }
 
