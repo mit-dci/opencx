@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
@@ -12,10 +13,10 @@ import (
 
 // OpencxAuctionServer is what will hopefully help handle and manage the auction logic, rpc, and db
 type OpencxAuctionServer struct {
-	SettlementEngine cxdb.SettlementStore
-	MatchingEngine   match.AuctionEngine
-	Orderbook        match.AuctionOrderbook
-	PuzzleEngine     cxdb.PuzzleStore
+	SettlementEngines map[*coinparam.Params]match.SettlementEngine
+	MatchingEngines   map[*match.Pair]match.AuctionEngine
+	Orderbooks        map[*match.Pair]match.AuctionOrderbook
+	PuzzleEngine      cxdb.PuzzleStore
 
 	dbLock       *sync.Mutex
 	orderChannel chan *match.OrderPuzzleResult
@@ -27,17 +28,17 @@ type OpencxAuctionServer struct {
 }
 
 // InitServer creates a new server
-func InitServer(sengine cxdb.SettlementStore, mengine match.AuctionEngine, book match.AuctionOrderbook, pzengine cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[*match.Pair]match.AuctionEngine, books map[*match.Pair]match.AuctionOrderbook, pzengine cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
 	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
-		SettlementEngine: sengine,
-		MatchingEngine:   mengine,
-		Orderbook:        book,
-		PuzzleEngine:     pzengine,
-		dbLock:           new(sync.Mutex),
-		orderChannel:     make(chan *match.OrderPuzzleResult, orderChanSize),
-		orderChanMap:     make(map[[32]byte]chan *match.OrderPuzzleResult),
-		t:                standardAuctionTime,
+		SettlementEngines: setEngines,
+		MatchingEngines:   matchEngines,
+		Orderbooks:        books,
+		PuzzleEngine:      pzengine,
+		dbLock:            new(sync.Mutex),
+		orderChannel:      make(chan *match.OrderPuzzleResult, orderChanSize),
+		orderChanMap:      make(map[[32]byte]chan *match.OrderPuzzleResult),
+		t:                 standardAuctionTime,
 	}
 
 	// Set auctionID to something random

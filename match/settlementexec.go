@@ -33,3 +33,14 @@ func (se *SettlementExecution) Equal(otherExec *SettlementExecution) bool {
 	}
 	return true
 }
+
+// TODO: replace with this once ready
+// // SettlementExecution is the "settlement part" of an execution.
+// // It defines the operations that should be done to the settlement engine.
+// type SettlementExecution struct {
+// 	Pubkey   [33]byte   `json:"pubkey"`
+// 	Amount   uint64     `json:"amount"`
+// 	Asset    Asset      `json:"asset"`
+//  // SettleType is a type that determines whether or not this is a debit or credit
+//  Type     SettleType `json:"settletype"`
+// }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/golangcrypto/sha3"
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/crypto/rsw"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
@@ -182,28 +183,83 @@ func (s *OpencxAuctionServer) validateOrder(decryptedOrder *match.AuctionOrder, 
 func (s *OpencxAuctionServer) runMatching(auctionID *match.AuctionID, pair *match.Pair) (err error) {
 
 	s.dbLock.Lock()
+
+	var matchEngine match.AuctionEngine
+	var ok bool
+	if matchEngine, ok = s.MatchingEngines[pair]; !ok {
+		err = fmt.Errorf("Error getting correct matching engine for pair %s for runMatching", pair)
+		s.dbLock.Unlock()
+		return
+	}
+
 	// We can now calculate a clearing price and run the matching algorithm
 	var orderExecs []*match.OrderExecution
-	// var setExecs []*match.SettlementExecution
-	// if orderExecs, setExecs, err = s.MatchingEngine.MatchOrders(auctionID, pair); err != nil {
-	if orderExecs, _, err = s.MatchingEngine.MatchOrders(auctionID, pair); err != nil {
+	var setExecs []*match.SettlementExecution
+	if orderExecs, setExecs, err = matchEngine.MatchOrders(auctionID); err != nil {
 		err = fmt.Errorf("Error matching orders for running matching: %s", err)
 		s.dbLock.Unlock()
 		return
 	}
 
+	var orderbook match.AuctionOrderbook
+	if orderbook, ok = s.Orderbooks[pair]; !ok {
+		err = fmt.Errorf("Error getting correct orderbook for pair %s for runMatching", pair)
+		s.dbLock.Unlock()
+		return
+	}
+
 	for _, orderExec := range orderExecs {
-		if err = s.Orderbook.UpdateBookExec(orderExec); err != nil {
+		if err = orderbook.UpdateBookExec(orderExec); err != nil {
 			err = fmt.Errorf("Error updating book for order execution: %s", err)
 			s.dbLock.Unlock()
 			return
 		}
 	}
 
-	// TODO: this
-	// for _, settlementExec := range setExecs {
-	// 	// TODO: Update settlement engine
-	// }
+	var debitCoinParam *coinparam.Params
+	var debitSetEngine match.SettlementEngine
+	var creditCoinParam *coinparam.Params
+	var creditSetEngine match.SettlementEngine
+	for _, settlementExec := range setExecs {
+		// get coin param for debited
+		if debitCoinParam, err = settlementExec.Debited.Asset.CoinParamFromAsset(); err != nil {
+			err = fmt.Errorf("Error getting debit coin param for runMatching: %s", err)
+			s.dbLock.Unlock()
+			return
+		}
+
+		if debitSetEngine, ok = s.SettlementEngines[debitCoinParam]; !ok {
+			err = fmt.Errorf("Error getting correct settlement engine for debit for runMatching")
+			s.dbLock.Unlock()
+			return
+		}
+
+		// get coin param for credited
+		if creditCoinParam, err = settlementExec.Credited.Asset.CoinParamFromAsset(); err != nil {
+			err = fmt.Errorf("Error getting credit coin param for runMatching: %s", err)
+			s.dbLock.Unlock()
+			return
+		}
+
+		if creditSetEngine, ok = s.SettlementEngines[creditCoinParam]; !ok {
+			err = fmt.Errorf("Error getting correct settlement engine for credit for runMatching")
+			s.dbLock.Unlock()
+			return
+		}
+
+		if err = debitSetEngine.ApplySettlementExecution(settlementExec); err != nil {
+			err = fmt.Errorf("Error applying debit settlement execution for runMatching: %s", err)
+			s.dbLock.Unlock()
+			return
+		}
+
+		if err = creditSetEngine.ApplySettlementExecution(settlementExec); err != nil {
+			err = fmt.Errorf("Error applying credit settlement execution for runMatching: %s", err)
+			s.dbLock.Unlock()
+			return
+		}
+
+	}
 
 	s.dbLock.Unlock()
 
