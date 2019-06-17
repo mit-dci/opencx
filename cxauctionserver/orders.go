@@ -216,46 +216,38 @@ func (s *OpencxAuctionServer) runMatching(auctionID *match.AuctionID, pair *matc
 		}
 	}
 
-	var debitCoinParam *coinparam.Params
-	var debitSetEngine match.SettlementEngine
-	var creditCoinParam *coinparam.Params
-	var creditSetEngine match.SettlementEngine
+	var setCoinParam *coinparam.Params
+	var setEngine match.SettlementEngine
 	for _, settlementExec := range setExecs {
 		// get coin param for debited
-		if debitCoinParam, err = settlementExec.Debited.Asset.CoinParamFromAsset(); err != nil {
-			err = fmt.Errorf("Error getting debit coin param for runMatching: %s", err)
+		if setCoinParam, err = settlementExec.Asset.CoinParamFromAsset(); err != nil {
+			err = fmt.Errorf("Error getting coin param for runMatching: %s", err)
 			s.dbLock.Unlock()
 			return
 		}
 
-		if debitSetEngine, ok = s.SettlementEngines[debitCoinParam]; !ok {
-			err = fmt.Errorf("Error getting correct settlement engine for debit for runMatching")
+		if setEngine, ok = s.SettlementEngines[setCoinParam]; !ok {
+			err = fmt.Errorf("Error getting correct settlement engine for runMatching")
 			s.dbLock.Unlock()
 			return
 		}
 
-		// get coin param for credited
-		if creditCoinParam, err = settlementExec.Credited.Asset.CoinParamFromAsset(); err != nil {
-			err = fmt.Errorf("Error getting credit coin param for runMatching: %s", err)
-			s.dbLock.Unlock()
+		var settleValid bool
+		if settleValid, err = setEngine.CheckValid(settlementExec); err != nil {
+			err = fmt.Errorf("Error checking valid for runMatching: %s", err)
 			return
 		}
 
-		if creditSetEngine, ok = s.SettlementEngines[creditCoinParam]; !ok {
-			err = fmt.Errorf("Error getting correct settlement engine for credit for runMatching")
-			s.dbLock.Unlock()
-			return
-		}
+		if settleValid {
 
-		if err = debitSetEngine.ApplySettlementExecution(settlementExec); err != nil {
-			err = fmt.Errorf("Error applying debit settlement execution for runMatching: %s", err)
-			s.dbLock.Unlock()
-			return
-		}
+			if _, err = setEngine.ApplySettlementExecution(settlementExec); err != nil {
+				err = fmt.Errorf("Error applyin settlement execution for runMatching: %s", err)
+				s.dbLock.Unlock()
+				return
+			}
 
-		if err = creditSetEngine.ApplySettlementExecution(settlementExec); err != nil {
-			err = fmt.Errorf("Error applying credit settlement execution for runMatching: %s", err)
-			s.dbLock.Unlock()
+		} else {
+			err = fmt.Errorf("Settlement invalid for some reason, maybe run matching again to see if anything changes")
 			return
 		}
 
