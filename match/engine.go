@@ -14,7 +14,7 @@ type LimitEngine interface {
 // One of these should be made for every pair.
 type AuctionEngine interface {
 	PlaceAuctionOrder(order *AuctionOrder, auctionID *AuctionID) (idRes *AuctionOrderIDPair, err error)
-	CancelAuctionOrder(id *OrderID) (cancelled *CancelledOrder, err error)
+	CancelAuctionOrder(id *OrderID) (cancelled *CancelledOrder, cancelSettlement *SettlementExecution, err error)
 	MatchAuctionOrders(auctionID *AuctionID) (orderExecs []*OrderExecution, settlementExecs []*SettlementExecution, err error)
 }
 

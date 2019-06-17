@@ -404,13 +404,13 @@ func (db *DB) GetOrder(orderID string) (order *match.LimitOrder, err error) {
 func (db *DB) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders map[float64][]*match.LimitOrderIDPair, err error) {
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
-		err = fmt.Errorf("Error cancelling order: \n%s", err)
+		err = fmt.Errorf("Error getting order for pubkey: \n%s", err)
 		return
 	}
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while cancelling order: \n%s", err)
+			err = fmt.Errorf("Error while getting order for pubkey: \n%s", err)
 			return
 		}
 		err = tx.Commit()
