@@ -196,3 +196,36 @@ func main() {
 
 	return
 }
+
+func createSQLSettlementEngineMap(coins []*coinparam.Params) (sengines map[*coinparam.Params]match.SettlementEngine, err error) {
+	sengines = make(map[*coinparam.Params]match.SettlementEngine)
+	var currSQLEngine match.SettlementEngine
+	for _, coin := range coins {
+		if currSQLEngine, err = cxdbsql.CreateSQLSettlementEngine(coin); err != nil {
+			err = fmt.Errorf("Error creating settlement engine while creating many in map: %s", err)
+			return
+		}
+		sengines[coin] = currSQLEngine
+	}
+	return
+}
+
+func createSQLAuctionEngineMap(coins []*coinparam.Params) (mengines map[match.Pair]match.AuctionEngine, err error) {
+	mengines = make(map[match.Pair]match.AuctionEngine)
+
+	var pairs []*match.Pair
+	if pairs, err = match.GenerateAssetPairs(coins); err != nil {
+		err = fmt.Errorf("Error generating asset pairs while creating map of auction engines: %s", err)
+		return
+	}
+
+	var currSQLEngine match.AuctionEngine
+	for _, pair := range pairs {
+		if currSQLEngine, err = cxdbsql.CreateAuctionEngine(pair); err != nil {
+			err = fmt.Errorf("Error creating auction engine while creating many in map: %s", err)
+			return
+		}
+		mengines[*pair] = currSQLEngine
+	}
+	return
+}

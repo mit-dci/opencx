@@ -44,3 +44,16 @@ func (s *Side) UnmarshalJSON(b []byte) (err error) {
 	}
 	return
 }
+
+func (s *Side) FromString(str string) (err error) {
+	switch strings.ToLower(str) {
+	default:
+		err = fmt.Errorf("Cannot get side from string, not buy or sell")
+		return
+	case buyString:
+		*s = Buy
+	case sellString:
+		*s = Sell
+	}
+	return
+}

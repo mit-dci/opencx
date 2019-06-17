@@ -125,6 +125,92 @@ func (ae *SQLAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auction
 	return
 }
 
+// CancelAuctionOrder cancels an auction order, this assumes that the auction order actually exists
+func (ae *SQLAuctionEngine) CancelAuctionOrder(orderID *match.OrderID) (cancelled *match.CancelledOrder, cancelSettlement *match.SettlementExecution, err error) {
+
+	var tx *sql.Tx
+	if tx, err = ae.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for CancelAuctionOrder: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error for CancelAuctionOrder: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+		return
+	}()
+
+	if _, err = tx.Exec("USE " + ae.auctionOrderSchema + ";"); err != nil {
+		err = fmt.Errorf("Error while cancelling auction order: %s", err)
+		return
+	}
+
+	// ===
+
+	var rows *sql.Rows
+	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, amountHave FROM %s WHERE hashedOrder = '%x';", ae.pair, orderID)
+	if rows, err = tx.Query(selectOrderQuery); err != nil {
+		err = fmt.Errorf("Error getting order from db for cancelauctionorder: %s", err)
+		return
+	}
+
+	var actualSide *match.Side
+
+	var pkBytes []byte
+	var orderSide string
+	var remainingHave uint64
+	if rows.Next() {
+		// scan the things we can into this order
+		if err = rows.Scan(&pkBytes, &orderSide, &remainingHave); err != nil {
+			err = fmt.Errorf("Error scanning for order for cancelauctionorder: %s", err)
+			return
+		}
+
+		// decode them all weirdly because of the way mysql may store the bytes
+		if pkBytes, err = hex.DecodeString(string(pkBytes)); err != nil {
+			err = fmt.Errorf("Error decoding pkBytes for cancelauctionorder: %s", err)
+			return
+		}
+
+		actualSide = new(match.Side)
+		if err = actualSide.FromString(orderSide); err != nil {
+			err = fmt.Errorf("Error getting side from string for cancelauctionorder: %s", err)
+			return
+		}
+
+	}
+
+	// ===
+
+	deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%s';", ae.pair.String(), orderID)
+	if _, err = tx.Exec(deleteOrderQuery); err != nil {
+		err = fmt.Errorf("Error deleting order for cancel auction order: %s", err)
+		return
+	}
+
+	cancelled = &match.CancelledOrder{
+		OrderID: orderID,
+	}
+	var debitAsset match.Asset
+	if *actualSide == match.Buy {
+		debitAsset = ae.pair.AssetHave
+	} else {
+		debitAsset = ae.pair.AssetWant
+	}
+	cancelSettlement = &match.SettlementExecution{
+		Amount: remainingHave,
+		Type:   match.Debit,
+		Asset:  debitAsset,
+	}
+	copy(cancelSettlement.Pubkey[:], pkBytes)
+
+	return
+}
+
 // MatchAuction calculates a single clearing price to execute orders at, and executes at that price.
 func (ae *SQLAuctionEngine) MatchAuctionOrders(auctionID *match.AuctionID) (orderExecs []*match.OrderExecution, settlementExecs []*match.SettlementExecution, err error) {
 

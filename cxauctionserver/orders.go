@@ -195,7 +195,7 @@ func (s *OpencxAuctionServer) runMatching(auctionID *match.AuctionID, pair *matc
 	// We can now calculate a clearing price and run the matching algorithm
 	var orderExecs []*match.OrderExecution
 	var setExecs []*match.SettlementExecution
-	if orderExecs, setExecs, err = matchEngine.MatchOrders(auctionID); err != nil {
+	if orderExecs, setExecs, err = matchEngine.MatchAuctionOrders(auctionID); err != nil {
 		err = fmt.Errorf("Error matching orders for running matching: %s", err)
 		s.dbLock.Unlock()
 		return
