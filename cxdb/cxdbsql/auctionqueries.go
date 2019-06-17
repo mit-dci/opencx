@@ -312,44 +312,44 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 
 // MatchAuction calculates a single clearing price to execute orders at, and executes at that price.
 // TODO: remove "height" from the return
-func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
+// func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
 
-	var tx *sql.Tx
-	if tx, err = db.DBHandler.Begin(); err != nil {
-		err = fmt.Errorf("Error when beginning transaction for MatchAuction: %s", err)
-		return
-	}
+// 	var tx *sql.Tx
+// 	if tx, err = db.DBHandler.Begin(); err != nil {
+// 		err = fmt.Errorf("Error when beginning transaction for MatchAuction: %s", err)
+// 		return
+// 	}
 
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			err = fmt.Errorf("Error while matching auction: \n%s", err)
-			return
-		}
-		err = tx.Commit()
-	}()
+// 	defer func() {
+// 		if err != nil {
+// 			tx.Rollback()
+// 			err = fmt.Errorf("Error while matching auction: \n%s", err)
+// 			return
+// 		}
+// 		err = tx.Commit()
+// 	}()
 
-	// Do this for every pair we have
+// 	// Do this for every pair we have
 
-	// Run the matching algorithm for every pair in the orderbook
-	for _, pair := range db.pairsArray {
-		var orderExecs []*match.OrderExecution
-		var settlementExecs []*match.SettlementExecution
-		if orderExecs, settlementExecs, err = db.clearingMatchingAlgorithmTx(auctionID, pair, tx); err != nil {
-			err = fmt.Errorf("Error running clearing matching algorithm for pair %s: %s", pair, err)
-			return
-		}
-		// now process all of these matches based on the matching algorithm
-		for _, exec := range execs {
-			if err = db.ProcessExecution(exec, pair, tx); err != nil {
-				err = fmt.Errorf("Error processing a single execution for clearing matching algorithm: %s", err)
-				return
-			}
-		}
-	}
+// 	// Run the matching algorithm for every pair in the orderbook
+// 	for _, pair := range db.pairsArray {
+// 		var orderExecs []*match.OrderExecution
+// 		var settlementExecs []*match.SettlementExecution
+// 		if orderExecs, settlementExecs, err = db.clearingMatchingAlgorithmTx(auctionID, pair, tx); err != nil {
+// 			err = fmt.Errorf("Error running clearing matching algorithm for pair %s: %s", pair, err)
+// 			return
+// 		}
+// 		// now process all of these matches based on the matching algorithm
+// 		for _, exec := range execs {
+// 			if err = db.ProcessExecution(exec, pair, tx); err != nil {
+// 				err = fmt.Errorf("Error processing a single execution for clearing matching algorithm: %s", err)
+// 				return
+// 			}
+// 		}
+// 	}
 
-	return
-}
+// 	return
+// }
 
 // ProcessOrderExecution handles either deleting or updating a single order that has been executed, depending on whether or not
 // it has been filled. It returns a pubkey for the order, and an error. We return a pubkey because that's usually how settlement

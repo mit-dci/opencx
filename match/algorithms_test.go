@@ -130,7 +130,7 @@ func runLargeClearingBookTest(midpoint float64, orderRadius uint64, t *testing.T
 		t.Errorf("Error running clearing matching algorithm for test: %s", err)
 		return
 	}
-	if uint64(len(setExecs)) != numOrders {
+	if uint64(len(setExecs)) != numOrders*2 {
 		t.Errorf("There should have been %d settlement executions, instead there are %d", numOrders, len(setExecs))
 		return
 	}
@@ -175,7 +175,7 @@ func TestClearingPriceSamePriceBook(t *testing.T) {
 		return
 	}
 	if len(execs) != 2 {
-		t.Errorf("There should have been 2 executions, instead there are %d", len(execs))
+		t.Errorf("There should have been 2 order executions, instead there are %d", len(execs))
 		return
 	}
 	for _, exec := range execs {
@@ -194,12 +194,12 @@ func TestClearingPriceSamePriceBook(t *testing.T) {
 	}
 
 	for _, setExec := range setExecs {
-		if setExec.Credited.Amount != 1000 {
-			t.Errorf("All orders should have credited amount = 1000, this was %d", setExec.Credited.Amount)
+		if setExec.Type == Credit && setExec.Amount != 1000 {
+			t.Errorf("All orders should have credited amount = 1000, this was %d", setExec.Amount)
 			return
 		}
-		if setExec.Debited.Amount != 1000 {
-			t.Errorf("All orders should have debited amount = 1000, this was %d", setExec.Debited.Amount)
+		if setExec.Type == Debit && setExec.Amount != 1000 {
+			t.Errorf("All orders should have debited amount = 1000, this was %d", setExec.Amount)
 			return
 		}
 
@@ -226,12 +226,12 @@ func TestClearingTrivial(t *testing.T) {
 		t.Errorf("Error running clearing matching algorithm for test: %s", err)
 		return
 	}
-	if len(setExecs) != 2 {
-		t.Errorf("There should have been 2 executions, instead there are %d", len(setExecs))
+	if len(setExecs) != 4 {
+		t.Errorf("There should have been 4 settlement executions, instead there are %d", len(setExecs))
 		return
 	}
 	if len(execs) != 2 {
-		t.Errorf("There should have been 2 executions, instead there are %d", len(execs))
+		t.Errorf("There should have been 4 order executions, instead there are %d", len(execs))
 		return
 	}
 	for _, exec := range execs {

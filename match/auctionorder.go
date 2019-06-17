@@ -82,7 +82,7 @@ func (a *AuctionOrder) Price() (price float64, err error) {
 // This does not assume anything about the price of the order, as we can't infer what price the order was
 // placed at.
 // TODO: Figure out whether or not these should be pointers
-func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (orderExec OrderExecution, setExec SettlementExecution, err error) {
+func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (orderExec OrderExecution, setExecs []*SettlementExecution, err error) {
 
 	if a.AmountHave == 0 {
 		err = fmt.Errorf("Error generating order fill: empty order, the AmountHave cannot be 0")
@@ -121,17 +121,23 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (ord
 		NewAmountHave: 0,
 		Filled:        true,
 	}
-	setExec = SettlementExecution{
-		Debited: Entry{
-			Amount: amountToDebit,
-			Asset:  debitAsset,
-		},
-		Credited: Entry{
-			Amount: a.AmountHave,
-			Asset:  creditAsset,
-		},
+	debitSetExec := SettlementExecution{
+		Amount: amountToDebit,
+		Asset:  debitAsset,
+		Type:   Debit,
 	}
-	copy(setExec.Pubkey[:], a.Pubkey[:])
+	creditSetExec := SettlementExecution{
+		Amount: a.AmountHave,
+		Asset:  creditAsset,
+		Type:   Credit,
+	}
+
+	copy(debitSetExec.Pubkey[:], a.Pubkey[:])
+	copy(creditSetExec.Pubkey[:], a.Pubkey[:])
+
+	setExecs = append(setExecs, &debitSetExec)
+	setExecs = append(setExecs, &creditSetExec)
+
 	copy(orderExec.OrderID, orderID)
 	return
 }
@@ -142,7 +148,7 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (ord
 // in as a parameter. The order ID will be filled in, as it's being passed as a parameter.
 // This returns a fillRemainder, which is the amount that is left over from amountToFill after
 // filling orderID at execPrice and amountToFill
-func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice float64, amountToFill uint64) (orderExec OrderExecution, setExec SettlementExecution, fillRemainder uint64, err error) {
+func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice float64, amountToFill uint64) (orderExec OrderExecution, setExecs []*SettlementExecution, fillRemainder uint64, err error) {
 	// If it's a buy side, AmountWant is assetWant, and AmountHave is assetHave - but price is something different, price is want/have.
 	// So to convert from amountWant (amountToFill) to amountHave we need to multiple amountToFill by 1/execPrice
 	var amountWantToFill uint64
@@ -167,42 +173,38 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 	// Well we don't want to credit them more than they have. So we can only fill it up to a certain amount.
 	if amountWantToFill >= a.AmountHave {
 		fillRemainder = amountWantToFill - a.AmountHave
-		if orderExec, setExec, err = a.GenerateOrderFill(orderID, execPrice); err != nil {
+		if orderExec, setExecs, err = a.GenerateOrderFill(orderID, execPrice); err != nil {
 			err = fmt.Errorf("Error generating order fill while generating exec for price: %s", err)
 			return
 		}
 	} else {
 		// TODO: Check if this len(orderID) as size is correct
 		orderExec = OrderExecution{
-			OrderID: make([]byte, len(orderID)),
-			Debited: Entry{
-				Amount: amountToFill,
-				Asset:  debitAsset,
-			},
-			Credited: Entry{
-				Amount: amountWantToFill,
-				Asset:  creditAsset,
-			},
+			OrderID:       make([]byte, len(orderID)),
 			NewAmountWant: a.AmountWant - amountToFill,
 			NewAmountHave: a.AmountHave - amountWantToFill,
 			Filled:        false,
 		}
-		setExec = SettlementExecution{
-			Pubkey: a.Pubkey,
-			Debited: Entry{
-				Amount: amountToFill,
-				Asset:  debitAsset,
-			},
-			Credited: Entry{
-				Amount: amountWantToFill,
-				Asset:  creditAsset,
-			},
+
+		debitSetExec := SettlementExecution{
+			Amount: amountToFill,
+			Asset:  debitAsset,
+			Type:   Debit,
 		}
+		creditSetExec := SettlementExecution{
+			Amount: amountWantToFill,
+			Asset:  creditAsset,
+			Type:   Credit,
+		}
+
+		copy(debitSetExec.Pubkey[:], a.Pubkey[:])
+		copy(creditSetExec.Pubkey[:], a.Pubkey[:])
+
+		setExecs = append(setExecs, &debitSetExec)
+		setExecs = append(setExecs, &creditSetExec)
 		copy(orderExec.OrderID, orderID)
 	}
 
-	// If it's a sell side, price is have/want. So amountToFill * execPrice = amountHave to fill
-	// TODO
 	return
 }
 
