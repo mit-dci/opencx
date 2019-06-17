@@ -69,6 +69,33 @@ var (
 	defaultAuctionOrderTable = "auctionorders"
 	defaultPuzzleTable       = "puzzles"
 	defaultPeerTable         = "opencxpeers"
+
+	// Set defaults
+	defaultConf = &dbsqlConfig{
+		// home dir
+		DBHomeDir: defaultDBHomeDirName,
+
+		// user / pass / net stuff
+		DBUsername: defaultDBUser,
+		DBPassword: defaultDBPass,
+		DBHost:     defaultDBHost,
+		DBPort:     defaultDBPort,
+
+		// schemas
+		BalanceSchemaName:        defaultBalanceSchema,
+		DepositSchemaName:        defaultDepositSchema,
+		PendingDepositSchemaName: defaultPendingDepositSchema,
+		PuzzleSchemaName:         defaultPuzzleSchema,
+		AuctionSchemaName:        defaultAuctionSchema,
+		AuctionOrderSchemaName:   defaultAuctionOrderSchema,
+		OrderSchemaName:          defaultOrderSchema,
+		PeerSchemaName:           defaultPeerSchema,
+
+		// tables
+		PuzzleTableName:       defaultPuzzleTable,
+		AuctionOrderTableName: defaultAuctionOrderTable,
+		PeerTableName:         defaultPeerTable,
+	}
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -193,35 +220,11 @@ func (db *DB) setOptionsFromConfig(conf *dbsqlConfig) (err error) {
 // SetupClient sets up the mysql client and driver
 func (db *DB) SetupClient(coinList []*coinparam.Params) (err error) {
 
-	// Set defaults
-	conf := &dbsqlConfig{
-		// home dir
-		DBHomeDir: defaultDBHomeDirName,
-
-		// user / pass / net stuff
-		DBUsername: defaultDBUser,
-		DBPassword: defaultDBPass,
-		DBHost:     defaultDBHost,
-		DBPort:     defaultDBPort,
-
-		// schemas
-		BalanceSchemaName:        defaultBalanceSchema,
-		DepositSchemaName:        defaultDepositSchema,
-		PendingDepositSchemaName: defaultPendingDepositSchema,
-		PuzzleSchemaName:         defaultPuzzleSchema,
-		AuctionSchemaName:        defaultAuctionSchema,
-		AuctionOrderSchemaName:   defaultAuctionOrderSchema,
-		OrderSchemaName:          defaultOrderSchema,
-		PeerSchemaName:           defaultPeerSchema,
-
-		// tables
-		PuzzleTableName:       defaultPuzzleTable,
-		AuctionOrderTableName: defaultAuctionOrderTable,
-		PeerTableName:         defaultPeerTable,
-	}
+	conf := new(dbsqlConfig)
+	*conf = *defaultConf
 
 	// We created this config, now we set the options from the config
-	if err = db.setOptionsFromConfig(conf); err != nil {
+	if err = db.setOptionsFromConfig(defaultConf); err != nil {
 		err = fmt.Errorf("Error setting options from config for setupclient: %s", err)
 		return
 	}

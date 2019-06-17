@@ -3,13 +3,80 @@ package cxdbsql
 import (
 	"database/sql"
 	"fmt"
+	"net"
 
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/match"
 )
 
+type SQLSettlementEngine struct {
+	DBHandler *sql.DB
+
+	// db username
+	dbUsername string
+	dbPassword string
+
+	// db host and port
+	dbAddr net.Addr
+
+	// balance schema name
+	balanceSchema string
+
+	// this coin
+	coin *coinparam.Params
+}
+
+const (
+	settlementEngineSchema = "pubkey VARBINARY(66), balance BIGINT(64), PRIMARY KEY (pubkey)"
+)
+
+func CreateSQLSettlementEngine(coin *coinparam.Params) (engine match.SettlementEngine, err error) {
+
+	conf := new(dbsqlConfig)
+	*conf = *defaultConf
+
+	// Set the default conf
+	dbConfigSetup(conf)
+
+	// Resolve new address
+	var addr net.Addr
+	if addr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(conf.DBHost, fmt.Sprintf("%d", conf.DBPort))); err != nil {
+		err = fmt.Errorf("Couldn't resolve db address for createAuctionEngine: %s", err)
+		return
+	}
+
+	// Set values
+	ae := &SQLSettlementEngine{
+		dbUsername:         conf.DBUsername,
+		dbPassword:         conf.DBPassword,
+		auctionOrderSchema: conf.AuctionSchemaName,
+		dbAddr:             addr,
+		coin:               coin,
+	}
+
+	if err = ae.setupAuctionOrderbookTables(); err != nil {
+		err = fmt.Errorf("Error setting up auction orderbook tables while creating engine: %s", err)
+		return
+	}
+
+	// Now connect to the database and create the schemas / tables
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", ae.dbUsername, ae.dbPassword, ae.dbAddr.Network(), ae.dbAddr.String())
+	if ae.DBHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening database for createAuctionEngine: %s", err)
+		return
+	}
+
+	// Make sure we can actually connect
+	if err = ae.DBHandler.Ping(); err != nil {
+		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+	return
+}
+
 // ApplySettlementExecution applies the settlementExecution, this assumes that the settlement execution is
 // valid
-func (db *DB) ApplySettlementExecution(setExec *match.SettlementExecution) (err error) {
+func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.SettlementExecution) (err error) {
 
 	// First create transaction
 	var tx *sql.Tx
@@ -63,7 +130,7 @@ func (db *DB) ApplySettlementExecution(setExec *match.SettlementExecution) (err 
 }
 
 // CheckValid returns true if the settlement execution would be valid
-func (db *DB) CheckValid(setExec *match.SettlementExecution) (valid bool, err error) {
+func (se *SQLSettlementEngine) CheckValid(setExec *match.SettlementExecution) (valid bool, err error) {
 	if setExec.Type == match.Debit {
 		// No settlement will be an invalid debit
 		valid = true
@@ -108,5 +175,60 @@ func (db *DB) CheckValid(setExec *match.SettlementExecution) (valid bool, err er
 	}
 
 	valid = setExec.Amount > curBal
+	return
+}
+
+// setupAuctionOrderbookTables sets up the tables needed for the auction orderbook.
+// This assumes the schema name is set
+func (se *SQLSettlementEngine) setupAuctionOrderbookTables() (err error) {
+
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", se.dbUsername, se.dbPassword, se.dbAddr.Network(), se.dbAddr.String())
+	var rootHandler *sql.DB
+	if rootHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening database for setup settlement tables: %s", err)
+		return
+	}
+
+	// when we're done close please
+	defer rootHandler.Close()
+
+	if err = rootHandler.Ping(); err != nil {
+		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+
+	// We do this in a transaction because it's more than one operation
+	var tx *sql.Tx
+	if tx, err = rootHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for setup settlement tables: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while matching setup settlement tables: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// Now create the schema
+	if _, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS " + se.balanceSchema + ";"); err != nil {
+		err = fmt.Errorf("Error creating schema for setup settlement tables: %s", err)
+		return
+	}
+
+	// use the schema
+	if _, err = tx.Exec("USE " + se.balanceSchema + ";"); err != nil {
+		err = fmt.Errorf("Could not use %s schema: %s", se.balanceSchema, err)
+		return
+	}
+
+	createTableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", se.coin.Name, settlementEngineSchema)
+	if _, err = tx.Exec(createTableQuery); err != nil {
+		err = fmt.Errorf("Error creating settlement table: %s", err)
+		return
+	}
 	return
 }
