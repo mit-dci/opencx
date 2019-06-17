@@ -67,8 +67,6 @@ The good thing is, order executions do not depend on the type of order.
 */
 type OrderExecution struct {
 	OrderID       []byte `json:"orderid"`
-	Debited       Entry  `json:"debited"`
-	Credited      Entry  `json:"credited"`
 	NewAmountWant uint64 `json:"newamtwant"`
 	NewAmountHave uint64 `json:"newamthave"`
 	Filled        bool   `json:"filled"`
@@ -84,12 +82,6 @@ func (oe *OrderExecution) String() string {
 // Equal compares one OrderExecution with another OrderExecution and returns true if all of the fields are the same.
 func (oe *OrderExecution) Equal(otherExec *OrderExecution) bool {
 	if !bytes.Equal(oe.OrderID, otherExec.OrderID) {
-		return false
-	}
-	if oe.Debited != otherExec.Debited {
-		return false
-	}
-	if oe.Credited != otherExec.Credited {
 		return false
 	}
 	if oe.NewAmountWant != otherExec.NewAmountWant {

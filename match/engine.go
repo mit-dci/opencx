@@ -13,7 +13,7 @@ type LimitEngine interface {
 // interface for the representation of a matching engine.
 // One of these should be made for every pair.
 type AuctionEngine interface {
-	PlaceOrder(order *LimitOrder, auctionID *AuctionID) (idRes *AuctionOrderIDPair, err error)
+	PlaceOrder(order *AuctionOrder, auctionID *AuctionID) (idRes *AuctionOrderIDPair, err error)
 	CancelOrder(id *OrderID) (cancelled *CancelledOrder, err error)
 	MatchOrders(auctionID *AuctionID) (orderExecs []*OrderExecution, settlementExecs []*SettlementExecution, err error)
 }

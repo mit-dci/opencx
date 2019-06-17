@@ -8,13 +8,17 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxauctionserver"
+	"github.com/mit-dci/opencx/cxdb"
+	"github.com/mit-dci/opencx/cxdb/cxdbmemory"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 type fredConfig struct {
@@ -120,18 +124,39 @@ func main() {
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
 
-	// init db
-	var db *cxdbsql.DB
-	db = new(cxdbsql.DB)
+	// // init db
+	// var db *cxdbsql.DB
+	// db = new(cxdbsql.DB)
 
-	// Setup DB Client
-	if err = db.SetupClient(coinList); err != nil {
+	// // Setup DB Client
+	// if err = db.SetupClient(coinList); err != nil {
+	// 	log.Fatalf("Error setting up sql client: \n%s", err)
+	// }
+
+	// Create in memory matching engine
+	var mengines map[match.Pair]match.AuctionEngine
+	if mengines, err = cxdbmemory.CreateAuctionEngineMap(coinList); err != nil {
+		logging.Fatalf("Error creating auction engines for pairs: %s", err)
+	}
+
+	var setEngines map[*coinparam.Params]match.SettlementEngine
+	// TODO
+
+	var auctionBooks map[*coinparam.Params]match.AuctionOrderbook
+	// TODO
+
+	var pzEngine cxdb.PuzzleStore
+	pzEngine = new(cxdbsql.DB)
+
+	// Setup Puzzle DB Client
+	if err = pzEngine.SetupClient(coinList); err != nil {
 		log.Fatalf("Error setting up sql client: \n%s", err)
 	}
+	// TODO
 
 	// Anyways, here's where we set the server
 	var fredServer *cxauctionserver.OpencxAuctionServer
-	if fredServer, err = cxauctionserver.InitServer(db, 100, conf.AuctionTime, conf.MaxBatchSize); err != nil {
+	if fredServer, err = cxauctionserver.InitServer(setEngines, mengines, auctionBooks, pzEngine, 100, conf.AuctionTime); err != nil {
 		logging.Fatalf("Error initializing server: \n%s", err)
 	}
 
