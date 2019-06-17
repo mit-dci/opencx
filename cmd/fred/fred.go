@@ -117,18 +117,39 @@ func main() {
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
 
-	// init db
-	var db *cxdbsql.DB
-	db = new(cxdbsql.DB)
+	// // init db
+	// var db *cxdbsql.DB
+	// db = new(cxdbsql.DB)
 
-	// Setup DB Client
-	if err = db.SetupClient(coinList); err != nil {
+	// // Setup DB Client
+	// if err = db.SetupClient(coinList); err != nil {
+	// 	log.Fatalf("Error setting up sql client: \n%s", err)
+	// }
+
+	// Create in memory matching engine
+	var mengines map[match.Pair]match.AuctionEngine
+	if mengines, err = cxdbmemory.CreateAuctionEngineMap(coinList); err != nil {
+		logging.Fatalf("Error creating auction engines for pairs: %s", err)
+	}
+
+	var setEngines map[*coinparam.Params]match.SettlementEngine
+	// TODO
+
+	var auctionBooks map[*coinparam.Params]match.AuctionOrderbook
+	// TODO
+
+	var pzEngine cxdb.PuzzleStore
+	pzEngine = new(cxdbsql.DB)
+
+	// Setup Puzzle DB Client
+	if err = pzEngine.SetupClient(coinList); err != nil {
 		log.Fatalf("Error setting up sql client: \n%s", err)
 	}
+	// TODO
 
 	// Anyways, here's where we set the server
 	var fredServer *cxauctionserver.OpencxAuctionServer
-	if fredServer, err = cxauctionserver.InitServer(db, 100, conf.AuctionTime); err != nil {
+	if fredServer, err = cxauctionserver.InitServer(setEngines, mengines, auctionBooks, , 100, conf.AuctionTime); err != nil {
 		logging.Fatalf("Error initializing server: \n%s", err)
 	}
 

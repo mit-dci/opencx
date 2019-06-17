@@ -33,34 +33,38 @@ var (
 
 	origOrderFullExec = &OrderExecution{
 		OrderID: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07},
-		Debited: Entry{
-			Amount: 100000000,
-			Asset:  BTC,
-		},
-		Credited: Entry{
-			Amount: 100000000,
-			Asset:  VTC,
-		},
 		// these are just some random numbers because they should not matter since the order is filled
 		NewAmountWant: 23892323,
 		NewAmountHave: 37348722,
 		Filled:        true,
 	}
+	origOrderFullDebit = &SettlementExecution{
+		Amount: 100000000,
+		Asset:  BTC,
+		Type:   Debit,
+	}
+	origOrderFullCredit = &SettlementExecution{
+		Amount: 100000000,
+		Asset:  VTC,
+		Type:   Credit,
+	}
 
 	origOrderDoubleExec = &OrderExecution{
 		OrderID: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07},
-		Debited: Entry{
-			Amount: 200000000,
-			Asset:  BTC,
-		},
-		Credited: Entry{
-			Amount: 100000000,
-			Asset:  VTC,
-		},
 		// these are just some random numbers because they should not matter since the order is filled
 		NewAmountWant: 53872666,
 		NewAmountHave: 47666772,
 		Filled:        true,
+	}
+	origOrderDoubleCredit = &SettlementExecution{
+		Amount: 100000000,
+		Asset:  VTC,
+		Type:   Credit,
+	}
+	origOrderDoubleDebit = &SettlementExecution{
+		Amount: 200000000,
+		Asset:  BTC,
+		Type:   Debit,
 	}
 )
 
@@ -124,18 +128,27 @@ func TestIsSellSide(t *testing.T) {
 	return
 }
 
+func createInclusionMap(setExecs []*SettlementExecution) (resMap map[SettlementExecution]bool) {
+	resMap = make(map[SettlementExecution]bool)
+	for _, setExec := range setExecs {
+		resMap[*setExec] = true
+	}
+	return
+}
+
 // Test some easy execution generation
 func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 	var err error
 
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
-	var setExec SettlementExecution
+	var setExecs []*SettlementExecution
 	var fillRemainder uint64
-	if resExec, setExec, fillRemainder, err = origOrder.GenerateExecutionFromPrice(origOrderID, float64(1), 100000000); err != nil {
+	if resExec, setExecs, fillRemainder, err = origOrder.GenerateExecutionFromPrice(origOrderID, float64(1), 100000000); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
+
 	// while they shouldn't be equal, the non Amount fields should be.
 	if resExec.Filled != origOrderFullExec.Filled {
 		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
@@ -145,12 +158,15 @@ func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}
-	if setExec.Credited != origOrderFullExec.Credited {
-		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &setExec.Credited)
+
+	execMap := createInclusionMap(setExecs)
+	var inExecutions bool
+	if _, inExecutions = execMap[*origOrderFullCredit]; !inExecutions {
+		t.Errorf("Credit not the same. The result did not include %s", origOrderFullCredit)
 		return
 	}
-	if setExec.Debited != origOrderFullExec.Debited {
-		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &setExec.Debited)
+	if _, inExecutions = execMap[*origOrderFullDebit]; !inExecutions {
+		t.Errorf("Debit not the same. The result did not include %s", origOrderFullDebit)
 		return
 	}
 	if resExec.NewAmountHave != 0 {
@@ -171,8 +187,8 @@ func TestGenerateDoubleFill(t *testing.T) {
 
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
-	var setExec SettlementExecution
-	if resExec, setExec, err = origOrder.GenerateOrderFill(origOrderID, float64(2)); err != nil {
+	var setExecs []*SettlementExecution
+	if resExec, setExecs, err = origOrder.GenerateOrderFill(origOrderID, float64(2)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -185,12 +201,14 @@ func TestGenerateDoubleFill(t *testing.T) {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderDoubleExec.OrderID, resExec.OrderID)
 		return
 	}
-	if setExec.Credited != origOrderDoubleExec.Credited {
-		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderDoubleExec.Credited, &setExec.Credited)
+	execMap := createInclusionMap(setExecs)
+	var inExecutions bool
+	if _, inExecutions = execMap[*origOrderDoubleCredit]; !inExecutions {
+		t.Errorf("Credit not the same. The result did not include %s", origOrderDoubleCredit)
 		return
 	}
-	if setExec.Debited != origOrderDoubleExec.Debited {
-		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderDoubleExec.Debited, &setExec.Debited)
+	if _, inExecutions = execMap[*origOrderDoubleDebit]; !inExecutions {
+		t.Errorf("Debit not the same. The result did not include %s", origOrderDoubleDebit)
 		return
 	}
 	if resExec.NewAmountHave != 0 {
@@ -207,8 +225,8 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
-	var setExec SettlementExecution
-	if resExec, setExec, err = origOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
+	var setExecs []*SettlementExecution
+	if resExec, setExecs, err = origOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -221,12 +239,14 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}
-	if setExec.Credited != origOrderFullExec.Credited {
-		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &setExec.Credited)
+	execMap := createInclusionMap(setExecs)
+	var inExecutions bool
+	if _, inExecutions = execMap[*origOrderFullCredit]; !inExecutions {
+		t.Errorf("Credit not the same. The result did not include %s", origOrderFullCredit)
 		return
 	}
-	if setExec.Debited != origOrderFullExec.Debited {
-		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &setExec.Debited)
+	if _, inExecutions = execMap[*origOrderFullDebit]; !inExecutions {
+		t.Errorf("Debit not the same. The result did not include %s", origOrderFullDebit)
 		return
 	}
 	if resExec.NewAmountHave != 0 {
@@ -248,21 +268,20 @@ func TestGenerateBadSideFill(t *testing.T) {
 
 	// this should just error
 	var resExec OrderExecution
-	var setExec SettlementExecution
-	if resExec, setExec, err = badOrder.GenerateOrderFill(origOrderID, float64(1)); err == nil {
+	var setExecs []*SettlementExecution
+	if resExec, setExecs, err = badOrder.GenerateOrderFill(origOrderID, float64(1)); err == nil {
 		t.Errorf("There was no error trying to generate an order fill for an order with a bad side")
 		return
 	}
 
 	emptyExec := &OrderExecution{}
 	if !(&resExec).Equal(emptyExec) {
-		t.Errorf("GenerateOrderFill created part of an order execution on failure, this should not happen")
+		t.Errorf("GenerateBadSideFill created part of an order execution on failure, this should not happen")
 		return
 	}
 
-	emptySetExec := &SettlementExecution{}
-	if !(&setExec).Equal(emptySetExec) {
-		t.Errorf("GenerateOrderFill created part of a settlement execution on failure, this should not happen")
+	if len(setExecs) != 0 {
+		t.Errorf("GenerateBadSideFill created a settlement execution on failure, this should not happen")
 		return
 	}
 
@@ -279,8 +298,8 @@ func TestGenerateBadPriceFill(t *testing.T) {
 
 	// this should just error
 	var resExec OrderExecution
-	var setExec SettlementExecution
-	if resExec, setExec, err = badOrder.GenerateOrderFill(origOrderID, float64(0)); err == nil {
+	var setExecs []*SettlementExecution
+	if resExec, setExecs, err = badOrder.GenerateOrderFill(origOrderID, float64(0)); err == nil {
 		t.Errorf("There was no error trying to generate an order fill for a price of zero")
 		return
 	}
@@ -291,9 +310,8 @@ func TestGenerateBadPriceFill(t *testing.T) {
 		return
 	}
 
-	emptySetExec := &SettlementExecution{}
-	if !(&setExec).Equal(emptySetExec) {
-		t.Errorf("GenerateOrderFill created part of a settlement execution on failure, this should not happen")
+	if len(setExecs) != 0 {
+		t.Errorf("GenerateOrderFill created a settlement execution on failure, this should not happen")
 		return
 	}
 
@@ -310,8 +328,8 @@ func TestGenerateEasyPriceFillAmounts(t *testing.T) {
 
 	// this should just error
 	var resExec OrderExecution
-	var setExec SettlementExecution
-	if resExec, setExec, err = zeroPriceOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
+	var setExecs []*SettlementExecution
+	if resExec, setExecs, err = zeroPriceOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -325,16 +343,18 @@ func TestGenerateEasyPriceFillAmounts(t *testing.T) {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}
-	if setExec.Credited != origOrderFullExec.Credited {
-		t.Errorf("Executions should have the same amount and asset credited. The result should be %s but was %s", &origOrderFullExec.Credited, &setExec.Credited)
-		return
-	}
-	if setExec.Debited != origOrderFullExec.Debited {
-		t.Errorf("Executions should have the same amount and asset debited. The result should be %s but was %s", &origOrderFullExec.Debited, &setExec.Debited)
-		return
-	}
 	if resExec.NewAmountHave != 0 {
 		t.Errorf("A filled order should have no 'NewAmountHave' left. It has %d instead", resExec.NewAmountHave)
+		return
+	}
+	execMap := createInclusionMap(setExecs)
+	var inExecutions bool
+	if _, inExecutions = execMap[*origOrderFullCredit]; !inExecutions {
+		t.Errorf("Credit not the same. The result did not include %s", origOrderFullCredit)
+		return
+	}
+	if _, inExecutions = execMap[*origOrderFullDebit]; !inExecutions {
+		t.Errorf("Debit not the same. The result did not include %s", origOrderFullDebit)
 		return
 	}
 

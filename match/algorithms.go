@@ -84,7 +84,7 @@ func CalculateClearingPrice(book map[float64][]*AuctionOrderIDPair) (clearingPri
 func GenerateClearingExecs(book map[float64][]*AuctionOrderIDPair, clearingPrice float64) (orderExecs []*OrderExecution, settlementExecs []*SettlementExecution, err error) {
 
 	var resOrderExec *OrderExecution
-	var resSetExec *SettlementExecution
+	var resSetExec []*SettlementExecution
 	// go through all orders and figure out which ones to match
 	for price, orderPairList := range book {
 		for _, orderPair := range orderPairList {
@@ -92,12 +92,13 @@ func GenerateClearingExecs(book map[float64][]*AuctionOrderIDPair, clearingPrice
 				// Um so this is needed because of some weird memory issue TODO: remove this fix
 				// and put in another fix if you understand pointer black magic
 				resOrderExec = new(OrderExecution)
-				resSetExec = new(SettlementExecution)
-				if *resOrderExec, *resSetExec, err = orderPair.Order.GenerateOrderFill(orderPair.OrderID[:], clearingPrice); err != nil {
+				resSetExec = []*SettlementExecution{}
+				if *resOrderExec, resSetExec, err = orderPair.Order.GenerateOrderFill(orderPair.OrderID[:], clearingPrice); err != nil {
 					err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
 					return
 				}
 				orderExecs = append(orderExecs, resOrderExec)
+				settlementExecs = append(settlementExecs, resSetExec...)
 			}
 		}
 	}
