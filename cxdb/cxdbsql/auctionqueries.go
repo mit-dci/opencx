@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
@@ -47,55 +45,6 @@ func (db *DB) PlaceAuctionPuzzle(encryptedOrder *match.EncryptedAuctionOrder) (e
 		err = fmt.Errorf("Error adding auction puzzle to puzzle orders: %s", err)
 		return
 	}
-
-	return
-}
-
-// PlaceAuctionOrder places an order in the unencrypted datastore. This assumes that the order is valid.
-func (db *DB) PlaceAuctionOrder(order *match.AuctionOrder) (err error) {
-
-	var tx *sql.Tx
-	if tx, err = db.DBHandler.Begin(); err != nil {
-		err = fmt.Errorf("Error when beginning transaction for NewAuction: %s", err)
-		return
-	}
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			err = fmt.Errorf("Error while creating new auction: \n%s", err)
-			return
-		}
-		err = tx.Commit()
-		return
-	}()
-
-	if _, err = tx.Exec("USE " + db.auctionSchema + ";"); err != nil {
-		err = fmt.Errorf("Error while placing solved auction order: %s", err)
-		return
-	}
-
-	logging.Infof("Placing order %s!", order)
-
-	// calculate price
-	var price float64
-	if price, err = order.Price(); err != nil {
-		err = fmt.Errorf("Error getting price from order while placing order: %s", err)
-		return
-	}
-
-	// hash order so we can use that as a primary key
-	sha := sha3.New256()
-	sha.Write(order.SerializeSignable())
-	hashedOrder := sha.Sum(nil)
-
-	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", &order.TradingPair, order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
-	if _, err = tx.Exec(insertOrderQuery); err != nil {
-		err = fmt.Errorf("Error getting orders from db for placeauctionorder: %s", err)
-		return
-	}
-
-	logging.Infof("Placed order with id %x!", hashedOrder)
 
 	return
 }
@@ -307,47 +256,6 @@ func (db *DB) NewAuction(auctionID [32]byte) (height uint64, err error) {
 
 	return
 }
-
-// MatchAuction calculates a single clearing price to execute orders at, and executes at that price.
-// TODO: remove "height" from the return
-// func (db *DB) MatchAuction(auctionID [32]byte) (height uint64, err error) {
-
-// 	var tx *sql.Tx
-// 	if tx, err = db.DBHandler.Begin(); err != nil {
-// 		err = fmt.Errorf("Error when beginning transaction for MatchAuction: %s", err)
-// 		return
-// 	}
-
-// 	defer func() {
-// 		if err != nil {
-// 			tx.Rollback()
-// 			err = fmt.Errorf("Error while matching auction: \n%s", err)
-// 			return
-// 		}
-// 		err = tx.Commit()
-// 	}()
-
-// 	// Do this for every pair we have
-
-// 	// Run the matching algorithm for every pair in the orderbook
-// 	for _, pair := range db.pairsArray {
-// 		var orderExecs []*match.OrderExecution
-// 		var settlementExecs []*match.SettlementExecution
-// 		if orderExecs, settlementExecs, err = db.clearingMatchingAlgorithmTx(auctionID, pair, tx); err != nil {
-// 			err = fmt.Errorf("Error running clearing matching algorithm for pair %s: %s", pair, err)
-// 			return
-// 		}
-// 		// now process all of these matches based on the matching algorithm
-// 		for _, exec := range execs {
-// 			if err = db.ProcessExecution(exec, pair, tx); err != nil {
-// 				err = fmt.Errorf("Error processing a single execution for clearing matching algorithm: %s", err)
-// 				return
-// 			}
-// 		}
-// 	}
-
-// 	return
-// }
 
 // ProcessOrderExecution handles either deleting or updating a single order that has been executed, depending on whether or not
 // it has been filled. It returns a pubkey for the order, and an error. We return a pubkey because that's usually how settlement
