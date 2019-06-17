@@ -7,8 +7,6 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
-	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
@@ -429,37 +427,6 @@ func (db *DB) ProcessOrderExecution(exec *match.OrderExecution, pair *match.Pair
 		}
 	}
 	// TODO
-	return
-}
-
-// TODO: this part gets removed in the future, done somewhere else. There should be a settlement engine aside from the matching
-// engine. Also TODO: Lock funds while in orders and do "swaps" afterwards, crediting as well as debiting when an order is matched.
-// ProcessExecutionSettlement processes the settlement part of an order execution. For example, this changes values in a database.
-func (db *DB) ProcessExecutionSettlement(exec *match.OrderExecution, orderPubkeyBytes []byte, tx *sql.Tx) (err error) {
-	// use the balance schema because we're ending with balance transactions
-	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
-		err = fmt.Errorf("Error using balance schema to process exec settlement: %s", err)
-		return
-	}
-
-	// Do a bunch of parsing and grabbing pubkeys and coinparams and stuff
-	var orderPubkey *koblitz.PublicKey
-	if orderPubkey, err = koblitz.ParsePubKey(orderPubkeyBytes, koblitz.S256()); err != nil {
-		err = fmt.Errorf("Error parsing pubkeybytes for process execution settlement: %s", err)
-		return
-	}
-
-	var execCoinType *coinparam.Params
-	if execCoinType, err = exec.Debited.Asset.CoinParamFromAsset(); err != nil {
-		err = fmt.Errorf("Error getting coin param from debited asset while processing exec settlement: %s", err)
-		return
-	}
-
-	// Debit the pubkey associated with the order with the amount that it executed for
-	if err = db.AddToBalanceWithinTransaction(orderPubkey, exec.Debited.Amount, tx, execCoinType); err != nil {
-		err = fmt.Errorf("Error adding to buyorder pubkey balance for fill: %s", err)
-		return
-	}
 	return
 }
 
