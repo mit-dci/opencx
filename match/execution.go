@@ -1,7 +1,6 @@
 package match
 
 import (
-	"bytes"
 	"encoding/json"
 )
 
@@ -66,10 +65,10 @@ less than you originally requested for the same value you provided.
 The good thing is, order executions do not depend on the type of order.
 */
 type OrderExecution struct {
-	OrderID       []byte `json:"orderid"`
-	NewAmountWant uint64 `json:"newamtwant"`
-	NewAmountHave uint64 `json:"newamthave"`
-	Filled        bool   `json:"filled"`
+	OrderID       OrderID `json:"orderid"`
+	NewAmountWant uint64  `json:"newamtwant"`
+	NewAmountHave uint64  `json:"newamthave"`
+	Filled        bool    `json:"filled"`
 }
 
 // String returns a json representation of the OrderExecution
@@ -81,7 +80,7 @@ func (oe *OrderExecution) String() string {
 
 // Equal compares one OrderExecution with another OrderExecution and returns true if all of the fields are the same.
 func (oe *OrderExecution) Equal(otherExec *OrderExecution) bool {
-	if !bytes.Equal(oe.OrderID, otherExec.OrderID) {
+	if oe.OrderID != otherExec.OrderID {
 		return false
 	}
 	if oe.NewAmountWant != otherExec.NewAmountWant {

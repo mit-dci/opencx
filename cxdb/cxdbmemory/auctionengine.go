@@ -116,6 +116,7 @@ func (me *MemoryAuctionEngine) CancelAuctionOrder(id *match.OrderID) (cancelled 
 	cancelled = &match.CancelledOrder{
 		OrderID: id,
 	}
+
 	cancelSettlement = &match.SettlementExecution{
 		Pubkey: deletedOrder.Order.Pubkey,
 		Amount: deletedOrder.Order.AmountHave,

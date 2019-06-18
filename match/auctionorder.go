@@ -82,7 +82,7 @@ func (a *AuctionOrder) Price() (price float64, err error) {
 // This does not assume anything about the price of the order, as we can't infer what price the order was
 // placed at.
 // TODO: Figure out whether or not these should be pointers
-func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (orderExec OrderExecution, setExecs []*SettlementExecution, err error) {
+func (a *AuctionOrder) GenerateOrderFill(orderID *OrderID, execPrice float64) (orderExec OrderExecution, setExecs []*SettlementExecution, err error) {
 
 	if a.AmountHave == 0 {
 		err = fmt.Errorf("Error generating order fill: empty order, the AmountHave cannot be 0")
@@ -116,7 +116,7 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (ord
 	// bytes. This was a really annoying issue to debug
 	// Finally generate execution
 	orderExec = OrderExecution{
-		OrderID:       make([]byte, len(orderID)),
+		OrderID:       *orderID,
 		NewAmountWant: 0,
 		NewAmountHave: 0,
 		Filled:        true,
@@ -137,8 +137,6 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (ord
 
 	setExecs = append(setExecs, &debitSetExec)
 	setExecs = append(setExecs, &creditSetExec)
-
-	copy(orderExec.OrderID, orderID)
 	return
 }
 
@@ -148,7 +146,7 @@ func (a *AuctionOrder) GenerateOrderFill(orderID []byte, execPrice float64) (ord
 // in as a parameter. The order ID will be filled in, as it's being passed as a parameter.
 // This returns a fillRemainder, which is the amount that is left over from amountToFill after
 // filling orderID at execPrice and amountToFill
-func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice float64, amountToFill uint64) (orderExec OrderExecution, setExecs []*SettlementExecution, fillRemainder uint64, err error) {
+func (a *AuctionOrder) GenerateExecutionFromPrice(orderID *OrderID, execPrice float64, amountToFill uint64) (orderExec OrderExecution, setExecs []*SettlementExecution, fillRemainder uint64, err error) {
 	// If it's a buy side, AmountWant is assetWant, and AmountHave is assetHave - but price is something different, price is want/have.
 	// So to convert from amountWant (amountToFill) to amountHave we need to multiple amountToFill by 1/execPrice
 	var amountWantToFill uint64
@@ -180,7 +178,7 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 	} else {
 		// TODO: Check if this len(orderID) as size is correct
 		orderExec = OrderExecution{
-			OrderID:       make([]byte, len(orderID)),
+			OrderID:       *orderID,
 			NewAmountWant: a.AmountWant - amountToFill,
 			NewAmountHave: a.AmountHave - amountWantToFill,
 			Filled:        false,
@@ -202,7 +200,6 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID []byte, execPrice floa
 
 		setExecs = append(setExecs, &debitSetExec)
 		setExecs = append(setExecs, &creditSetExec)
-		copy(orderExec.OrderID, orderID)
 	}
 
 	return
