@@ -73,7 +73,7 @@ func (me *MemoryAuctionEngine) PlaceOrder(order *match.AuctionOrder, auctionID *
 
 // CancelOrder should cancel an order for a specific order ID, and produce a response output.
 // This response output should be used in case the matching engine dies, and this can be replayed to build the state.
-func (me *MemoryAuctionEngine) CancelOrder(id *match.OrderID) (cancelled *match.CancelledOrder, err error) {
+func (me *MemoryAuctionEngine) CancelOrder(id *match.OrderID) (cancelled *match.CancelledOrder, cancelSettlement *match.SettlementExecution, err error) {
 	// TODO
 	return
 }
