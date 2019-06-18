@@ -68,7 +68,6 @@ func (me *MemoryAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auct
 	me.orders[idCopy][pr] = append(me.orders[idCopy][pr], idRes)
 
 	me.auctionMtx.Unlock()
-	// TODO
 	return
 }
 
