@@ -14,7 +14,7 @@ import (
 type SQLAuctionEngine struct {
 	DBHandler *sql.DB
 
-	// db username
+	// db username and password
 	dbUsername string
 	dbPassword string
 
@@ -28,6 +28,7 @@ type SQLAuctionEngine struct {
 	pair *match.Pair
 }
 
+// The schema for the auction orderbook
 const (
 	auctionEngineSchema = "pubkey VARBINARY(66), side TEXT, price DOUBLE(30, 2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), sig BLOB, hashedOrder VARBINARY(64), PRIMARY KEY (hashedOrder)"
 )
@@ -79,6 +80,20 @@ func CreateAuctionEngine(pair *match.Pair) (engine match.AuctionEngine, err erro
 // PlaceAuctionOrder places an order in the unencrypted datastore. This assumes that the order is valid.
 func (ae *SQLAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auctionID *match.AuctionID) (idRes *match.AuctionOrderIDPair, err error) {
 
+	// Do these two things beforehand so we don't have to rollback any tx's
+
+	// calculate price
+	var price float64
+	if price, err = order.Price(); err != nil {
+		err = fmt.Errorf("Error getting price from order while placing order: %s", err)
+		return
+	}
+
+	// hash order so we can use that as a primary key
+	sha := sha3.New256()
+	sha.Write(order.SerializeSignable())
+	hashedOrder := sha.Sum(nil)
+
 	var tx *sql.Tx
 	if tx, err = ae.DBHandler.Begin(); err != nil {
 		err = fmt.Errorf("Error when beginning transaction for PlaceAuctionOrder: %s", err)
@@ -102,25 +117,19 @@ func (ae *SQLAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auction
 
 	logging.Infof("Placing order %s!", order)
 
-	// calculate price
-	var price float64
-	if price, err = order.Price(); err != nil {
-		err = fmt.Errorf("Error getting price from order while placing order: %s", err)
-		return
-	}
-
-	// hash order so we can use that as a primary key
-	sha := sha3.New256()
-	sha.Write(order.SerializeSignable())
-	hashedOrder := sha.Sum(nil)
-
-	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", &order.TradingPair, order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
+	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", ae.pair.String(), order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
 	if _, err = tx.Exec(insertOrderQuery); err != nil {
-		err = fmt.Errorf("Error getting orders from db for placeauctionorder: %s", err)
+		err = fmt.Errorf("Error placing order into db for placeauctionorder: %s", err)
 		return
 	}
 
 	logging.Infof("Placed order with id %x!", hashedOrder)
+
+	// Finally, set the auction order / id pair
+	idRes = &match.AuctionOrderIDPair{
+		Order: order,
+	}
+	copy(idRes.OrderID[:], hashedOrder)
 
 	return
 }
@@ -148,8 +157,6 @@ func (ae *SQLAuctionEngine) CancelAuctionOrder(orderID *match.OrderID) (cancelle
 		err = fmt.Errorf("Error while cancelling auction order: %s", err)
 		return
 	}
-
-	// ===
 
 	var rows *sql.Rows
 	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, amountHave FROM %s WHERE hashedOrder = '%x';", ae.pair, orderID)
@@ -184,9 +191,7 @@ func (ae *SQLAuctionEngine) CancelAuctionOrder(orderID *match.OrderID) (cancelle
 
 	}
 
-	// ===
-
-	deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%s';", ae.pair.String(), orderID)
+	deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE hashedOrder = '%x';", ae.pair.String(), orderID)
 	if _, err = tx.Exec(deleteOrderQuery); err != nil {
 		err = fmt.Errorf("Error deleting order for cancel auction order: %s", err)
 		return
