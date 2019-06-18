@@ -7,7 +7,7 @@ import (
 
 // AuctionOrderIDPair is a pair of order ID and auction order, used for generating executions in the auction matching algorithm
 type AuctionOrderIDPair struct {
-	OrderID [32]byte
+	OrderID OrderID
 	Order   *AuctionOrder
 }
 
@@ -93,7 +93,7 @@ func GenerateClearingExecs(book map[float64][]*AuctionOrderIDPair, clearingPrice
 				// and put in another fix if you understand pointer black magic
 				resOrderExec = new(OrderExecution)
 				resSetExec = []*SettlementExecution{}
-				if *resOrderExec, resSetExec, err = orderPair.Order.GenerateOrderFill(orderPair.OrderID[:], clearingPrice); err != nil {
+				if *resOrderExec, resSetExec, err = orderPair.Order.GenerateOrderFill(&orderPair.OrderID, clearingPrice); err != nil {
 					err = fmt.Errorf("Error generating execution from clearing price for buy: %s", err)
 					return
 				}

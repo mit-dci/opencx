@@ -25,8 +25,46 @@ func MatchPTPAlgorithm(book map[float64][]*LimitOrderIDPair) (orderExecs []*Orde
 	return
 }
 
-// MatchPrioritizedOrders matches separated buy and sell orders that are properly sorted in price-time priority
+// MatchPrioritizedOrders matches separated buy and sell orders that are properly sorted in price-time priority.
+// These are the orders that should match.
 func MatchPrioritizedOrders(buyOrders []*LimitOrderIDPair, sellOrders []*LimitOrderIDPair) (orderExecs []*OrderExecution, settlementExecs []*SettlementExecution, err error) {
+	// Lists should be in priority order starting at 0
+	var currBuyOrderExec *OrderExecution
+	var currSellOrderExec *OrderExecution
+	var currBuySetExec *SettlementExecution
+	var currSellSetExec *SettlementExecution
+	for len(buyOrders) > 0 && len(sellOrders) > 0 && buyOrders[0].Price <= sellOrders[0].Price {
+		currBuy := buyOrders[0]
+		currSell := sellOrders[0]
+
+		// If the order ID is different then we're done with this order execution
+		if currBuyOrderExec.OrderID != *currBuy.OrderID {
+			orderExecs = append(orderExecs, currBuyOrderExec)
+			currBuyOrderExec = new(OrderExecution)
+		}
+		if currSellOrderExec.OrderID != *currSell.OrderID {
+			orderExecs = append(orderExecs, currSellOrderExec)
+			currSellOrderExec = new(OrderExecution)
+		}
+
+		// If the order pubkey is different then we're done with this settlement execution
+		if currBuySetExec.Pubkey != currBuy.Order.Pubkey {
+			settlementExecs = append(settlementExecs, currBuySetExec)
+			currBuySetExec = new(SettlementExecution)
+		}
+		if currSellSetExec.Pubkey != currSell.Order.Pubkey {
+			settlementExecs = append(settlementExecs, currSellSetExec)
+			currSellSetExec = new(SettlementExecution)
+		}
+
+		// If sell was first, use that price
+		if currBuy.Timestamp.UnixNano() > currSell.Timestamp.UnixNano() {
+			// otherwise use the buy price
+		} else {
+
+		}
+
+	}
 	logging.Fatalf("UNIMPLEMENTED!!!")
 	return
 }
