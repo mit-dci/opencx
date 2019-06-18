@@ -12,12 +12,13 @@ import (
 type MemoryAuctionEngine struct {
 	orders     map[match.AuctionID]map[float64][]*match.AuctionOrderIDPair
 	auctionMtx *sync.Mutex
+	pair       *match.Pair
 }
 
-// PlaceOrder should place an order for a specific auction ID, and produce a response output.
+// PlaceAuctionOrder should place an order for a specific auction ID, and produce a response output.
 // This response output should be used in case the matching engine dies, and this can be replayed to build the state.
 // This method assumes that the auction order is valid, and has the same pair as all of the other orders that have been placed for this matching engine.
-func (me *MemoryAuctionEngine) PlaceOrder(order *match.AuctionOrder, auctionID *match.AuctionID) (idRes *match.AuctionOrderIDPair, err error) {
+func (me *MemoryAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auctionID *match.AuctionID) (idRes *match.AuctionOrderIDPair, err error) {
 	me.auctionMtx.Lock()
 
 	idCopy := *auctionID
@@ -71,14 +72,62 @@ func (me *MemoryAuctionEngine) PlaceOrder(order *match.AuctionOrder, auctionID *
 	return
 }
 
-// CancelOrder should cancel an order for a specific order ID, and produce a response output.
+// CancelAuctionOrder should cancel an order for a specific order ID, and produce a response output.
 // This response output should be used in case the matching engine dies, and this can be replayed to build the state.
-func (me *MemoryAuctionEngine) CancelOrder(id *match.OrderID) (cancelled *match.CancelledOrder, cancelSettlement *match.SettlementExecution, err error) {
-	// TODO
+func (me *MemoryAuctionEngine) CancelAuctionOrder(id *match.OrderID) (cancelled *match.CancelledOrder, cancelSettlement *match.SettlementExecution, err error) {
+	me.auctionMtx.Lock()
+	// Go through the maps and, since we don't have an order ID => order index just delete em all
+	var deletedOrder *match.AuctionOrderIDPair
+	for _, orderMap := range me.orders {
+		for pr, orderIDPairList := range orderMap {
+			var deletedIdx int
+			var deleted bool
+			for idx, orderIDPair := range orderIDPairList {
+				if orderIDPair.OrderID == *id {
+					deletedOrder = orderIDPair
+					deleted = true
+					deletedIdx = idx
+				}
+			}
+
+			// If deleted remove from thing
+			if deleted {
+				oidLen := len(orderIDPairList)
+				orderIDPairList[oidLen-1], orderIDPairList[deletedIdx] = orderIDPairList[deletedIdx], orderIDPairList[oidLen-1]
+				orderMap[pr] = orderIDPairList[:oidLen-1]
+			}
+		}
+	}
+	// Get side from string rip
+	var orderSide *match.Side
+	orderSide = new(match.Side)
+	if err = orderSide.FromString(deletedOrder.Order.Side); err != nil {
+		err = fmt.Errorf("Error getting order side from string for CancelOrder: %s", err)
+		me.auctionMtx.Unlock()
+		return
+	}
+
+	var debitAsset match.Asset
+	if *orderSide == match.Buy {
+		debitAsset = me.pair.AssetHave
+	} else {
+		debitAsset = me.pair.AssetWant
+	}
+	cancelled = &match.CancelledOrder{
+		OrderID: id,
+	}
+	cancelSettlement = &match.SettlementExecution{
+		Pubkey: deletedOrder.Order.Pubkey,
+		Amount: deletedOrder.Order.AmountHave,
+		Asset:  debitAsset,
+		Type:   match.Debit,
+	}
+	me.auctionMtx.Unlock()
 	return
 }
 
-func (me *MemoryAuctionEngine) MatchOrders(auctionID *match.AuctionID) (orderExecs []*match.OrderExecution, settlementExecs []*match.SettlementExecution, err error) {
+// MatchAuctionOrders matches the auction orders for a specific auction ID
+func (me *MemoryAuctionEngine) MatchAuctionOrders(auctionID *match.AuctionID) (orderExecs []*match.OrderExecution, settlementExecs []*match.SettlementExecution, err error) {
 	// TODO
 	return
 }
