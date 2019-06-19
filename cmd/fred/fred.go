@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -15,7 +16,6 @@ import (
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxauctionserver"
 	"github.com/mit-dci/opencx/cxdb"
-	"github.com/mit-dci/opencx/cxdb/cxdbmemory"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
@@ -140,12 +140,12 @@ func main() {
 
 	// Create in memory matching engine
 	var mengines map[match.Pair]match.AuctionEngine
-	if mengines, err = cxdbsql.CreateAuctionEngineMap(coinList); err != nil {
+	if mengines, err = cxdbsql.CreateAuctionEngineMap(pairList); err != nil {
 		logging.Fatalf("Error creating auction engines for pairs: %s", err)
 	}
 
 	var setEngines map[*coinparam.Params]match.SettlementEngine
-	if setEngines, err = cxdbsql.CreateSettlementEngineMap(pairList); err != nil {
+	if setEngines, err = cxdbsql.CreateSettlementEngineMap(coinList); err != nil {
 		logging.Fatalf("Error creating settlement engine map: %s", err)
 	}
 

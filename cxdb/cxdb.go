@@ -29,7 +29,7 @@ type PuzzleStore interface {
 	// ViewAuctionPuzzleBook takes in an auction ID, and returns encrypted auction orders, and puzzles.
 	// You don't know what auction IDs should be in the orders encrypted in the puzzle book, but this is
 	// what was submitted.
-	ViewAuctionPuzzleBook([32]byte) ([]*match.EncryptedAuctionOrder, error)
+	ViewAuctionPuzzleBook(auctionID *match.AuctionID) (puzzles []*match.EncryptedAuctionOrder, err error)
 	// PlaceAuctionPuzzle puts an encrypted auction order in the datastore.
-	PlaceAuctionPuzzle(*match.EncryptedAuctionOrder) error
+	PlaceAuctionPuzzle(puzzledOrder *match.EncryptedAuctionOrder) (err error)
 }

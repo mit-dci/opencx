@@ -38,7 +38,8 @@ type AuctionOrderbook interface {
 	// GetOrder gets an order from an OrderID
 	GetOrder(orderID *OrderID) (limOrder *AuctionOrderIDPair, err error)
 	// CalculatePrice takes in a pair and returns the calculated price based on the orderbook.
-	CalculatePrice() (price float64, err error)
+	// This only works for a specific auction
+	CalculatePrice(auctionID *AuctionID) (price float64, err error)
 	// GetOrdersForPubkey gets orders for a specific pubkey.
 	GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders map[float64][]*AuctionOrderIDPair, err error)
 	// ViewAuctionOrderBook takes in a trading pair and returns the orderbook as a map

@@ -118,7 +118,7 @@ func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.Settlemen
 	var newBal uint64
 	if setExec.Type == match.Debit {
 		newBal = curBal + setExec.Amount
-	} else if setExec.Type == Credit {
+	} else if setExec.Type == match.Credit {
 		newBal = curBal - setExec.Amount
 	}
 	newBalQuery := fmt.Sprintf("REPLACE INTO %s balance VALUES (%d);", setExec.Asset, newBal)
