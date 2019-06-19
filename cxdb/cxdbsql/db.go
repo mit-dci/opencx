@@ -30,6 +30,8 @@ type dbsqlConfig struct {
 	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
 
 	// database schema names
+	ReadOnlyOrderSchemaName   string `long:"readonlyorderschema" description:"Name of read-only orderbook schema"`
+	ReadOnlyAuctionSchemaName string `long:"readonlyauctionschema" description:"Name of read-only auction schema"`
 	ReadOnlyBalanceSchemaName string `long:"readonlybalanceschema" description:"Name of read-only balance schema"`
 	BalanceSchemaName         string `long:"balanceschema" description:"Name of balance schema"`
 	DepositSchemaName         string `long:"depositschema" description:"Name of deposit schema"`
@@ -57,6 +59,8 @@ var (
 	defaultDBPass         = "testpass"
 
 	// definitely move this to a config file
+	defaultReadOnlyOrderSchema   = "orders_readonly"
+	defaultReadOnlyAuctionSchema = "auctionorders_readonly"
 	defaultReadOnlyBalanceSchema = "balances_readonly"
 	defaultBalanceSchema         = "balances"
 	defaultDepositSchema         = "deposit"
@@ -84,6 +88,8 @@ var (
 		DBPort:     defaultDBPort,
 
 		// schemas
+		ReadOnlyAuctionSchemaName: defaultReadOnlyAuctionSchema,
+		ReadOnlyOrderSchemaName:   defaultReadOnlyOrderSchema,
 		ReadOnlyBalanceSchemaName: defaultReadOnlyBalanceSchema,
 		BalanceSchemaName:         defaultBalanceSchema,
 		DepositSchemaName:         defaultDepositSchema,

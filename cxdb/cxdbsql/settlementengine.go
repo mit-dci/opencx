@@ -30,8 +30,8 @@ const (
 	settlementEngineSchema = "pubkey VARBINARY(66), balance BIGINT(64), PRIMARY KEY (pubkey)"
 )
 
-// CreateSQLSettlementEngine creates a settlement engine for a specific coin
-func CreateSQLSettlementEngine(coin *coinparam.Params) (engine match.SettlementEngine, err error) {
+// CreateSettlementEngine creates a settlement engine for a specific coin
+func CreateSettlementEngine(coin *coinparam.Params) (engine match.SettlementEngine, err error) {
 
 	conf := new(dbsqlConfig)
 	*conf = *defaultConf
@@ -231,5 +231,21 @@ func (se *SQLSettlementEngine) setupSettlementTables() (err error) {
 		err = fmt.Errorf("Error creating settlement table: %s", err)
 		return
 	}
+	return
+}
+
+// CreateSettlementEngineMap creates a map of coin to settlement engine, given a list of coins.
+func CreateSettlementEngineMap(coins []*coinparam.Params) (setMap map[*coinparam.Params]match.SettlementEngine, err error) {
+
+	setMap = make(map[*coinparam.Params]match.SettlementEngine)
+	var curSetEng match.SettlementEngine
+	for _, coin := range coins {
+		if curSetEng, err = CreateSettlementEngine(coin); err != nil {
+			err = fmt.Errorf("Error creating single settlement engine while creating settlement engine map: %s", err)
+			return
+		}
+		setMap[coin] = curSetEng
+	}
+
 	return
 }

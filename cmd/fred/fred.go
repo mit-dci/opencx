@@ -117,6 +117,11 @@ func main() {
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
 
+	var pairList []*match.Pair
+	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
+		logging.Fatalf("Could not generate asset pairs from coin list: %s", err)
+	}
+
 	// // init db
 	// var db *cxdbsql.DB
 	// db = new(cxdbsql.DB)
@@ -128,15 +133,19 @@ func main() {
 
 	// Create in memory matching engine
 	var mengines map[match.Pair]match.AuctionEngine
-	if mengines, err = cxdbmemory.CreateAuctionEngineMap(coinList); err != nil {
+	if mengines, err = cxdbsql.CreateAuctionEngineMap(coinList); err != nil {
 		logging.Fatalf("Error creating auction engines for pairs: %s", err)
 	}
 
 	var setEngines map[*coinparam.Params]match.SettlementEngine
-	// TODO
+	if setEngines, err = cxdbsql.CreateSettlementEngineMap(pairList); err != nil {
+		logging.Fatalf("Error creating settlement engine map: %s", err)
+	}
 
 	var auctionBooks map[*coinparam.Params]match.AuctionOrderbook
-	// TODO
+	if auctionBooks, err = cxdbsql.CreateAuctionOrderbookMap(pairList); err != nil {
+		logging.Fatalf("Error creating auction orderbook map: %s", err)
+	}
 
 	var pzEngine cxdb.PuzzleStore
 	pzEngine = new(cxdbsql.DB)
