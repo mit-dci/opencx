@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// SQLAuctionEngine is the representation of a matching engine for SQL
 type SQLAuctionEngine struct {
 	DBHandler *sql.DB
 
@@ -33,6 +34,7 @@ const (
 	auctionEngineSchema = "pubkey VARBINARY(66), side TEXT, price DOUBLE(30, 2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), sig BLOB, hashedOrder VARBINARY(64), PRIMARY KEY (hashedOrder)"
 )
 
+// CreateAuctionEngine creates a SQL Auction Engine as an auction matching engine
 func CreateAuctionEngine(pair *match.Pair) (engine match.AuctionEngine, err error) {
 
 	conf := new(dbsqlConfig)
@@ -72,6 +74,61 @@ func CreateAuctionEngine(pair *match.Pair) (engine match.AuctionEngine, err erro
 	// Make sure we can actually connect
 	if err = ae.DBHandler.Ping(); err != nil {
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+	return
+}
+
+// setupAuctionOrderbookTables sets up the tables needed for the auction orderbook.
+// This assumes the schema name is set
+func (ae *SQLAuctionEngine) setupAuctionOrderbookTables() (err error) {
+
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", ae.dbUsername, ae.dbPassword, ae.dbAddr.Network(), ae.dbAddr.String())
+	var rootHandler *sql.DB
+	if rootHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening database for setup auction tables: %s", err)
+		return
+	}
+
+	// when we're done close please
+	defer rootHandler.Close()
+
+	if err = rootHandler.Ping(); err != nil {
+		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+
+	// We do this in a transaction because it's more than one operation
+	var tx *sql.Tx
+	if tx, err = rootHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for setup auction tables: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while matching setup auction tables: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// Now create the schema
+	if _, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS " + ae.auctionOrderSchema + ";"); err != nil {
+		err = fmt.Errorf("Error creating schema for setup auction order tables: %s", err)
+		return
+	}
+
+	// use the schema
+	if _, err = tx.Exec("USE " + ae.auctionOrderSchema + ";"); err != nil {
+		err = fmt.Errorf("Could not use %s schema: %s", ae.auctionOrderSchema, err)
+		return
+	}
+
+	createTableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", ae.pair.String(), auctionEngineSchema)
+	if _, err = tx.Exec(createTableQuery); err != nil {
+		err = fmt.Errorf("Error creating auction orderbook table: %s", err)
 		return
 	}
 	return
@@ -128,6 +185,7 @@ func (ae *SQLAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auction
 	// Finally, set the auction order / id pair
 	idRes = &match.AuctionOrderIDPair{
 		Order: order,
+		Price: price,
 	}
 	copy(idRes.OrderID[:], hashedOrder)
 
@@ -261,61 +319,6 @@ func (ae *SQLAuctionEngine) MatchAuctionOrders(auctionID *match.AuctionID) (orde
 	return
 }
 
-// setupAuctionOrderbookTables sets up the tables needed for the auction orderbook.
-// This assumes the schema name is set
-func (ae *SQLAuctionEngine) setupAuctionOrderbookTables() (err error) {
-
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", ae.dbUsername, ae.dbPassword, ae.dbAddr.Network(), ae.dbAddr.String())
-	var rootHandler *sql.DB
-	if rootHandler, err = sql.Open("mysql", openString); err != nil {
-		err = fmt.Errorf("Error opening database for setup auction tables: %s", err)
-		return
-	}
-
-	// when we're done close please
-	defer rootHandler.Close()
-
-	if err = rootHandler.Ping(); err != nil {
-		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
-		return
-	}
-
-	// We do this in a transaction because it's more than one operation
-	var tx *sql.Tx
-	if tx, err = rootHandler.Begin(); err != nil {
-		err = fmt.Errorf("Error when beginning transaction for setup auction tables: %s", err)
-		return
-	}
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			err = fmt.Errorf("Error while matching setup auction tables: \n%s", err)
-			return
-		}
-		err = tx.Commit()
-	}()
-
-	// Now create the schema
-	if _, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS " + ae.auctionOrderSchema + ";"); err != nil {
-		err = fmt.Errorf("Error creating schema for setup auction order tables: %s", err)
-		return
-	}
-
-	// use the schema
-	if _, err = tx.Exec("USE " + ae.auctionOrderSchema + ";"); err != nil {
-		err = fmt.Errorf("Could not use %s schema: %s", ae.auctionOrderSchema, err)
-		return
-	}
-
-	createTableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", ae.pair.String(), auctionEngineSchema)
-	if _, err = tx.Exec(createTableQuery); err != nil {
-		err = fmt.Errorf("Error creating auction orderbook table: %s", err)
-		return
-	}
-	return
-}
-
 // getOrdersTx gets all of the orders for the auction ID
 func (ae *SQLAuctionEngine) getOrdersTx(auctionID *match.AuctionID, tx *sql.Tx) (orderbook map[float64][]*match.AuctionOrderIDPair, err error) {
 
@@ -378,9 +381,9 @@ func (ae *SQLAuctionEngine) getOrdersTx(auctionID *match.AuctionID, tx *sql.Tx) 
 		copy(thisOrder.Nonce[:], nonceBytes)
 		thisOrder.TradingPair = *ae.pair
 		copy(thisOrderPair.OrderID[:], hashedOrderBytes)
-
-		orderbook[thisPrice] = append(orderbook[thisPrice], thisOrderPair)
 		thisOrderPair.Order = thisOrder
+		thisOrderPair.Price = thisPrice
+		orderbook[thisPrice] = append(orderbook[thisPrice], thisOrderPair)
 
 	}
 
@@ -434,5 +437,21 @@ func (ae *SQLAuctionEngine) processExecutionsTx(execs []*match.OrderExecution, t
 			}
 		}
 	}
+	return
+}
+
+// CreateAuctionEngineMap creates a map of pair to auction engine, given a list of pairs.
+func CreateAuctionEngineMap(pairList []*match.Pair) (aucMap map[match.Pair]match.AuctionEngine, err error) {
+
+	aucMap = make(map[match.Pair]match.AuctionEngine)
+	var curAucEng match.AuctionEngine
+	for _, pair := range pairList {
+		if curAucEng, err = CreateAuctionEngine(pair); err != nil {
+			err = fmt.Errorf("Error creating single auction engine while creating auction engine map: %s", err)
+			return
+		}
+		aucMap[*pair] = curAucEng
+	}
+
 	return
 }
