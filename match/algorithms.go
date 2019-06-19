@@ -8,6 +8,7 @@ import (
 // AuctionOrderIDPair is a pair of order ID and auction order, used for generating executions in the auction matching algorithm
 type AuctionOrderIDPair struct {
 	OrderID OrderID
+	Price   float64
 	Order   *AuctionOrder
 }
 

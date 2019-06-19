@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// SQLLimitEngine is a struct that represents a limit matching engine with SQL as a db backend
 type SQLLimitEngine struct {
 	DBHandler *sql.DB
 
@@ -34,6 +35,7 @@ const (
 	sqlTimeFormat     = "1000-01-01 00:00:00"
 )
 
+// CreateLimitEngine creates a limit matching engine that operates using SQL as a database
 func CreateLimitEngine(pair *match.Pair) (engine match.LimitEngine, err error) {
 
 	conf := new(dbsqlConfig)
@@ -183,6 +185,7 @@ func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match
 	// Finally, set the auction order / id pair
 	idRes = &match.LimitOrderIDPair{
 		Order:     order,
+		Price:     price,
 		Timestamp: placementTime,
 	}
 	copy(idRes.OrderID[:], hashedOrder)
@@ -444,50 +447,21 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 		}
 	}
 
-	// // loop through them both and make sure there are elements in both otherwise we're good
-	// for len(buyOrders) > 0 && len(sellOrders) > 0 {
-	// 	currBuyOrder := buyOrders[0]
-	// 	currSellOrder := sellOrders[0]
+	return
+}
 
-	// 	if currBuyOrder.AmountHave > currSellOrder.AmountWant {
+// CreateLimitEngineMap creates a map of pair to limit engine, given a list of pairs.
+func CreateLimitEngineMap(pairList []*match.Pair) (limMap map[match.Pair]match.LimitEngine, err error) {
 
-	// 		prevAmountHave := currSellOrder.AmountHave
-	// 		prevAmountWant := currSellOrder.AmountWant
-
-	// 		// this partial fulfillment / uint underflow quick fix needs to be looked into. Are we losing any money here?
-	// 		if currBuyOrder.AmountWant < currSellOrder.AmountHave {
-	// 			currBuyOrder.AmountWant = 0
-	// 			logging.Infof("Underflow encountered. Difference in %d satoshis of %s", currSellOrder.AmountHave-currBuyOrder.AmountWant, pair.AssetWant)
-	// 		} else {
-	// 			currBuyOrder.AmountWant -= currSellOrder.AmountHave
-	// 		}
-	// 		currBuyOrder.AmountHave -= currSellOrder.AmountWant
-
-	// 		// logging.Infof("deleted orders")
-	// 		sellOrders = sellOrders[1:]
-	// 	} else if currBuyOrder.AmountHave < currSellOrder.AmountWant {
-
-	// 		prevAmountHave := currBuyOrder.AmountHave
-	// 		prevAmountWant := currBuyOrder.AmountWant
-
-	// 		// this partial fulfillment / uint underflow quick fix needs to be looked into. Are we losing any money here?
-	// 		if currSellOrder.AmountHave < currBuyOrder.AmountWant {
-	// 			currSellOrder.AmountHave = 0
-	// 			logging.Infof("Underflow encountered. Difference in %d satoshis of %s", currBuyOrder.AmountWant-currSellOrder.AmountHave, pair.AssetWant)
-	// 		} else {
-	// 			currSellOrder.AmountHave -= currBuyOrder.AmountWant
-	// 		}
-	// 		currSellOrder.AmountWant -= currBuyOrder.AmountHave
-
-	// 		// logging.Infof("deleted orders")
-	// 		buyOrders = buyOrders[1:]
-	// 	} else if currBuyOrder.AmountHave == currSellOrder.AmountWant {
-
-	// 		// logging.Infof("deleted orders")
-	// 		sellOrders = sellOrders[1:]
-	// 		buyOrders = buyOrders[1:]
-	// 	}
-	// }
+	limMap = make(map[match.Pair]match.LimitEngine)
+	var curLimEng match.LimitEngine
+	for _, pair := range pairList {
+		if curLimEng, err = CreateLimitEngine(pair); err != nil {
+			err = fmt.Errorf("Error creating single limit engine while creating limit engine map: %s", err)
+			return
+		}
+		limMap[*pair] = curLimEng
+	}
 
 	return
 }

@@ -16,11 +16,11 @@ type LimitOrderbook interface {
 	// UpdateBookPlace takes in an order, ID, timestamp, and adds the order to the orderbook.
 	UpdateBookPlace(limitIDPair *LimitOrderIDPair) (err error)
 	// GetOrder gets an order from an OrderID
-	GetOrder(*OrderID) (limOrder *LimitOrderIDPair, err error)
+	GetOrder(orderID *OrderID) (limOrder *LimitOrderIDPair, err error)
 	// CalculatePrice takes in a pair and returns the calculated price based on the orderbook.
 	CalculatePrice() (price float64, err error)
 	// GetOrdersForPubkey gets orders for a specific pubkey.
-	GetOrdersForPubkey(*koblitz.PublicKey) (orders map[float64][]*LimitOrderIDPair, err error)
+	GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders map[float64][]*LimitOrderIDPair, err error)
 	// ViewLimitOrderbook takes in a trading pair and returns the orderbook as a map
 	ViewLimitOrderBook() (book map[float64][]*LimitOrderIDPair, err error)
 }
@@ -36,11 +36,11 @@ type AuctionOrderbook interface {
 	// UpdateBookPlace takes in an order, ID, auction ID and adds the order to the orderbook.
 	UpdateBookPlace(auctionIDPair *AuctionOrderIDPair) (err error)
 	// GetOrder gets an order from an OrderID
-	GetOrder(*OrderID) (limOrder *AuctionOrderIDPair, err error)
+	GetOrder(orderID *OrderID) (limOrder *AuctionOrderIDPair, err error)
 	// CalculatePrice takes in a pair and returns the calculated price based on the orderbook.
 	CalculatePrice() (price float64, err error)
 	// GetOrdersForPubkey gets orders for a specific pubkey.
-	GetOrdersForPubkey(*koblitz.PublicKey) (orders map[float64][]*AuctionOrderIDPair, err error)
+	GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders map[float64][]*AuctionOrderIDPair, err error)
 	// ViewAuctionOrderBook takes in a trading pair and returns the orderbook as a map
 	ViewAuctionOrderBook() (book map[float64][]*AuctionOrderIDPair, err error)
 }
