@@ -16,6 +16,7 @@ type EncryptedAuctionOrder struct {
 	OrderCiphertext []byte
 	OrderPuzzle     crypto.Puzzle
 	IntendedAuction [32]byte
+	IntendedPair    Pair
 }
 
 // SolveRC5AuctionOrderAsync solves order puzzles and creates auction orders from them. This should be run in a goroutine.
@@ -53,6 +54,9 @@ func (e *EncryptedAuctionOrder) Serialize() (raw []byte, err error) {
 	// register the hashtimelock (puzzle and timelock are same thing)
 	gob.Register(new(hashtimelock.HashTimelock))
 
+	// register the pair
+	gob.Register(new(Pair))
+
 	// register the puzzle interface
 	gob.RegisterName("puzzle", new(crypto.Puzzle))
 
@@ -84,6 +88,9 @@ func (e *EncryptedAuctionOrder) Deserialize(raw []byte) (err error) {
 
 	// register the hashtimelock (puzzle and timelock are same thing)
 	gob.Register(new(hashtimelock.HashTimelock))
+
+	// register the pair
+	gob.Register(new(Pair))
 
 	// register the puzzle interface
 	gob.RegisterName("puzzle", new(crypto.Puzzle))

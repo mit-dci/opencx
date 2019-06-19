@@ -8,6 +8,7 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/crypto/rsw"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
+	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
@@ -19,7 +20,17 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 
 	// Placing an auction puzzle is how the exchange will then recall and commit to a set of puzzles.
 	s.dbLock.Lock()
-	if err = s.PuzzleEngine.PlaceAuctionPuzzle(order); err != nil {
+
+	// get the puzzle engine we'll use
+	var pzEngine cxdb.PuzzleStore
+	var ok bool
+	if pzEngine, ok = s.PuzzleEngines[order.IntendedPair]; !ok {
+		err = fmt.Errorf("Could not find puzzle engine for pair %s", order.IntendedPair.String())
+		s.dbLock.Unlock()
+		return
+	}
+
+	if err = pzEngine.PlaceAuctionPuzzle(order); err != nil {
 		s.dbLock.Unlock()
 		err = fmt.Errorf("Error placing puzzled order: \n%s", err)
 		return
@@ -62,22 +73,39 @@ func (s *OpencxAuctionServer) solveOrderIntoResChan(eOrder *match.EncryptedAucti
 
 // CommitOrdersNewAuction commits to a set of decypted orders and changes the auction ID.
 // TODO: figure out how to broadcast these, and where to store them, if we need to store them
-func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
+func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err error) {
 
 	// Lock!
 	s.dbLock.Lock()
 
-	// First get the current auction ID
+	// get the puzzle engine we'll use
+	var pzEngine cxdb.PuzzleStore
+	var ok bool
+	if pzEngine, ok = s.PuzzleEngines[*pair]; !ok {
+		err = fmt.Errorf("Could not find puzzle engine for pair %s", pair.String())
+		s.dbLock.Unlock()
+		return
+	}
+
+	// get the current auction ID
 	var auctionID [32]byte
 	if auctionID, err = s.CurrentAuctionID(); err != nil {
-		s.dbLock.Unlock()
 		err = fmt.Errorf("Eror getting current auction id for commit: %s", err)
+		s.dbLock.Unlock()
+		return
+	}
+
+	var matchAuctionID *match.AuctionID
+	matchAuctionID = new(match.AuctionID)
+	if err = matchAuctionID.UnmarshalBinary(auctionID[:]); err != nil {
+		err = fmt.Errorf("Error unmarshalling auction id for CommitOrdersNewAuction: %s", err)
+		s.dbLock.Unlock()
 		return
 	}
 
 	// Then get the puzzles
 	var puzzles []*match.EncryptedAuctionOrder
-	if puzzles, err = s.PuzzleEngine.ViewAuctionPuzzleBook(auctionID); err != nil {
+	if puzzles, err = pzEngine.ViewAuctionPuzzleBook(matchAuctionID); err != nil {
 		s.dbLock.Unlock()
 		err = fmt.Errorf("Error getting auction puzzle book for commit: %s", err)
 		return
@@ -91,6 +119,7 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction() (err error) {
 		var pzRaw []byte
 		if pzRaw, err = pz.Serialize(); err != nil {
 			err = fmt.Errorf("Error serializing puzzle for commitment: %s", err)
+			s.dbLock.Unlock()
 			return
 		}
 		sha3.Write(pzRaw)
