@@ -14,8 +14,8 @@ import (
 // OpencxAuctionServer is what will hopefully help handle and manage the auction logic, rpc, and db
 type OpencxAuctionServer struct {
 	SettlementEngines map[*coinparam.Params]match.SettlementEngine
-	MatchingEngines   map[*match.Pair]match.AuctionEngine
-	Orderbooks        map[*match.Pair]match.AuctionOrderbook
+	MatchingEngines   map[match.Pair]match.AuctionEngine
+	Orderbooks        map[match.Pair]match.AuctionOrderbook
 	PuzzleEngine      cxdb.PuzzleStore
 
 	dbLock       *sync.Mutex
@@ -28,7 +28,7 @@ type OpencxAuctionServer struct {
 }
 
 // InitServer creates a new server
-func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[*match.Pair]match.AuctionEngine, books map[*match.Pair]match.AuctionOrderbook, pzengine cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.AuctionEngine, books map[match.Pair]match.AuctionOrderbook, pzengine cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
 	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
 		SettlementEngines: setEngines,

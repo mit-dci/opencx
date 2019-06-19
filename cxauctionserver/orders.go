@@ -186,7 +186,7 @@ func (s *OpencxAuctionServer) runMatching(auctionID *match.AuctionID, pair *matc
 
 	var matchEngine match.AuctionEngine
 	var ok bool
-	if matchEngine, ok = s.MatchingEngines[pair]; !ok {
+	if matchEngine, ok = s.MatchingEngines[*pair]; !ok {
 		err = fmt.Errorf("Error getting correct matching engine for pair %s for runMatching", pair)
 		s.dbLock.Unlock()
 		return
@@ -202,7 +202,7 @@ func (s *OpencxAuctionServer) runMatching(auctionID *match.AuctionID, pair *matc
 	}
 
 	var orderbook match.AuctionOrderbook
-	if orderbook, ok = s.Orderbooks[pair]; !ok {
+	if orderbook, ok = s.Orderbooks[*pair]; !ok {
 		err = fmt.Errorf("Error getting correct orderbook for pair %s for runMatching", pair)
 		s.dbLock.Unlock()
 		return
