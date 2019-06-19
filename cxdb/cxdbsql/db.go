@@ -30,14 +30,15 @@ type dbsqlConfig struct {
 	DBPort     uint16 `long:"dbport" description:"Port for the database connection"`
 
 	// database schema names
-	BalanceSchemaName        string `long:"balanceschema" description:"Name of balance schema"`
-	DepositSchemaName        string `long:"depositschema" description:"Name of deposit schema"`
-	PendingDepositSchemaName string `long:"penddepschema" description:"Name of pending deposit schema"`
-	PuzzleSchemaName         string `long:"puzzleschema" description:"Name of schema for puzzle orderbooks"`
-	AuctionSchemaName        string `long:"auctionschema" description:"Name of schema for auction ID"`
-	AuctionOrderSchemaName   string `long:"auctionorderschema" description:"Name of schema for auction orderbook"`
-	OrderSchemaName          string `long:"orderschema" description:"Name of schema for limit orderbook"`
-	PeerSchemaName           string `long:"peerschema" description:"Name of schema for peer storage"`
+	ReadOnlyBalanceSchemaName string `long:"readonlybalanceschema" description:"Name of read-only balance schema"`
+	BalanceSchemaName         string `long:"balanceschema" description:"Name of balance schema"`
+	DepositSchemaName         string `long:"depositschema" description:"Name of deposit schema"`
+	PendingDepositSchemaName  string `long:"penddepschema" description:"Name of pending deposit schema"`
+	PuzzleSchemaName          string `long:"puzzleschema" description:"Name of schema for puzzle orderbooks"`
+	AuctionSchemaName         string `long:"auctionschema" description:"Name of schema for auction ID"`
+	AuctionOrderSchemaName    string `long:"auctionorderschema" description:"Name of schema for auction orderbook"`
+	OrderSchemaName           string `long:"orderschema" description:"Name of schema for limit orderbook"`
+	PeerSchemaName            string `long:"peerschema" description:"Name of schema for peer storage"`
 
 	// database table names
 	PuzzleTableName       string `long:"puzzletable" description:"Name of table for puzzle orderbooks"`
@@ -56,14 +57,15 @@ var (
 	defaultDBPass         = "testpass"
 
 	// definitely move this to a config file
-	defaultBalanceSchema        = "balances"
-	defaultDepositSchema        = "deposit"
-	defaultPendingDepositSchema = "pending_deposits"
-	defaultPuzzleSchema         = "puzzle"
-	defaultAuctionSchema        = "auctions"
-	defaultAuctionOrderSchema   = "auctionorder"
-	defaultOrderSchema          = "orders"
-	defaultPeerSchema           = "peers"
+	defaultReadOnlyBalanceSchema = "balances_readonly"
+	defaultBalanceSchema         = "balances"
+	defaultDepositSchema         = "deposit"
+	defaultPendingDepositSchema  = "pending_deposits"
+	defaultPuzzleSchema          = "puzzle"
+	defaultAuctionSchema         = "auctions"
+	defaultAuctionOrderSchema    = "auctionorder"
+	defaultOrderSchema           = "orders"
+	defaultPeerSchema            = "peers"
 
 	// tables
 	defaultAuctionOrderTable = "auctionorders"
@@ -82,14 +84,15 @@ var (
 		DBPort:     defaultDBPort,
 
 		// schemas
-		BalanceSchemaName:        defaultBalanceSchema,
-		DepositSchemaName:        defaultDepositSchema,
-		PendingDepositSchemaName: defaultPendingDepositSchema,
-		PuzzleSchemaName:         defaultPuzzleSchema,
-		AuctionSchemaName:        defaultAuctionSchema,
-		AuctionOrderSchemaName:   defaultAuctionOrderSchema,
-		OrderSchemaName:          defaultOrderSchema,
-		PeerSchemaName:           defaultPeerSchema,
+		ReadOnlyBalanceSchemaName: defaultReadOnlyBalanceSchema,
+		BalanceSchemaName:         defaultBalanceSchema,
+		DepositSchemaName:         defaultDepositSchema,
+		PendingDepositSchemaName:  defaultPendingDepositSchema,
+		PuzzleSchemaName:          defaultPuzzleSchema,
+		AuctionSchemaName:         defaultAuctionSchema,
+		AuctionOrderSchemaName:    defaultAuctionOrderSchema,
+		OrderSchemaName:           defaultOrderSchema,
+		PeerSchemaName:            defaultPeerSchema,
 
 		// tables
 		PuzzleTableName:       defaultPuzzleTable,

@@ -19,14 +19,18 @@ import (
 
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 // OpencxServer is what orchestrates the exchange. It's where you plug everything into basically.
 // The Server looks spookily like a node.
 type OpencxServer struct {
-	OpencxDB   cxdb.OpencxStore
-	OpencxPort uint16
-	OpencxRoot string
+	SettlementEngines map[*coinparam.Params]match.SettlementEngine
+	MatchingEngines   map[match.Pair]match.LimitEngine
+	Orderbooks        map[match.Pair]match.LimitOrderbook
+	DepositStores     map[*coinparam.Params]cxdb.DepositStore
+	SettlementStores  map[*coinparam.Params]cxdb.SettlementStore
+	dbLock            *sync.Mutex
 
 	registrationString string
 	getOrdersString    string
@@ -46,9 +50,6 @@ type OpencxServer struct {
 	PrivKeyMap map[*coinparam.Params]*hdkeychain.ExtendedKey
 	privKeyMtx *sync.Mutex
 
-	// This is how we're going to easily add multiple coins
-	CoinList []*coinparam.Params
-
 	// default Capacity is the default capacity that we send back to people.
 	// remove this when we have some sense of how much money the exchange has and/or some fancy
 	// algorithms to determine this number based on reputation or something
@@ -56,11 +57,15 @@ type OpencxServer struct {
 }
 
 // InitServer creates a new server
-func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []*coinparam.Params) (server *OpencxServer) {
+func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.LimitEngine, books map[match.Pair]match.LimitOrderbook, depositStores map[*coinparam.Params]cxdb.DepositStore, settleStores map[*coinparam.Params]cxdb.SettlementStore) (server *OpencxServer, err error) {
 	server = &OpencxServer{
-		OpencxDB:           db,
-		OpencxPort:         rpcport,
-		OpencxRoot:         homedir,
+		SettlementEngines: setEngines,
+		MatchingEngines:   matchEngines,
+		Orderbooks:        books,
+		DepositStores:     depositStores,
+		SettlementStores:  settleStores,
+		dbLock:            new(sync.Mutex),
+
 		registrationString: "opencx-register",
 		getOrdersString:    "opencx-getorders",
 		ingestMutex:        *new(sync.Mutex),
@@ -75,7 +80,6 @@ func InitServer(db cxdb.OpencxStore, homedir string, rpcport uint16, coinList []
 		walletMtx:  new(sync.Mutex),
 		privKeyMtx: new(sync.Mutex),
 
-		CoinList:        coinList,
 		defaultCapacity: 1000000,
 	}
 

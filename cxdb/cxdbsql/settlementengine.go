@@ -30,6 +30,7 @@ const (
 	settlementEngineSchema = "pubkey VARBINARY(66), balance BIGINT(64), PRIMARY KEY (pubkey)"
 )
 
+// CreateSQLSettlementEngine creates a settlement engine for a specific coin
 func CreateSQLSettlementEngine(coin *coinparam.Params) (engine match.SettlementEngine, err error) {
 
 	conf := new(dbsqlConfig)
@@ -41,33 +42,33 @@ func CreateSQLSettlementEngine(coin *coinparam.Params) (engine match.SettlementE
 	// Resolve new address
 	var addr net.Addr
 	if addr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(conf.DBHost, fmt.Sprintf("%d", conf.DBPort))); err != nil {
-		err = fmt.Errorf("Couldn't resolve db address for createAuctionEngine: %s", err)
+		err = fmt.Errorf("Couldn't resolve db address for CreateSQLSettlementEngine: %s", err)
 		return
 	}
 
 	// Set values
-	ae := &SQLSettlementEngine{
-		dbUsername:         conf.DBUsername,
-		dbPassword:         conf.DBPassword,
-		auctionOrderSchema: conf.AuctionSchemaName,
-		dbAddr:             addr,
-		coin:               coin,
+	se := &SQLSettlementEngine{
+		dbUsername:    conf.DBUsername,
+		dbPassword:    conf.DBPassword,
+		balanceSchema: conf.BalanceSchemaName,
+		dbAddr:        addr,
+		coin:          coin,
 	}
 
-	if err = ae.setupAuctionOrderbookTables(); err != nil {
-		err = fmt.Errorf("Error setting up auction orderbook tables while creating engine: %s", err)
+	if err = se.setupSettlementTables(); err != nil {
+		err = fmt.Errorf("Error setting up settlement engine tables while creating engine: %s", err)
 		return
 	}
 
 	// Now connect to the database and create the schemas / tables
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", ae.dbUsername, ae.dbPassword, ae.dbAddr.Network(), ae.dbAddr.String())
-	if ae.DBHandler, err = sql.Open("mysql", openString); err != nil {
-		err = fmt.Errorf("Error opening database for createAuctionEngine: %s", err)
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", se.dbUsername, se.dbPassword, se.dbAddr.Network(), se.dbAddr.String())
+	if se.DBHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening database for CreateSQLSettlementEngine: %s", err)
 		return
 	}
 
 	// Make sure we can actually connect
-	if err = ae.DBHandler.Ping(); err != nil {
+	if err = se.DBHandler.Ping(); err != nil {
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
 		return
 	}
@@ -76,11 +77,11 @@ func CreateSQLSettlementEngine(coin *coinparam.Params) (engine match.SettlementE
 
 // ApplySettlementExecution applies the settlementExecution, this assumes that the settlement execution is
 // valid
-func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.SettlementExecution) (err error) {
+func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.SettlementExecution) (setRes *match.SettlementResult, err error) {
 
 	// First create transaction
 	var tx *sql.Tx
-	if tx, err = db.DBHandler.Begin(); err != nil {
+	if tx, err = se.DBHandler.Begin(); err != nil {
 		err = fmt.Errorf("Error beginning transaction while applying settlement exec: \n%s", err)
 		return
 	}
@@ -95,7 +96,7 @@ func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.Settlemen
 	}()
 
 	// use balance schema
-	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+	if _, err = tx.Exec("USE " + se.balanceSchema + ";"); err != nil {
 		return
 	}
 
@@ -140,7 +141,7 @@ func (se *SQLSettlementEngine) CheckValid(setExec *match.SettlementExecution) (v
 
 	// First create transaction
 	var tx *sql.Tx
-	if tx, err = db.DBHandler.Begin(); err != nil {
+	if tx, err = se.DBHandler.Begin(); err != nil {
 		err = fmt.Errorf("Error beginning transaction while applying settlement exec: \n%s", err)
 		return
 	}
@@ -155,7 +156,7 @@ func (se *SQLSettlementEngine) CheckValid(setExec *match.SettlementExecution) (v
 	}()
 
 	// use balance schema
-	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
+	if _, err = tx.Exec("USE " + se.balanceSchema + ";"); err != nil {
 		return
 	}
 
@@ -178,9 +179,9 @@ func (se *SQLSettlementEngine) CheckValid(setExec *match.SettlementExecution) (v
 	return
 }
 
-// setupAuctionOrderbookTables sets up the tables needed for the auction orderbook.
+// setupSettlementTables sets up the tables needed for the auction orderbook.
 // This assumes the schema name is set
-func (se *SQLSettlementEngine) setupAuctionOrderbookTables() (err error) {
+func (se *SQLSettlementEngine) setupSettlementTables() (err error) {
 
 	openString := fmt.Sprintf("%s:%s@%s(%s)/", se.dbUsername, se.dbPassword, se.dbAddr.Network(), se.dbAddr.String())
 	var rootHandler *sql.DB
@@ -207,7 +208,7 @@ func (se *SQLSettlementEngine) setupAuctionOrderbookTables() (err error) {
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while matching setup settlement tables: \n%s", err)
+			err = fmt.Errorf("Error while setting up settlement tables: \n%s", err)
 			return
 		}
 		err = tx.Commit()
