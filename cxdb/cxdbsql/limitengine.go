@@ -427,6 +427,23 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 		return
 	}
 
+	// Update the matching engine with the new state because that's what we do
+	for _, orderExec := range orderExecs {
+		if orderExec.Filled {
+			cancelOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%x';", le.pair.String(), orderExec.OrderID)
+			if _, err = tx.Exec(cancelOrderQuery); err != nil {
+				err = fmt.Errorf("Error deleting filled order for MatchLimitOrders: %s", err)
+				return
+			}
+		} else {
+			updateOrderExecQuery := fmt.Sprintf("UPDATE %s SET amountWant='%d', amountHave='%d' WHERE orderID='%x';", le.pair.String(), orderExec.NewAmountWant, orderExec.NewAmountHave, orderExec.OrderID)
+			if _, err = tx.Exec(updateOrderExecQuery); err != nil {
+				err = fmt.Errorf("Error updating order for order exec for MatchLimitOrders: %s", err)
+				return
+			}
+		}
+	}
+
 	// // loop through them both and make sure there are elements in both otherwise we're good
 	// for len(buyOrders) > 0 && len(sellOrders) > 0 {
 	// 	currBuyOrder := buyOrders[0]
