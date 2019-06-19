@@ -274,11 +274,16 @@ func (ao *SQLAuctionOrderbook) UpdateBookPlace(auctionIDPair *match.AuctionOrder
 		err = fmt.Errorf("Error placing order into db for UpdateBookPlace: %s", err)
 		return
 	}
+	// It's just a simple insert so we're done
+
 	return
 }
 
 // GetOrder gets an order from an OrderID
-func (ao *SQLAuctionOrderbook) GetOrder(orderID *match.OrderID) (limOrder *match.AuctionOrderIDPair, err error) {
+func (ao *SQLAuctionOrderbook) GetOrder(orderID *match.OrderID) (aucOrder *match.AuctionOrderIDPair, err error) {
+	aucOrder = new(match.AuctionOrderIDPair)
+	aucOrder.Order = new(match.AuctionOrder)
+
 	// Transaction so we're acid
 	var tx *sql.Tx
 	if tx, err = ao.DBHandler.Begin(); err != nil {
@@ -301,22 +306,189 @@ func (ao *SQLAuctionOrderbook) GetOrder(orderID *match.OrderID) (limOrder *match
 		return
 	}
 
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+	// This is just a modified GetOrdersForPubkey
+	var row *sql.Row
+	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce, sig, hashedOrder FROM %s WHERE hashedOrder='%x';", ao.pair, orderID)
+	// Remember: errors for this are deferred to scan
+	row = tx.QueryRow(selectOrderQuery)
+
+	// we create these here so we don't take up a ton of memory allocating space for new intermediate arrays
+	var pkBytes []byte
+	var auctionIDBytes []byte
+	var nonceBytes []byte
+	var sigBytes []byte
+	var hashedOrderBytes []byte
+
+	// scan the things we can into this order
+	if err = row.Scan(&pkBytes, &aucOrder.Order.Side, &aucOrder.Price, &aucOrder.Order.AmountHave, &aucOrder.Order.AmountWant, &auctionIDBytes, &nonceBytes, &sigBytes, &hashedOrderBytes); err != nil {
+		err = fmt.Errorf("Error scanning into order for GetOrdersForPubkey: %s", err)
+		return
+	}
+
+	// decode them all weirdly because of the way mysql may store the bytes
+	for _, byteArrayPtr := range []*[]byte{&pkBytes, &auctionIDBytes, &nonceBytes, &sigBytes} {
+		if *byteArrayPtr, err = hex.DecodeString(string(*byteArrayPtr)); err != nil {
+			err = fmt.Errorf("Error decoding bytes for GetOrdersForPubkey: %s", err)
+			return
+		}
+	}
+
+	// we prepared again
+	if err = aucOrder.OrderID.UnmarshalText(hashedOrderBytes); err != nil {
+		err = fmt.Errorf("Error unmarshalling order ID for GetOrdersForPubkey: %s", err)
+		return
+	}
+
+	// Copy all of the bytes and values
+	copy(aucOrder.Order.Pubkey[:], pkBytes)
+	copy(aucOrder.Order.AuctionID[:], auctionIDBytes)
+	copy(aucOrder.Order.Signature[:], sigBytes)
+	copy(aucOrder.Order.Nonce[:], nonceBytes)
+	aucOrder.Order.TradingPair = *ao.pair
+
+	// It's a single row so it doesn't need to be closed
 	return
 }
 
 // CalculatePrice takes in a pair and returns the calculated price based on the orderbook.
-func (ao *SQLAuctionOrderbook) CalculatePrice() (price float64, err error) {
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+func (ao *SQLAuctionOrderbook) CalculatePrice(auctionID *match.AuctionID) (price float64, err error) {
+	// Transaction so we're acid
+	var tx *sql.Tx
+	if tx, err = ao.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for CalculatePrice: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error with CalculatePrice: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// First use the auction schema
+	if _, err = tx.Exec("USE " + ao.auctionOrderSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using auction schema for CalculatePrice: %s", err)
+		return
+	}
+	sellSide := new(match.Side)
+	buySide := new(match.Side)
+	*sellSide = match.Sell
+	*buySide = match.Buy
+	// First get the max buy price and max sell price
+	var maxSellRow *sql.Row
+	getMaxSellPrice := fmt.Sprintf("SELECT MAX(price) FROM %s WHERE side='%s' AND auctionID='%x';", ao.pair.String(), sellSide.String(), auctionID)
+	// errors for queryrow are deferred until scan -- this is important, that's why we don't err != nil here
+	maxSellRow = tx.QueryRow(getMaxSellPrice)
+
+	var maxSell float64
+	if err = maxSellRow.Scan(&maxSell); err != nil {
+		err = fmt.Errorf("Error scanning max sell row for auction CalculatePrice: %s", err)
+		return
+	}
+
+	var minBuyRow *sql.Row
+	getminBuyPrice := fmt.Sprintf("SELECT MIN(price) FROM %s WHERE side='%s' AND auctionID='%x';", ao.pair.String(), buySide.String(), auctionID)
+	// errors for queryrow are deferred until scan -- this is important, that's why we don't err != nil here
+	minBuyRow = tx.QueryRow(getminBuyPrice)
+
+	var minBuy float64
+	if err = minBuyRow.Scan(&minBuy); err != nil {
+		err = fmt.Errorf("Error scanning min buy row for auction CalculatePrice: %s", err)
+		return
+	}
+
+	price = (minBuy + maxSell) / 2
 	return
 }
 
 // GetOrdersForPubkey gets orders for a specific pubkey.
 func (ao *SQLAuctionOrderbook) GetOrdersForPubkey(pubkey *koblitz.PublicKey) (orders map[float64][]*match.AuctionOrderIDPair, err error) {
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+	// Make the book!!!!
+	orders = make(map[float64][]*match.AuctionOrderIDPair)
+
+	// Transaction so we're acid
+	var tx *sql.Tx
+	if tx, err = ao.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for GetOrdersForPubkey: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error with GetOrdersForPubkey: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	if _, err = tx.Exec("USE " + ao.auctionOrderSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using auction schema for GetOrdersForPubkey: %s", err)
+		return
+	}
+
+	// This is just a modified viewauctionorderbook
+	var rows *sql.Rows
+	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, price, amountHave, amountWant, auctionID, nonce, sig, hashedOrder FROM %s WHERE pubkey='%x';", ao.pair, pubkey.SerializeCompressed())
+	if rows, err = tx.Query(selectOrderQuery); err != nil {
+		err = fmt.Errorf("Error getting orders from db for GetOrdersForPubkey: %s", err)
+		return
+	}
+
+	// we allocate space for new orders but only need one pointer
+	var thisOrder *match.AuctionOrder
+	var thisOrderPair *match.AuctionOrderIDPair
+
+	// we create these here so we don't take up a ton of memory allocating space for new intermediate arrays
+	var pkBytes []byte
+	var auctionIDBytes []byte
+	var nonceBytes []byte
+	var sigBytes []byte
+	var hashedOrderBytes []byte
+	var thisPrice float64
+
+	for rows.Next() {
+		// scan the things we can into this order
+		thisOrder = new(match.AuctionOrder)
+		thisOrderPair = new(match.AuctionOrderIDPair)
+		if err = rows.Scan(&pkBytes, &thisOrder.Side, &thisPrice, &thisOrder.AmountHave, &thisOrder.AmountWant, &auctionIDBytes, &nonceBytes, &sigBytes, &hashedOrderBytes); err != nil {
+			err = fmt.Errorf("Error scanning into order for GetOrdersForPubkey: %s", err)
+			return
+		}
+
+		// decode them all weirdly because of the way mysql may store the bytes
+		for _, byteArrayPtr := range []*[]byte{&pkBytes, &auctionIDBytes, &nonceBytes, &sigBytes} {
+			if *byteArrayPtr, err = hex.DecodeString(string(*byteArrayPtr)); err != nil {
+				err = fmt.Errorf("Error decoding bytes for GetOrdersForPubkey: %s", err)
+				return
+			}
+		}
+
+		// we prepared again
+		if err = thisOrderPair.OrderID.UnmarshalText(hashedOrderBytes); err != nil {
+			err = fmt.Errorf("Error unmarshalling order ID for GetOrdersForPubkey: %s", err)
+			return
+		}
+
+		// Copy all of the bytes and values
+		copy(thisOrder.Pubkey[:], pkBytes)
+		copy(thisOrder.AuctionID[:], auctionIDBytes)
+		copy(thisOrder.Signature[:], sigBytes)
+		copy(thisOrder.Nonce[:], nonceBytes)
+		thisOrder.TradingPair = *ao.pair
+		thisOrderPair.Order = thisOrder
+		thisOrderPair.Price = thisPrice
+		orders[thisPrice] = append(orders[thisPrice], thisOrderPair)
+
+	}
+
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing rows for GetOrdersForPubkey: %s", err)
+		return
+	}
 	return
 }
 
@@ -353,16 +525,6 @@ func (ao *SQLAuctionOrderbook) ViewAuctionOrderBook() (book map[float64][]*match
 		return
 	}
 
-	defer func() {
-		// TODO: if there's a better way to chain all these errors, figure it out
-		var newErr error
-		if newErr = rows.Close(); newErr != nil {
-			err = fmt.Errorf("Error closing rows for viewauctionorderbook: %s", newErr)
-			return
-		}
-		return
-	}()
-
 	// we allocate space for new orders but only need one pointer
 	var thisOrder *match.AuctionOrder
 	var thisOrderPair *match.AuctionOrderIDPair
@@ -385,11 +547,17 @@ func (ao *SQLAuctionOrderbook) ViewAuctionOrderBook() (book map[float64][]*match
 		}
 
 		// decode them all weirdly because of the way mysql may store the bytes
-		for _, byteArrayPtr := range []*[]byte{&pkBytes, &auctionIDBytes, &nonceBytes, &sigBytes, &hashedOrderBytes} {
+		for _, byteArrayPtr := range []*[]byte{&pkBytes, &auctionIDBytes, &nonceBytes, &sigBytes} {
 			if *byteArrayPtr, err = hex.DecodeString(string(*byteArrayPtr)); err != nil {
 				err = fmt.Errorf("Error decoding bytes for viewauctionorderbook: %s", err)
 				return
 			}
+		}
+
+		// we prepared again
+		if err = thisOrderPair.OrderID.UnmarshalText(hashedOrderBytes); err != nil {
+			err = fmt.Errorf("Error unmarshalling order ID for ViewAuctionOrderBook: %s", err)
+			return
 		}
 
 		// Copy all of the bytes and values
@@ -398,11 +566,15 @@ func (ao *SQLAuctionOrderbook) ViewAuctionOrderBook() (book map[float64][]*match
 		copy(thisOrder.Signature[:], sigBytes)
 		copy(thisOrder.Nonce[:], nonceBytes)
 		thisOrder.TradingPair = *ao.pair
-		copy(thisOrderPair.OrderID[:], hashedOrderBytes)
 		thisOrderPair.Order = thisOrder
 		thisOrderPair.Price = thisPrice
 		book[thisPrice] = append(book[thisPrice], thisOrderPair)
 
+	}
+
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing rows for viewauctionorderbook: %s", err)
+		return
 	}
 	return
 }
