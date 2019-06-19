@@ -16,7 +16,7 @@ type OpencxAuctionServer struct {
 	SettlementEngines map[*coinparam.Params]match.SettlementEngine
 	MatchingEngines   map[match.Pair]match.AuctionEngine
 	Orderbooks        map[match.Pair]match.AuctionOrderbook
-	PuzzleEngine      cxdb.PuzzleStore
+	PuzzleEngines     map[match.Pair]cxdb.PuzzleStore
 
 	dbLock       *sync.Mutex
 	orderChannel chan *match.OrderPuzzleResult
@@ -28,13 +28,13 @@ type OpencxAuctionServer struct {
 }
 
 // InitServer creates a new server
-func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.AuctionEngine, books map[match.Pair]match.AuctionOrderbook, pzengine cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.AuctionEngine, books map[match.Pair]match.AuctionOrderbook, pzengines map[match.Pair]cxdb.PuzzleStore, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
 	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
 		SettlementEngines: setEngines,
 		MatchingEngines:   matchEngines,
 		Orderbooks:        books,
-		PuzzleEngine:      pzengine,
+		PuzzleEngines:     pzengines,
 		dbLock:            new(sync.Mutex),
 		orderChannel:      make(chan *match.OrderPuzzleResult, orderChanSize),
 		orderChanMap:      make(map[[32]byte]chan *match.OrderPuzzleResult),

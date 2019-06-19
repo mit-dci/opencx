@@ -146,23 +146,19 @@ func main() {
 		logging.Fatalf("Error creating settlement engine map: %s", err)
 	}
 
-	var auctionBooks map[*coinparam.Params]match.AuctionOrderbook
+	var auctionBooks map[match.Pair]match.AuctionOrderbook
 	if auctionBooks, err = cxdbsql.CreateAuctionOrderbookMap(pairList); err != nil {
 		logging.Fatalf("Error creating auction orderbook map: %s", err)
 	}
 
-	var pzEngine cxdb.PuzzleStore
-	pzEngine = new(cxdbsql.DB)
-
-	// Setup Puzzle DB Client
-	if err = pzEngine.SetupClient(coinList); err != nil {
-		log.Fatalf("Error setting up sql client: \n%s", err)
+	var puzzleStores map[match.Pair]cxdb.PuzzleStore
+	if puzzleStores, err = cxdbsql.CreatePuzzleStoreMap(pairList); err != nil {
+		logging.Fatalf("Error creating puzzle store map: %s", err)
 	}
-	// TODO
 
 	// Anyways, here's where we set the server
 	var fredServer *cxauctionserver.OpencxAuctionServer
-	if fredServer, err = cxauctionserver.InitServer(setEngines, mengines, auctionBooks, pzEngine, 100, conf.AuctionTime); err != nil {
+	if fredServer, err = cxauctionserver.InitServer(setEngines, mengines, auctionBooks, puzzleStores, 100, conf.AuctionTime); err != nil {
 		logging.Fatalf("Error initializing server: \n%s", err)
 	}
 
@@ -214,7 +210,7 @@ func createSQLSettlementEngineMap(coins []*coinparam.Params) (sengines map[*coin
 	sengines = make(map[*coinparam.Params]match.SettlementEngine)
 	var currSQLEngine match.SettlementEngine
 	for _, coin := range coins {
-		if currSQLEngine, err = cxdbsql.CreateSQLSettlementEngine(coin); err != nil {
+		if currSQLEngine, err = cxdbsql.CreateSettlementEngine(coin); err != nil {
 			err = fmt.Errorf("Error creating settlement engine while creating many in map: %s", err)
 			return
 		}

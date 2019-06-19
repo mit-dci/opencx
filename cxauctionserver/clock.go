@@ -53,9 +53,11 @@ func (s *OpencxAuctionServer) auctionTick(doneChan chan time.Time) {
 	defer func() {
 		doneChan <- time.Now()
 	}()
-	if err = s.CommitOrdersNewAuction(); err != nil {
-		// TODO: What should happen in this case? How can we prevent this case?
-		logging.Fatalf("Exchange commitment failed!!! Fatal error: %s", err)
+	for pair, _ := range s.PuzzleEngines {
+		if err = s.CommitOrdersNewAuction(&pair); err != nil {
+			// TODO: What should happen in this case? How can we prevent this case?
+			logging.Fatalf("Exchange commitment failed!!! Fatal error: %s", err)
+		}
 	}
 
 	return

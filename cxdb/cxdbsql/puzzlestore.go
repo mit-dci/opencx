@@ -35,8 +35,8 @@ const (
 	puzzleStoreSchema = "encodedOrder TEXT, auctionID VARBINARY(64), selected BOOLEAN"
 )
 
-// CreateSQLPuzzleStore creates a puzzle store for a specific coin.
-func CreateSQLPuzzleStore(pair *match.Pair) (store cxdb.PuzzleStore, err error) {
+// CreatePuzzleStore creates a puzzle store for a specific coin.
+func CreatePuzzleStore(pair *match.Pair) (store cxdb.PuzzleStore, err error) {
 
 	conf := new(dbsqlConfig)
 	*conf = *defaultConf
@@ -148,5 +148,21 @@ func (sp *SQLPuzzleStore) setupPuzzleStoreTables() (err error) {
 		err = fmt.Errorf("Error creating puzzle store table: %s", err)
 		return
 	}
+	return
+}
+
+// CreatePuzzleStoreMap creates a map of pair to pair list, given a list of pairs.
+func CreatePuzzleStoreMap(pairList []*match.Pair) (pzMap map[match.Pair]cxdb.PuzzleStore, err error) {
+
+	pzMap = make(map[match.Pair]cxdb.PuzzleStore)
+	var curPzEng cxdb.PuzzleStore
+	for _, pair := range pairList {
+		if curPzEng, err = CreatePuzzleStore(pair); err != nil {
+			err = fmt.Errorf("Error creating single puzzle store while creating puzzle store map: %s", err)
+			return
+		}
+		pzMap[*pair] = curPzEng
+	}
+
 	return
 }
