@@ -68,7 +68,7 @@ func CreateSQLSettlementStore(coin *coinparam.Params) (store cxdb.SettlementStor
 	}
 
 	// Now connect to the database and create the schemas / tables
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", ss.dbUsername, ss.dbPassword, ss.dbAddr.Network(), se.dbAddr.String())
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", ss.dbUsername, ss.dbPassword, ss.dbAddr.Network(), ss.dbAddr.String())
 	if ss.DBHandler, err = sql.Open("mysql", openString); err != nil {
 		err = fmt.Errorf("Error opening database for CreateSQLSettlementStore: %s", err)
 		return
@@ -108,7 +108,7 @@ func (ss *SQLSettlementStore) UpdateBalances(settlementResults []*match.Settleme
 	}()
 
 	// use balance schema
-	if _, err = tx.Exec("USE " + ss.balanceSchema + ";"); err != nil {
+	if _, err = tx.Exec("USE " + ss.balanceReadOnlySchema + ";"); err != nil {
 		err = fmt.Errorf("Error using balance schema for GetBalance: %s", err)
 		return
 	}
@@ -125,14 +125,7 @@ func (ss *SQLSettlementStore) UpdateBalances(settlementResults []*match.Settleme
 
 // GetBalance gets the balance for a pubkey and an asset.
 func (ss *SQLSettlementStore) GetBalance(pubkey *koblitz.PublicKey) (balance uint64, err error) {
-	// First get pubkey bytes and get asset from coin
-	var pubkeyBytes []byte
-	if pubkeyBytes, err = pubkey.SerializeCompressed(); err != nil {
-		err = fmt.Errorf("Error getting pubkey bytes from pubkey for GetBalance: %s", err)
-		return
-	}
-
-	// Now get asset from coin
+	// Get asset from coin
 	var assetForBal match.Asset
 	if assetForBal, err = match.AssetFromCoinParam(ss.coin); err != nil {
 		err = fmt.Errorf("Error getting asset from coin param: %s", err)
@@ -156,13 +149,13 @@ func (ss *SQLSettlementStore) GetBalance(pubkey *koblitz.PublicKey) (balance uin
 	}()
 
 	// use balance schema
-	if _, err = tx.Exec("USE " + ss.balanceSchema + ";"); err != nil {
+	if _, err = tx.Exec("USE " + ss.balanceReadOnlySchema + ";"); err != nil {
 		err = fmt.Errorf("Error using balance schema for GetBalance: %s", err)
 		return
 	}
 
 	var rows *sql.Rows
-	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", assetForBal, pubkeyBytes)
+	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", assetForBal, pubkey.SerializeCompressed())
 	if rows, err = tx.Query(curBalQuery); err != nil {
 		err = fmt.Errorf("Error querying for balance while getting balance: %s")
 		return
@@ -218,7 +211,7 @@ func (ss *SQLSettlementStore) setupSettlementStoreTables() (err error) {
 	}()
 
 	// Now create the schema
-	if _, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS " + ss.balancerReadOnlySchema + ";"); err != nil {
+	if _, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS " + ss.balanceReadOnlySchema + ";"); err != nil {
 		err = fmt.Errorf("Error creating schema for setup settlement store tables: %s", err)
 		return
 	}
