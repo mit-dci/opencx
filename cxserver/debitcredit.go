@@ -9,14 +9,14 @@ import (
 	"github.com/mit-dci/opencx/match"
 )
 
-// debitUser adds to the balance of the pubkey by issuing a settlement exec and bringing it through
+// DebitUser adds to the balance of the pubkey by issuing a settlement exec and bringing it through
 // all of the required data stores.
-// debitUser acquires dbLock so it can just be called.
-func (server *OpencxServer) debitUser(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
+// DebitUser acquires dbLock so it can just be called.
+func (server *OpencxServer) DebitUser(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
 
 	var assetToDebit match.Asset
 	if assetToDebit, err = match.AssetFromCoinParam(param); err != nil {
-		err = fmt.Errorf("Error getting asset from coin param for debitUser: %s", err)
+		err = fmt.Errorf("Error getting asset from coin param for DebitUser: %s", err)
 		return
 	}
 
@@ -48,7 +48,7 @@ func (server *OpencxServer) debitUser(pubkey *koblitz.PublicKey, amount uint64, 
 
 	var valid bool
 	if valid, err = currSettleEngine.CheckValid(setExecForPush); err != nil {
-		err = fmt.Errorf("Error checking valid exec for debitUser: %s", err)
+		err = fmt.Errorf("Error checking valid exec for DebitUser: %s", err)
 		server.dbLock.Unlock()
 		return
 	}
@@ -57,12 +57,12 @@ func (server *OpencxServer) debitUser(pubkey *koblitz.PublicKey, amount uint64, 
 	var settlementResults []*match.SettlementResult
 	if valid {
 		if setRes, err = currSettleEngine.ApplySettlementExecution(setExecForPush); err != nil {
-			err = fmt.Errorf("Error applying settlement exec for debitUser: %s", err)
+			err = fmt.Errorf("Error applying settlement exec for DebitUser: %s", err)
 			server.dbLock.Unlock()
 			return
 		}
 	} else {
-		err = fmt.Errorf("Error, invalid settlement exec for debitUser")
+		err = fmt.Errorf("Error, invalid settlement exec for DebitUser")
 		server.dbLock.Unlock()
 		return
 	}
@@ -70,7 +70,7 @@ func (server *OpencxServer) debitUser(pubkey *koblitz.PublicKey, amount uint64, 
 	settlementResults = append(settlementResults, setRes)
 
 	if err = currSettleStore.UpdateBalances(settlementResults); err != nil {
-		err = fmt.Errorf("Error updating balances for debitUser: %s", err)
+		err = fmt.Errorf("Error updating balances for DebitUser: %s", err)
 		server.dbLock.Unlock()
 		return
 	}
@@ -79,14 +79,14 @@ func (server *OpencxServer) debitUser(pubkey *koblitz.PublicKey, amount uint64, 
 	return
 }
 
-// creditUser subtracts the balance of the pubkey by issuing a settlement exec and bringing it through
+// CreditUser subtracts the balance of the pubkey by issuing a settlement exec and bringing it through
 // all of the required data stores.
-// creditUser acquires dbLock so it can just be called.
-func (server *OpencxServer) creditUser(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
+// CreditUser acquires dbLock so it can just be called.
+func (server *OpencxServer) CreditUser(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
 
 	var assetToCredit match.Asset
 	if assetToCredit, err = match.AssetFromCoinParam(param); err != nil {
-		err = fmt.Errorf("Error getting asset from coin param for creditUser: %s", err)
+		err = fmt.Errorf("Error getting asset from coin param for CreditUser: %s", err)
 		return
 	}
 
@@ -118,7 +118,7 @@ func (server *OpencxServer) creditUser(pubkey *koblitz.PublicKey, amount uint64,
 
 	var valid bool
 	if valid, err = currSettleEngine.CheckValid(setExecForPush); err != nil {
-		err = fmt.Errorf("Error checking valid exec for creditUser: %s", err)
+		err = fmt.Errorf("Error checking valid exec for CreditUser: %s", err)
 		server.dbLock.Unlock()
 		return
 	}
@@ -127,19 +127,19 @@ func (server *OpencxServer) creditUser(pubkey *koblitz.PublicKey, amount uint64,
 	var settlementResults []*match.SettlementResult
 	if valid {
 		if setRes, err = currSettleEngine.ApplySettlementExecution(setExecForPush); err != nil {
-			err = fmt.Errorf("Error applying settlement exec for creditUser: %s", err)
+			err = fmt.Errorf("Error applying settlement exec for CreditUser: %s", err)
 			server.dbLock.Unlock()
 			return
 		}
 	} else {
-		err = fmt.Errorf("Error, invalid settlement exec for creditUser")
+		err = fmt.Errorf("Error, invalid settlement exec for CreditUser")
 		server.dbLock.Unlock()
 		return
 	}
 	settlementResults = append(settlementResults, setRes)
 
 	if err = currSettleStore.UpdateBalances(settlementResults); err != nil {
-		err = fmt.Errorf("Error updating balances for creditUser: %s", err)
+		err = fmt.Errorf("Error updating balances for CreditUser: %s", err)
 		server.dbLock.Unlock()
 		return
 	}

@@ -13,7 +13,7 @@ import (
 )
 
 // OrderCommand submits an order synchronously. Uses asynchronous order function
-func (cl *BenchClient) OrderCommand(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64) (reply *cxrpc.SubmitOrderReply, err error) {
+func (cl *BenchClient) OrderCommand(pubkey *koblitz.PublicKey, side match.Side, pair string, amountHave uint64, price float64) (reply *cxrpc.SubmitOrderReply, err error) {
 	errorChannel := make(chan error, 1)
 	replyChannel := make(chan *cxrpc.SubmitOrderReply, 1)
 	go cl.OrderAsync(pubkey, side, pair, amountHave, price, replyChannel, errorChannel)
@@ -33,7 +33,7 @@ func (cl *BenchClient) OrderCommand(pubkey *koblitz.PublicKey, side string, pair
 }
 
 // OrderAsync is supposed to be run in a separate goroutine, OrderCommand makes this synchronous however
-func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side string, pair string, amountHave uint64, price float64, replyChan chan *cxrpc.SubmitOrderReply, errChan chan error) {
+func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side match.Side, pair string, amountHave uint64, price float64, replyChan chan *cxrpc.SubmitOrderReply, errChan chan error) {
 
 	if cl.PrivKey == nil {
 		errChan <- fmt.Errorf("Private key nonexistent, set or specify private key so the client can sign commands")
@@ -49,12 +49,6 @@ func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side string, pair s
 		copy(newOrder.Pubkey[:], pubkey.SerializeCompressed())
 		newOrder.Side = side
 
-		// check that the sides are correct
-		if newOrder.Side != "buy" && newOrder.Side != "sell" {
-			err = fmt.Errorf("Order's side isn't buy or sell, try again")
-			return
-		}
-
 		// get the trading pair string from the shell input - third parameter
 		if err = newOrder.TradingPair.FromString(pair); err != nil {
 			err = fmt.Errorf("Error getting asset pair from string: \n%s", err)
@@ -62,12 +56,17 @@ func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side string, pair s
 		}
 
 		newOrder.AmountHave = amountHave
+		newOrder.AmountWant = uint64(price * float64(amountHave))
 
-		newOrder.SetAmountWant(price)
+		var newOrderBytes []byte
+		if newOrderBytes, err = newOrder.Serialize(); err != nil {
+			err = fmt.Errorf("Error serializing new order: %s", err)
+			return
+		}
 
 		// create e = hash(m)
 		sha3 := sha3.New256()
-		sha3.Write(newOrder.Serialize())
+		sha3.Write(newOrderBytes)
 		e := sha3.Sum(nil)
 
 		// Sign order

@@ -7,10 +7,12 @@ import (
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/benchclient"
+	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 // Let these be turned into config things at some point
@@ -108,18 +110,46 @@ func registerClient(client *benchclient.BenchClient) (err error) {
 // createFullServer creates a server after starting the database with a bunch of parameters
 func createFullServer(coinList []*coinparam.Params, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
 
-	// Create db connection
-	var db *cxdbsql.DB
-	db = new(cxdbsql.DB)
-
-	// Setup DB Client
-	if err = db.SetupClient(coinList); err != nil {
-		err = fmt.Errorf("Error setting up sql client: \n%s", err)
+	var pairList []*match.Pair
+	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
+		err = fmt.Errorf("Could not generate asset pairs from coin list: %s", err)
 		return
 	}
 
-	// Anyways, here's where we set the server
-	ocxServer = cxserver.InitServer(db, "", serverport, coinList)
+	var mengines map[match.Pair]match.LimitEngine
+	if mengines, err = cxdbsql.CreateLimitEngineMap(pairList); err != nil {
+		err = fmt.Errorf("Error creating limit engine map with coinlist for createFullServer: %s", err)
+		return
+	}
+
+	var setEngines map[*coinparam.Params]match.SettlementEngine
+	if setEngines, err = cxdbsql.CreateSettlementEngineMap(coinList); err != nil {
+		err = fmt.Errorf("Error creating settlement engine map for createFullServer: %s", err)
+		return
+	}
+
+	var limBooks map[match.Pair]match.LimitOrderbook
+	if limBooks, err = cxdbsql.CreateLimitOrderbookMap(pairList); err != nil {
+		err = fmt.Errorf("Error creating limit orderbook map for createFullServer: %s", err)
+		return
+	}
+
+	var depositStores map[*coinparam.Params]cxdb.DepositStore
+	if depositStores, err = cxdbsql.CreateDepositStoreMap(coinList); err != nil {
+		err = fmt.Errorf("Error creating deposit store map for createFullServer: %s", err)
+		return
+	}
+
+	var setStores map[*coinparam.Params]cxdb.SettlementStore
+	if setStores, err = cxdbsql.CreateSettlementStoreMap(coinList); err != nil {
+		err = fmt.Errorf("Error creating settlement store map for createFullServer: %s", err)
+		return
+	}
+
+	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, ""); err != nil {
+		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
+		return
+	}
 
 	key := new([32]byte)
 	copy(key[:], privkey.Serialize())
@@ -190,17 +220,17 @@ func createDefaultParamServerWithKey(privkey *koblitz.PrivateKey, authrpc bool) 
 // prepareBalances adds tons of money to both accounts
 func prepareBalances(client *benchclient.BenchClient, server *cxserver.OpencxServer) (err error) {
 
-	if err = server.OpencxDB.AddToBalance(client.PrivKey.PubKey(), 1000000000, &coinparam.RegressionNetParams); err != nil {
+	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.RegressionNetParams); err != nil {
 		err = fmt.Errorf("Error adding a bunch of regtest to client: \n%s", err)
 		return
 	}
 
-	if err = server.OpencxDB.AddToBalance(client.PrivKey.PubKey(), 1000000000, &coinparam.LiteRegNetParams); err != nil {
+	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.LiteRegNetParams); err != nil {
 		err = fmt.Errorf("Error adding a bunch of litereg to client: \n%s", err)
 		return
 	}
 
-	if err = server.OpencxDB.AddToBalance(client.PrivKey.PubKey(), 1000000000, &coinparam.VertcoinRegTestParams); err != nil {
+	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.VertcoinRegTestParams); err != nil {
 		err = fmt.Errorf("Error adding a bunch of vtcreg to client: \n%s", err)
 		return
 	}

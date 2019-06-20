@@ -403,7 +403,7 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 	// TODO: this should only happen when we get a proof that the other person actually took the withdraw / updated the state. We don't have a guarantee that they will always accept
 
 	if initSend != 0 {
-		if err = server.creditUser(pubkey, uint64(initSend), params); err != nil {
+		if err = server.CreditUser(pubkey, uint64(initSend), params); err != nil {
 			err = fmt.Errorf("Error while crediting user for CreateChannel: %s\n", err)
 			return
 		}

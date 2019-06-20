@@ -182,3 +182,19 @@ func (lo *SQLLimitOrderbook) ViewLimitOrderBook() (book map[float64][]*match.Lim
 	logging.Fatalf("UNIMPLEMENTED!")
 	return
 }
+
+// CreateLimitOrderbookMap creates a map of pair to deposit store, given a list of pairs.
+func CreateLimitOrderbookMap(pairList []*match.Pair) (orderbookMap map[match.Pair]match.LimitOrderbook, err error) {
+
+	orderbookMap = make(map[match.Pair]match.LimitOrderbook)
+	var curLimOrderbook match.LimitOrderbook
+	for _, pair := range pairList {
+		if curLimOrderbook, err = CreateLimitOrderbook(pair); err != nil {
+			err = fmt.Errorf("Error creating single limit engine while creating limit engine map: %s", err)
+			return
+		}
+		orderbookMap[*pair] = curLimOrderbook
+	}
+
+	return
+}

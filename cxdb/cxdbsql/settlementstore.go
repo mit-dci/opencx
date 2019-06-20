@@ -37,8 +37,8 @@ const (
 	settlementStoreSchema = "pubkey VARBINARY(66), balance BIGINT(64), PRIMARY KEY (pubkey)"
 )
 
-// CreateSQLSettlementStore creates a settlement store for a specific coin.
-func CreateSQLSettlementStore(coin *coinparam.Params) (store cxdb.SettlementStore, err error) {
+// CreateSettlementStore creates a settlement store for a specific coin.
+func CreateSettlementStore(coin *coinparam.Params) (store cxdb.SettlementStore, err error) {
 
 	conf := new(dbsqlConfig)
 	*conf = *defaultConf
@@ -77,6 +77,61 @@ func CreateSQLSettlementStore(coin *coinparam.Params) (store cxdb.SettlementStor
 	// Make sure we can actually connect
 	if err = ss.DBHandler.Ping(); err != nil {
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+	return
+}
+
+// setupSettlementStoreTables sets up the tables needed for the auction orderbook.
+// This assumes the schema name is set
+func (ss *SQLSettlementStore) setupSettlementStoreTables() (err error) {
+
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", ss.dbUsername, ss.dbPassword, ss.dbAddr.Network(), ss.dbAddr.String())
+	var rootHandler *sql.DB
+	if rootHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening database for setup settlement store tables: %s", err)
+		return
+	}
+
+	// when we're done close please
+	defer rootHandler.Close()
+
+	if err = rootHandler.Ping(); err != nil {
+		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+
+	// We do this in a transaction because it's more than one operation
+	var tx *sql.Tx
+	if tx, err = rootHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for setup settlement store tables: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error while creating settlement store tables: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// Now create the schema
+	if _, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS " + ss.balanceReadOnlySchema + ";"); err != nil {
+		err = fmt.Errorf("Error creating schema for setup settlement store tables: %s", err)
+		return
+	}
+
+	// use the schema
+	if _, err = tx.Exec("USE " + ss.balanceReadOnlySchema + ";"); err != nil {
+		err = fmt.Errorf("Could not use %s schema: %s", ss.balanceReadOnlySchema, err)
+		return
+	}
+
+	createTableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", ss.coin.Name, settlementStoreSchema)
+	if _, err = tx.Exec(createTableQuery); err != nil {
+		err = fmt.Errorf("Error creating settlement store table: %s", err)
 		return
 	}
 	return
@@ -175,57 +230,18 @@ func (ss *SQLSettlementStore) GetBalance(pubkey *koblitz.PublicKey) (balance uin
 	return
 }
 
-// setupSettlementStoreTables sets up the tables needed for the auction orderbook.
-// This assumes the schema name is set
-func (ss *SQLSettlementStore) setupSettlementStoreTables() (err error) {
+// CreateSettlementStoreMap creates a map of coin to settlement engine, given a list of coins.
+func CreateSettlementStoreMap(coins []*coinparam.Params) (setMap map[*coinparam.Params]cxdb.SettlementStore, err error) {
 
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", ss.dbUsername, ss.dbPassword, ss.dbAddr.Network(), ss.dbAddr.String())
-	var rootHandler *sql.DB
-	if rootHandler, err = sql.Open("mysql", openString); err != nil {
-		err = fmt.Errorf("Error opening database for setup settlement store tables: %s", err)
-		return
-	}
-
-	// when we're done close please
-	defer rootHandler.Close()
-
-	if err = rootHandler.Ping(); err != nil {
-		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
-		return
-	}
-
-	// We do this in a transaction because it's more than one operation
-	var tx *sql.Tx
-	if tx, err = rootHandler.Begin(); err != nil {
-		err = fmt.Errorf("Error when beginning transaction for setup settlement store tables: %s", err)
-		return
-	}
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-			err = fmt.Errorf("Error while creating settlement store tables: \n%s", err)
+	setMap = make(map[*coinparam.Params]cxdb.SettlementStore)
+	var curSetEng cxdb.SettlementStore
+	for _, coin := range coins {
+		if curSetEng, err = CreateSettlementStore(coin); err != nil {
+			err = fmt.Errorf("Error creating single settlement store while creating settlement store map: %s", err)
 			return
 		}
-		err = tx.Commit()
-	}()
-
-	// Now create the schema
-	if _, err = tx.Exec("CREATE SCHEMA IF NOT EXISTS " + ss.balanceReadOnlySchema + ";"); err != nil {
-		err = fmt.Errorf("Error creating schema for setup settlement store tables: %s", err)
-		return
+		setMap[coin] = curSetEng
 	}
 
-	// use the schema
-	if _, err = tx.Exec("USE " + ss.balanceReadOnlySchema + ";"); err != nil {
-		err = fmt.Errorf("Could not use %s schema: %s", ss.balanceReadOnlySchema, err)
-		return
-	}
-
-	createTableQuery := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (%s);", ss.coin.Name, settlementStoreSchema)
-	if _, err = tx.Exec(createTableQuery); err != nil {
-		err = fmt.Errorf("Error creating settlement store table: %s", err)
-		return
-	}
 	return
 }

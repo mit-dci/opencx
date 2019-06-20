@@ -149,7 +149,7 @@ func TestViewAuctionOrderbookEmpty(t *testing.T) {
 	}
 
 	// Starting from an empty book, we shouldn't see anything in this auction id.
-	var book map[float64][]*github.com/match.AuctionOrderIDPair
+	var book map[float64][]*match.AuctionOrderIDPair
 	if book, err = dbConn.ViewAuctionOrderBook(&testAuctionOrder.TradingPair, testEncryptedOrder.IntendedAuction); err != nil {
 		t.Errorf("Error vewing auction puzzle book, should not error: %s", err)
 		return
@@ -362,7 +362,7 @@ func TestClearingMatchingSimple(t *testing.T) {
 		return
 	}
 
-	var book map[float64][]*github.com/match.AuctionOrderIDPair
+	var book map[float64][]*match.AuctionOrderIDPair
 	if book, err = dbConn.ViewAuctionOrderBook(&equalOrderLtcBtc.TradingPair, equalOrderLtcBtc.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
@@ -430,7 +430,7 @@ func TestClearingDoubleMatch(t *testing.T) {
 		return
 	}
 
-	var book map[float64][]*github.com/match.AuctionOrderIDPair
+	var book map[float64][]*match.AuctionOrderIDPair
 	if book, err = dbConn.ViewAuctionOrderBook(&testingHalfSell.TradingPair, testingHalfSell.AuctionID); err != nil {
 		t.Errorf("There should not be an error matching the view auction orderbook: %s", err)
 		return
