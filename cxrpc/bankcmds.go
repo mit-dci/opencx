@@ -3,10 +3,9 @@ package cxrpc
 import (
 	"fmt"
 
-	"github.com/mit-dci/opencx/util"
-
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/opencx/chainutils"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"
 )
@@ -37,18 +36,15 @@ func (cl *OpencxRPC) GetBalance(args GetBalanceArgs, reply *GetBalanceReply) (er
 	}
 
 	var param *coinparam.Params
-	if param, err = util.GetParamFromName(args.Asset); err != nil {
+	if param, err = chainutils.GetParamFromName(args.Asset); err != nil {
 		err = fmt.Errorf("Error getting coin type from name, pass in a different asset")
 		return
 	}
 
-	cl.Server.LockIngests()
-	if reply.Amount, err = cl.Server.OpencxDB.GetBalance(pubkey, param); err != nil {
-		cl.Server.UnlockIngests()
-		err = fmt.Errorf("Error with getbalance command: \n%s", err)
+	if reply.Amount, err = cl.Server.GetBalance(pubkey, param); err != nil {
+		err = fmt.Errorf("Error getting balance for pubkey in GetBalance RPC command: %s", err)
 		return
 	}
-	cl.Server.UnlockIngests()
 
 	return
 }
@@ -72,20 +68,19 @@ func (cl *OpencxRPC) GetDepositAddress(args GetDepositAddressArgs, reply *GetDep
 	sha3.Write([]byte(args.Asset))
 	e := sha3.Sum(nil)
 
-	pubkey, _, err := koblitz.RecoverCompact(koblitz.S256(), args.Signature, e)
-	if err != nil {
-		err = fmt.Errorf("Error verifying order, invalid signature: \n%s", err)
+	var pubkey *koblitz.PublicKey
+	if pubkey, _, err = koblitz.RecoverCompact(koblitz.S256(), args.Signature, e); err != nil {
+		err = fmt.Errorf("Error, invalid signature with GetDepositAddress RPC command: %s", err)
 		return
 	}
 
-	cl.Server.LockIngests()
-	if reply.Address, err = cl.Server.OpencxDB.GetDepositAddress(pubkey, args.Asset); err != nil {
-		// gotta put these here cause if it errors out then oops just locked everything
-		cl.Server.UnlockIngests()
-		err = fmt.Errorf("Error with getdepositaddress command: \n%s", err)
+	var param *coinparam.Params
+	// if param, err =
+
+	if reply.Address, err = cl.Server.GetDepositAddress(pubkey, param); err != nil {
+		err = fmt.Errorf("Error getting deposit address from server for GetDepositAddress RPC: %s", err)
 		return
 	}
-	cl.Server.UnlockIngests()
 
 	return
 }
@@ -116,7 +111,7 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err erro
 	}
 
 	var coinType *coinparam.Params
-	if coinType, err = util.GetParamFromName(args.Withdrawal.Asset.String()); err != nil {
+	if coinType, err = chainutils.GetParamFromName(args.Withdrawal.Asset.String()); err != nil {
 		return
 	}
 

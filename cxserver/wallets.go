@@ -8,7 +8,6 @@ import (
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/wallit"
 	"github.com/mit-dci/opencx/logging"
-	"github.com/mit-dci/opencx/util"
 )
 
 // SetupWallet sets up a wallet for a specific coin, based on params.
@@ -55,7 +54,7 @@ func (server *OpencxServer) SetupWallet(errChan chan error, subDirName string, p
 }
 
 // SetupAllWallets sets up all wallets with parameters as specified in the hostParamList
-func (server *OpencxServer) SetupAllWallets(hostParamList util.HostParamList, subDirName string, resync bool) (err error) {
+func (server *OpencxServer) SetupAllWallets(hostParamList chainutils.HostParamList, subDirName string, resync bool) (err error) {
 	hpLen := len(hostParamList)
 	errChan := make(chan error, hpLen)
 	for _, hostParam := range hostParamList {
@@ -78,7 +77,9 @@ func (server *OpencxServer) LinkAllWallets() (err error) {
 	// been started or something is wrong. This is definitely a synchronous thing to be doing, you need to start
 	// the wallets for all your coins before you try to link them all. If you don't want to link them all, use
 	// LinkManyWallets.
-	for _, param := range server.CoinList {
+
+	// Check for all settlement layers
+	for param, _ := range server.SettlementEngines {
 		wallet, found := server.WalletMap[param]
 		if !found {
 			err = fmt.Errorf("Wallet in Coin List not being tracked by exchange in map, start it please")
@@ -88,7 +89,6 @@ func (server *OpencxServer) LinkAllWallets() (err error) {
 		if err = server.LinkOneWallet(wallet, false); err != nil {
 			return
 		}
-
 	}
 
 	logging.Infof("Successfully linked all wallets!")

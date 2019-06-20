@@ -11,14 +11,6 @@ type HostParams struct {
 	Host  string
 }
 
-// NewHostParams is a *utility function* for inlining the creation of new HostParams.
-func NewHostParams(param *coinparam.Params, hostString string) *HostParams {
-	return &HostParams{
-		Param: param,
-		Host:  hostString,
-	}
-}
-
 // HostParamList exists so we can easily, with utils, get a list of coin params separated from the hosts.
 type HostParamList []*HostParams
 

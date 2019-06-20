@@ -10,20 +10,13 @@ import (
 // SetupServerKeys just loads a private key from a file wallet
 func (server *OpencxServer) SetupServerKeys(privkey *[32]byte) (err error) {
 
-	if err = server.SetupManyKeys(privkey, server.CoinList); err != nil {
-		return
-	}
-
-	return
-}
-
-// SetupManyKeys sets up many keys for the server based on an array of coinparams.
-func (server *OpencxServer) SetupManyKeys(privkey *[32]byte, paramList []*coinparam.Params) (err error) {
-	for _, param := range paramList {
+	// for all settlement engines that we have, make keys
+	for param, _ := range server.SettlementEngines {
 		if err = server.SetupSingleKey(privkey, param); err != nil {
 			return
 		}
 	}
+
 	return
 }
 

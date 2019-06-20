@@ -13,7 +13,6 @@ import (
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/logging"
-	"github.com/mit-dci/opencx/util"
 )
 
 type opencxConfig struct {
@@ -150,7 +149,7 @@ func main() {
 		// Generate the host param list
 		// the host params are all of the coinparams / coins we support
 		// this coinparam list is generated from the configuration file with generateHostParams
-		hpList := util.HostParamList(generateHostParams(&conf))
+		hpList := chainutils.HostParamList(generateHostParams(&conf))
 
 		// Set up all chain hooks and wallets
 		if err = ocxServer.SetupAllWallets(hpList, "wallit/", conf.Resync); err != nil {
