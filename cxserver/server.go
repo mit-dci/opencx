@@ -158,3 +158,14 @@ func (server *OpencxServer) GetAddressMap(pubkey *koblitz.PublicKey) (addrMap ma
 	}
 	return
 }
+
+// GetPairs just iterates throug the matching engine map, getting their pair keys and appending
+// to a list
+func (server *OpencxServer) GetPairs() (pairs []*match.Pair) {
+	server.dbLock.Lock()
+	for pair, _ := range server.MatchingEngines {
+		pairs = append(pairs, &pair)
+	}
+	server.dbLock.Unlock()
+	return
+}
