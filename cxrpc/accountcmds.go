@@ -3,7 +3,6 @@ package cxrpc
 import (
 	"fmt"
 
-	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/logging"
 )
@@ -23,32 +22,14 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) (err erro
 
 	var pubkey *koblitz.PublicKey
 	if pubkey, err = cl.Server.RegistrationStringVerify(args.Signature); err != nil {
+		err = fmt.Errorf("Error verifying registration string for register RPC command: %s")
 		return
 	}
 
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("Error registering user: \n%s", err)
-		}
-	}()
-
-	// go through each enabled wallet in the server and create a new address for them.
-	addrMap := make(map[*coinparam.Params]string)
-	for param := range cl.Server.WalletMap {
-		if addrMap[param], err = cl.Server.GetAddrForCoin(param, pubkey); err != nil {
-			return
-		}
-	}
-
-	// Do all this locking just cause
-	cl.Server.LockIngests()
-	// Insert them into the DB
-	if err = cl.Server.OpencxDB.RegisterUser(pubkey, addrMap); err != nil {
-		// gotta put these here cause if it errors out then oops just locked everything
-		cl.Server.UnlockIngests()
+	if err = cl.Server.RegisterUser(pubkey); err != nil {
+		err = fmt.Errorf("Error registering user for register RPC command: %s", err)
 		return
 	}
-	cl.Server.UnlockIngests()
 
 	logging.Infof("Registering user with pubkey %x\n", pubkey.SerializeCompressed())
 	// put this in database

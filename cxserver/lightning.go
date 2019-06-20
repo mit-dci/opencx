@@ -334,7 +334,9 @@ func (server *OpencxServer) CreateSwap(pubkey *koblitz.PublicKey, order *match.L
 // SetupFundBack funds a node back after a sigproof
 func (server *OpencxServer) SetupFundBack(pubkey *koblitz.PublicKey, currCoinType uint32, channelCapacity int64) (err error) {
 
-	for _, param := range server.CoinList {
+	// now check for all the settlement layers again... since lightning itself is a settlement layer
+	// maybe we should abstract
+	for param, _ := range server.SettlementEngines {
 		if param.HDCoinType != currCoinType {
 			var pWallet qln.UWallet
 			var found bool
@@ -401,21 +403,23 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 	// TODO: this should only happen when we get a proof that the other person actually took the withdraw / updated the state. We don't have a guarantee that they will always accept
 
 	if initSend != 0 {
-		logging.Debugf("Checking withdraw lock...")
-		server.LockIngests()
-		logging.Debugf("Locked ingests, withdrawing")
-		if err = server.OpencxDB.Withdraw(pubkey, params, uint64(initSend)); err != nil {
-			// if errors out, unlock
-			logging.Errorf("Error while withdrawing from db: %s\n", err)
-			server.UnlockIngests()
+		if err = server.creditUser(pubkey, uint64(initSend), params); err != nil {
+			err = fmt.Errorf("Error while crediting user for CreateChannel: %s\n", err)
 			return
 		}
-		server.UnlockIngests()
+	}
+
+	var thisWallet qln.UWallet
+	var ok bool
+	if thisWallet, ok = server.ExchangeNode.SubWallet[params.HDCoinType]; !ok {
+		err = fmt.Errorf("Cound not find subwallet for CreateChannel")
+		return
 	}
 
 	var utxoDump []*portxo.PorTxo
-	if utxoDump, err = server.ExchangeNode.SubWallet[params.HDCoinType].UtxoDump(); err != nil {
+	if utxoDump, err = thisWallet.UtxoDump(); err != nil {
 		logging.Infof("Error dumping utxos")
+		err = fmt.Errorf("Error dumping utxos for subwallet for CreateChannel: %s", err)
 		return
 	}
 
@@ -432,6 +436,7 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 	// retrieve chanIdx because we need it for qchan for outpoint hash, if that's not useful anymore just make this chanIdx => _
 	var chanIdx uint32
 	if chanIdx, err = server.ExchangeNode.FundChannel(peerIdx, params.HDCoinType, ccap, initSend, *noData); err != nil {
+		err = fmt.Errorf("Error funding channel for CreateChannel: %s", err)
 		return
 	}
 
@@ -439,6 +444,7 @@ func (server *OpencxServer) CreateChannel(pubkey *koblitz.PublicKey, initSend in
 	// get qchan so we can get the outpoint hash
 	var qchan *qln.Qchan
 	if qchan, err = server.ExchangeNode.GetQchanByIdx(chanIdx); err != nil {
+		err = fmt.Errorf("Error getting qchan by idx for CreateChannel: %s", err)
 		return
 	}
 

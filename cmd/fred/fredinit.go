@@ -6,9 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mit-dci/opencx/util"
-
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/opencx/chainutils"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/lit/lnutil"
@@ -136,36 +135,24 @@ func opencxSetup(conf *fredConfig) *[32]byte {
 }
 
 func generateCoinList(conf *fredConfig) []*coinparam.Params {
-	return util.HostParamList(generateHostParams(conf)).CoinListFromHostParams()
+	return chainutils.HostParamList(generateHostParams(conf)).CoinListFromHostParams()
 }
 
-func generateHostParams(conf *fredConfig) (hostParamList []*util.HostParams) {
+func generateHostParams(conf *fredConfig) (hostParamList []*chainutils.HostParams) {
 	// Regular networks (Just like don't use any of these, I support them though)
-	evalHostParams(&hostParamList, conf.Btchost, &coinparam.BitcoinParams)
-	evalHostParams(&hostParamList, conf.Vtchost, &coinparam.VertcoinParams)
+	hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.BitcoinParams, Host: conf.Btchost})
+	hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.VertcoinParams, Host: conf.Vtchost})
 	// Wait until supported by lit
-	// evalHostParams(&hostParamList, conf.Ltchost, &coinparam.LitecoinParams)
+	// hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.LitecoinParams, Host: conf.Ltchost})
 
 	// Test nets
-	evalHostParams(&hostParamList, conf.Tn3host, &coinparam.TestNet3Params)
-	evalHostParams(&hostParamList, conf.Tvtchost, &coinparam.VertcoinTestNetParams)
-	evalHostParams(&hostParamList, conf.Lt4host, &coinparam.LiteCoinTestNet4Params)
+	hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.TestNet3Params, Host: conf.Tn3host})
+	hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.VertcoinTestNetParams, Host: conf.Tvtchost})
+	hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.LiteCoinTestNet4Params, Host: conf.Lt4host})
 
 	// Regression nets
-	evalHostParams(&hostParamList, conf.Reghost, &coinparam.RegressionNetParams)
-	evalHostParams(&hostParamList, conf.Rtvtchost, &coinparam.VertcoinRegTestParams)
-	evalHostParams(&hostParamList, conf.Litereghost, &coinparam.LiteRegNetParams)
+	hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.RegressionNetParams, Host: conf.Reghost})
+	hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.VertcoinRegTestParams, Host: conf.Rtvtchost})
+	hostParamList = append(hostParamList, &chainutils.HostParams{Param: &coinparam.LiteRegNetParams, Host: conf.Litereghost})
 	return
-}
-
-func evalHostAppendItem(listPointer *[]interface{}, hostString string, item interface{}) {
-	if hostString != "" {
-		*listPointer = append(*listPointer, item)
-	}
-}
-
-func evalHostParams(hostParamListPointer *[]*util.HostParams, hostString string, associatedParam *coinparam.Params) {
-	if hostString != "" {
-		*hostParamListPointer = append(*hostParamListPointer, util.NewHostParams(associatedParam, hostString))
-	}
 }

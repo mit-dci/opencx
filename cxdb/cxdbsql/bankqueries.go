@@ -10,7 +10,6 @@ import (
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
-	"github.com/mit-dci/opencx/util"
 )
 
 // GetBalance gets the balance of an account
@@ -52,11 +51,6 @@ func (db *DB) GetBalance(pubkey *koblitz.PublicKey, param *coinparam.Params) (ui
 // UpdateDeposits happens when a block is sent in, it updates the deposits table with correct deposits
 func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64, coinType *coinparam.Params) (err error) {
 
-	coinSchema, err := util.GetSchemaNameFromParam(coinType)
-	if err != nil {
-		return fmt.Errorf("Error while updating deposits: \n%s", err)
-	}
-
 	tx, err := db.DBHandler.Begin()
 	if err != nil {
 		return fmt.Errorf("Error beginning transaction while updating deposits: \n%s", err)
@@ -78,7 +72,7 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 
 		// Insert the deposit
 		// TODO: replace this name stuff, check that the txid doesn't already exist in deposits. IMPORTANT!!
-		insertDepositQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d, %d, %d, '%s');", coinSchema, deposit.Pubkey.SerializeCompressed(), deposit.BlockHeightReceived+deposit.Confirmations, deposit.BlockHeightReceived, deposit.Amount, deposit.Txid)
+		insertDepositQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d, %d, %d, '%s');", coinType.Name, deposit.Pubkey.SerializeCompressed(), deposit.BlockHeightReceived+deposit.Confirmations, deposit.BlockHeightReceived, deposit.Amount, deposit.Txid)
 		if _, err = tx.Exec(insertDepositQuery); err != nil {
 			return
 		}
@@ -135,7 +129,7 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 	}
 
 	for _, txid := range txids {
-		deleteDepositQuery := fmt.Sprintf("DELETE FROM %s WHERE txid='%s';", coinSchema, txid)
+		deleteDepositQuery := fmt.Sprintf("DELETE FROM %s WHERE txid='%s';", coinType.Name, txid)
 		if _, err = tx.Exec(deleteDepositQuery); err != nil {
 			return
 		}
@@ -223,11 +217,6 @@ func (db *DB) UpdateBalancesWithinTransaction(pubkeys []*koblitz.PublicKey, amou
 		}
 	}()
 
-	coinSchema, err := util.GetSchemaNameFromParam(coinType)
-	if err != nil {
-		return
-	}
-
 	if _, err = tx.Exec("USE " + db.balanceSchema + ";"); err != nil {
 		return
 	}
@@ -235,7 +224,7 @@ func (db *DB) UpdateBalancesWithinTransaction(pubkeys []*koblitz.PublicKey, amou
 	for i := range amounts {
 		amount := amounts[i]
 		pubkey := pubkeys[i]
-		currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", coinSchema, pubkey.SerializeCompressed())
+		currentBalanceQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", coinType.Name, pubkey.SerializeCompressed())
 		res, queryErr := tx.Query(currentBalanceQuery)
 		if queryErr != nil {
 			err = queryErr
@@ -256,14 +245,14 @@ func (db *DB) UpdateBalancesWithinTransaction(pubkeys []*koblitz.PublicKey, amou
 
 			// Update the balance
 			// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-			insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE pubkey='%x';", coinSchema, balance+amount, pubkey.SerializeCompressed())
+			insertBalanceQuery := fmt.Sprintf("UPDATE %s SET balance='%d' WHERE pubkey='%x';", coinType.Name, balance+amount, pubkey.SerializeCompressed())
 			if _, err = tx.Exec(insertBalanceQuery); err != nil {
 				return
 			}
 		} else {
 			// Create the balance
 			// TODO: replace this name stuff, check that the name doesn't already exist on register. IMPORTANT!!
-			insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinSchema, pubkey.SerializeCompressed(), amount)
+			insertBalanceQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%s', %d);", coinType.Name, pubkey.SerializeCompressed(), amount)
 			if _, err = tx.Exec(insertBalanceQuery); err != nil {
 				return
 			}
@@ -350,14 +339,8 @@ func (db *DB) GetDepositAddressMap(coinType *coinparam.Params) (depositAddresses
 		return
 	}
 
-	var assetString string
-	if assetString, err = util.GetSchemaNameFromParam(coinType); err != nil {
-		err = fmt.Errorf("Tried to get deposit addresses for %s which isn't a valid asset", assetString)
-		return
-	}
-
 	var getBalanceStmt *sql.Stmt
-	if getBalanceStmt, err = tx.Prepare(fmt.Sprintf("SELECT pubkey, address FROM %s;", assetString)); err != nil {
+	if getBalanceStmt, err = tx.Prepare(fmt.Sprintf("SELECT pubkey, address FROM %s;", coinType.Name)); err != nil {
 		return
 	}
 
