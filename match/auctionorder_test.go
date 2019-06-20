@@ -1,7 +1,6 @@
 package match
 
 import (
-	"bytes"
 	"testing"
 )
 
@@ -11,7 +10,7 @@ var (
 		AssetHave: VTC,
 	}
 
-	origOrderID = []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}
+	origOrderID = OrderID([32]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07})
 	origOrder   = &AuctionOrder{
 		Side:        "buy",
 		TradingPair: orderPair,
@@ -21,7 +20,7 @@ var (
 		Nonce: [2]byte{0xff, 0x12},
 	}
 
-	origOrderCounterID = []byte{0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
+	origOrderCounterID = OrderID([32]byte{0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f})
 	origOrderCounter   = &AuctionOrder{
 		Side:        "sell",
 		TradingPair: orderPair,
@@ -32,7 +31,7 @@ var (
 	}
 
 	origOrderFullExec = &OrderExecution{
-		OrderID: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07},
+		OrderID: OrderID([32]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}),
 		// these are just some random numbers because they should not matter since the order is filled
 		NewAmountWant: 23892323,
 		NewAmountHave: 37348722,
@@ -50,7 +49,7 @@ var (
 	}
 
 	origOrderDoubleExec = &OrderExecution{
-		OrderID: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07},
+		OrderID: OrderID([32]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}),
 		// these are just some random numbers because they should not matter since the order is filled
 		NewAmountWant: 53872666,
 		NewAmountHave: 47666772,
@@ -144,7 +143,7 @@ func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 	var resExec OrderExecution
 	var setExecs []*SettlementExecution
 	var fillRemainder uint64
-	if resExec, setExecs, fillRemainder, err = origOrder.GenerateExecutionFromPrice(origOrderID, float64(1), 100000000); err != nil {
+	if resExec, setExecs, fillRemainder, err = origOrder.GenerateExecutionFromPrice(&origOrderID, float64(1), 100000000); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -154,7 +153,7 @@ func TestGenerateEasyExecutionFromPrice(t *testing.T) {
 		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
 		return
 	}
-	if !bytes.Equal(resExec.OrderID, origOrderFullExec.OrderID) {
+	if resExec.OrderID != origOrderFullExec.OrderID {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}
@@ -188,7 +187,7 @@ func TestGenerateDoubleFill(t *testing.T) {
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
 	var setExecs []*SettlementExecution
-	if resExec, setExecs, err = origOrder.GenerateOrderFill(origOrderID, float64(2)); err != nil {
+	if resExec, setExecs, err = origOrder.GenerateOrderFill(&origOrderID, float64(2)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -197,7 +196,7 @@ func TestGenerateDoubleFill(t *testing.T) {
 		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
 		return
 	}
-	if !bytes.Equal(resExec.OrderID, origOrderDoubleExec.OrderID) {
+	if resExec.OrderID != origOrderDoubleExec.OrderID {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderDoubleExec.OrderID, resExec.OrderID)
 		return
 	}
@@ -226,7 +225,7 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 	// this should fill the order completely. this is the trivial case.
 	var resExec OrderExecution
 	var setExecs []*SettlementExecution
-	if resExec, setExecs, err = origOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
+	if resExec, setExecs, err = origOrder.GenerateOrderFill(&origOrderID, float64(1)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -235,7 +234,7 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
 		return
 	}
-	if !bytes.Equal(resExec.OrderID, origOrderFullExec.OrderID) {
+	if resExec.OrderID != origOrderFullExec.OrderID {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}
@@ -269,7 +268,7 @@ func TestGenerateBadSideFill(t *testing.T) {
 	// this should just error
 	var resExec OrderExecution
 	var setExecs []*SettlementExecution
-	if resExec, setExecs, err = badOrder.GenerateOrderFill(origOrderID, float64(1)); err == nil {
+	if resExec, setExecs, err = badOrder.GenerateOrderFill(&origOrderID, float64(1)); err == nil {
 		t.Errorf("There was no error trying to generate an order fill for an order with a bad side")
 		return
 	}
@@ -299,7 +298,7 @@ func TestGenerateBadPriceFill(t *testing.T) {
 	// this should just error
 	var resExec OrderExecution
 	var setExecs []*SettlementExecution
-	if resExec, setExecs, err = badOrder.GenerateOrderFill(origOrderID, float64(0)); err == nil {
+	if resExec, setExecs, err = badOrder.GenerateOrderFill(&origOrderID, float64(0)); err == nil {
 		t.Errorf("There was no error trying to generate an order fill for a price of zero")
 		return
 	}
@@ -329,7 +328,7 @@ func TestGenerateEasyPriceFillAmounts(t *testing.T) {
 	// this should just error
 	var resExec OrderExecution
 	var setExecs []*SettlementExecution
-	if resExec, setExecs, err = zeroPriceOrder.GenerateOrderFill(origOrderID, float64(1)); err != nil {
+	if resExec, setExecs, err = zeroPriceOrder.GenerateOrderFill(&origOrderID, float64(1)); err != nil {
 		t.Errorf("Error generating execution from price, should not error: %s", err)
 		return
 	}
@@ -339,7 +338,7 @@ func TestGenerateEasyPriceFillAmounts(t *testing.T) {
 		t.Errorf("Both executions should be filled, but the result's filled variable is %t", resExec.Filled)
 		return
 	}
-	if !bytes.Equal(resExec.OrderID, origOrderFullExec.OrderID) {
+	if resExec.OrderID != origOrderFullExec.OrderID {
 		t.Errorf("Order IDs should be equal for both executions. The result should be %x but was %x", origOrderFullExec.OrderID, resExec.OrderID)
 		return
 	}

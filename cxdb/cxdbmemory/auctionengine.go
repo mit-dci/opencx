@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"
 )
@@ -129,6 +130,7 @@ func (me *MemoryAuctionEngine) CancelAuctionOrder(id *match.OrderID) (cancelled 
 // MatchAuctionOrders matches the auction orders for a specific auction ID
 func (me *MemoryAuctionEngine) MatchAuctionOrders(auctionID *match.AuctionID) (orderExecs []*match.OrderExecution, settlementExecs []*match.SettlementExecution, err error) {
 	// TODO
+	logging.Fatalf("UNIMPLEMENTED!")
 	return
 }
 
