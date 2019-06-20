@@ -72,6 +72,9 @@ func CreateAuctionEngineWithConf(pair *match.Pair, conf *dbsqlConfig) (engine ma
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
 		return
 	}
+
+	// now we actually set the return, all checks have passed
+	engine = ae
 	return
 }
 

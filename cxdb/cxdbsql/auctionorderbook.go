@@ -77,6 +77,8 @@ func CreateAuctionOrderbook(pair *match.Pair) (book match.AuctionOrderbook, err 
 		return
 	}
 
+	// We can connect, now set return
+	book = ao
 	return
 }
 

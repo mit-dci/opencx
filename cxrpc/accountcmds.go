@@ -22,7 +22,7 @@ func (cl *OpencxRPC) Register(args RegisterArgs, reply *RegisterReply) (err erro
 
 	var pubkey *koblitz.PublicKey
 	if pubkey, err = cl.Server.RegistrationStringVerify(args.Signature); err != nil {
-		err = fmt.Errorf("Error verifying registration string for register RPC command: %s")
+		err = fmt.Errorf("Error verifying registration string for register RPC command: %s", err)
 		return
 	}
 

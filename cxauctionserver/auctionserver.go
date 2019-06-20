@@ -7,6 +7,7 @@ import (
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/cxdb"
+	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
@@ -25,6 +26,47 @@ type OpencxAuctionServer struct {
 	// auction params -- we'll store them in here for now
 	auctionID [32]byte
 	t         uint64
+}
+
+// InitServerSQLDefault initializes an auction server with SQL engines, orderbooks, and puzzle stores.
+// This generates everything using built in methods
+func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
+
+	var pairList []*match.Pair
+	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
+		err = fmt.Errorf("Could not generate asset pairs from coin list: %s", err)
+		return
+	}
+
+	var mengines map[match.Pair]match.AuctionEngine
+	if mengines, err = cxdbsql.CreateAuctionEngineMap(pairList); err != nil {
+		err = fmt.Errorf("Error creating auction engine map with coinlist for InitServerSQLDefault: %s", err)
+		return
+	}
+
+	var setEngines map[*coinparam.Params]match.SettlementEngine
+	if setEngines, err = cxdbsql.CreateSettlementEngineMap(coinList); err != nil {
+		err = fmt.Errorf("Error creating settlement engine map for InitServerSQLDefault: %s", err)
+		return
+	}
+
+	var aucBooks map[match.Pair]match.AuctionOrderbook
+	if aucBooks, err = cxdbsql.CreateAuctionOrderbookMap(pairList); err != nil {
+		err = fmt.Errorf("Error creating auction orderbook map for InitServerSQLDefault: %s", err)
+		return
+	}
+
+	var pzEngines map[match.Pair]cxdb.PuzzleStore
+	if pzEngines, err = cxdbsql.CreatePuzzleStoreMap(pairList); err != nil {
+		err = fmt.Errorf("Error creating puzzle store map for InitServerSQLDefault: %s", err)
+		return
+	}
+
+	if server, err = InitServer(setEngines, mengines, aucBooks, pzEngines, orderChanSize, standardAuctionTime); err != nil {
+		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
+		return
+	}
+	return
 }
 
 // InitServer creates a new server

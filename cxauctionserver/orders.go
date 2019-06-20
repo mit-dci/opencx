@@ -115,6 +115,13 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err erro
 	// Make this boi wait for the batch to come in
 	go s.asyncBatchPlacer(commitOrderChannel)
 
+	logging.Infof("engine for puzzles: %v", pzEngine)
+	if err = pzEngine.PlaceAuctionPuzzle(&match.EncryptedAuctionOrder{}); err != nil {
+		s.dbLock.Unlock()
+		err = fmt.Errorf("CALLED WITHOUT SEGFAULT!")
+		return
+	}
+
 	// Then get the puzzles
 	var puzzles []*match.EncryptedAuctionOrder
 	if puzzles, err = pzEngine.ViewAuctionPuzzleBook(matchAuctionID); err != nil {

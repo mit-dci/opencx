@@ -83,6 +83,8 @@ func CreateDepositStore(coin *coinparam.Params) (store cxdb.DepositStore, err er
 		return
 	}
 
+	// Now we actually set what we want
+	store = ds
 	return
 }
 

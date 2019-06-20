@@ -70,7 +70,7 @@ func (l *LimitOrder) GenerateOrderFill(orderID *OrderID, execPrice float64) (ord
 		debitAsset = l.TradingPair.AssetHave
 		creditAsset = l.TradingPair.AssetWant
 	} else {
-		err = fmt.Errorf("Error generating order fill from price, order is not buy or sell side, it's %s side", l.Side)
+		err = fmt.Errorf("Error generating order fill from price, order is not buy or sell side, it's %s side", l.Side.String())
 		return
 	}
 	amountToDebit = uint64(float64(l.AmountHave) * execPrice)
@@ -125,7 +125,7 @@ func (l *LimitOrder) GenerateExecutionFromPrice(orderID *OrderID, execPrice floa
 		debitAsset = l.TradingPair.AssetWant
 		creditAsset = l.TradingPair.AssetHave
 	} else {
-		err = fmt.Errorf("Error generating execution from price, order is not buy or sell side, it's %s side", l.Side)
+		err = fmt.Errorf("Error generating execution from price, order is not buy or sell side, it's %s side", l.Side.String())
 		return
 	}
 	amountWantToFill = uint64(float64(amountToFill) * execPrice)

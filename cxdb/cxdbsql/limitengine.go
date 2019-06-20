@@ -80,6 +80,8 @@ func CreateLimitEngine(pair *match.Pair) (engine match.LimitEngine, err error) {
 		return
 	}
 
+	// Now we actually set what we want
+	engine = le
 	return
 }
 
