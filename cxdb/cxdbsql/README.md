@@ -4,6 +4,5 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx/cxdb/cxdbsql?status.svg)](https://godoc.org/github.com/mit-dci/opencx/cxdb/cxdbsql)
 
-The cxdbsql packages implements any storage interfaces defined in `cxdb`, using MySQL.
-This is currently the most full-featured data store option for OpenCX, implementing all of `OpencxStore`, and most of `OpencxAuctionStore`.
-In the future, this should be more easily configurable while still only exporting the abstract `OpencxStore` interface.
+The cxdbsql packages implements any storage interfaces defined in `cxdb`, as well as some interfaces in `match` using MySQL.
+We may want to move all remaining interfaces from cxdb to match

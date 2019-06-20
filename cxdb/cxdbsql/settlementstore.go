@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/cxdb"
@@ -212,7 +213,7 @@ func (ss *SQLSettlementStore) GetBalance(pubkey *koblitz.PublicKey) (balance uin
 	var rows *sql.Rows
 	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", assetForBal, pubkey.SerializeCompressed())
 	if rows, err = tx.Query(curBalQuery); err != nil {
-		err = fmt.Errorf("Error querying for balance while getting balance: %s")
+		err = fmt.Errorf("Error querying for balance while getting balance: %s", err)
 		return
 	}
 

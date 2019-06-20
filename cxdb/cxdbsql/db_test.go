@@ -4,11 +4,21 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
-	"sync"
 	"testing"
 
 	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/opencx/match"
+)
+
+var (
+	testStandardAuctionTime = uint64(100)
+	// normal db user stuff
+	testingUser = "testopencx"
+	testingPass = "testpass"
+	// root user stuff
+	rootUser = "root"
+	rootPass = ""
+	// test string to put before test schemas
+	testString = "testopencxdb_"
 )
 
 func testConfig() (conf *dbsqlConfig) {
@@ -36,24 +46,6 @@ func testConfig() (conf *dbsqlConfig) {
 		PuzzleTableName:       testString + defaultPuzzleTable,
 		AuctionOrderTableName: testString + defaultAuctionOrderTable,
 		PeerTableName:         testString + defaultPeerTable,
-	}
-	return
-}
-
-func getSchemasFromDB(db *DB) (testSchemaList []string, err error) {
-	if db == nil {
-		err = fmt.Errorf("Cannot get schemas from null db pointer: %s", err)
-		return
-	}
-	testSchemaList = []string{
-		db.balanceSchema,
-		db.depositSchema,
-		db.pendingDepositSchema,
-		db.orderSchema,
-		db.peerSchema,
-		db.puzzleSchema,
-		db.auctionSchema,
-		db.auctionOrderSchema,
 	}
 	return
 }
@@ -95,19 +87,14 @@ func createUserAndDatabase() (killThemBoth func(t *testing.T), err error) {
 
 func killDatabaseFunc(t *testing.T) {
 	var err error
-	var dbConn *DB
 
-	// initialize the db
-	dbConn = new(DB)
-
-	// We created this testConfig, now we set the options from the testConfig
-	if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
-		t.Errorf("Error setting options from testConfig for setupclient: %s", err)
-		return
+	var dbAddr net.Addr
+	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
+		t.Errorf("Error resolving conf derived address for killDatabaseFunc: %s", err)
 	}
 
 	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr.String())
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr.String())
 
 	// this is the root user!
 	var dbHandle *sql.DB
@@ -119,37 +106,45 @@ func killDatabaseFunc(t *testing.T) {
 	// make sure we close the connection at the end
 	defer dbHandle.Close()
 
-	var schemaList []string
-	if schemaList, err = getSchemasFromDB(dbConn); err != nil {
-		t.Errorf("Error getting schemas from DB: %s", err)
-		return
-	}
-	for _, schema := range schemaList {
-		if _, err = dbHandle.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", schema)); err != nil {
-			t.Errorf("Error dropping db for testing: %s", err)
-			return
+	for _, schema := range getSchemasFromConfig(testConfig()) {
+		if schema != "" {
+			if _, err = dbHandle.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", schema)); err != nil {
+				t.Errorf("Error dropping db for testing: %s", err)
+				return
+			}
 		}
 	}
 
 	return
 }
 
+func getSchemasFromConfig(conf *dbsqlConfig) (schemas []string) {
+	return []string{
+		conf.PuzzleSchemaName,
+		conf.AuctionOrderSchemaName,
+		conf.AuctionSchemaName,
+		conf.ReadOnlyBalanceSchemaName,
+		conf.ReadOnlyAuctionSchemaName,
+		conf.PendingDepositSchemaName,
+		conf.ReadOnlyOrderSchemaName,
+		conf.DepositSchemaName,
+		conf.BalanceSchemaName,
+		conf.OrderSchemaName,
+		conf.PeerSchemaName,
+	}
+}
+
 // createOpencxUser creates a user with the root user. If it can't do that then we need to be able to skip the test.
 func createOpencxUser() (killUserFunc func() (err error), err error) {
 
-	var dbConn *DB
-
-	// initialize the db
-	dbConn = new(DB)
-
-	// We created this testConfig, now we set the options from the testConfig
-	if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
-		err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
+	var dbAddr net.Addr
+	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
+		err = fmt.Errorf("Error resolving conf derived address for killDatabaseFunc: %s", err)
 		return
 	}
 
 	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr)
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr)
 
 	// this is the root user!
 	var dbHandle *sql.DB
@@ -158,29 +153,25 @@ func createOpencxUser() (killUserFunc func() (err error), err error) {
 		return
 	}
 
+	// Make sure we can actually connect
+	if err = dbHandle.Ping(); err != nil {
+		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+
 	// make sure we close the connection at the end
 	defer dbHandle.Close()
 
-	if _, err = dbHandle.Exec(fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DROP, DELETE ON *.* TO '%s'@'%s' IDENTIFIED BY '%s';", dbConn.dbUsername, testConfig().DBHost, dbConn.dbPassword)); err != nil {
+	if _, err = dbHandle.Exec(fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DROP, DELETE ON *.* TO '%s'@'%s' IDENTIFIED BY '%s';", testConfig().DBUsername, testConfig().DBHost, testConfig().DBPassword)); err != nil {
 		err = fmt.Errorf("Error creating user for testing: %s", err)
 		return
 	}
 
 	// we pass them the function to kill the user
 	killUserFunc = func() (err error) {
-		var dbConn *DB
-
-		// initialize the db
-		dbConn = new(DB)
-
-		// We created this testConfig, now we set the options from the testConfig
-		if err = dbConn.setOptionsFromConfig(testConfig()); err != nil {
-			err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
-			return
-		}
 
 		// create open string for db
-		openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbConn.dbAddr.Network(), dbConn.dbAddr)
+		openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr)
 
 		// this is the root user!
 		var dbHandle *sql.DB
@@ -197,55 +188,6 @@ func createOpencxUser() (killUserFunc func() (err error), err error) {
 			return
 		}
 
-		return
-	}
-
-	return
-}
-
-// startupDB starts up a test db client
-func startupDB() (db *DB, err error) {
-
-	// initialize the db
-	db = new(DB)
-
-	// We created this testConfig, now we set the options from the testConfig
-	if err = db.setOptionsFromConfig(testConfig()); err != nil {
-		err = fmt.Errorf("Error setting options from testConfig for setupclient: %s", err)
-		return
-	}
-
-	db.gPriceMap = make(map[string]float64)
-	db.priceMapMtx = new(sync.Mutex)
-	db.coinList = constCoinParams()
-
-	// Resolve address for host and port, then set that as the network address
-	if db.dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
-		err = fmt.Errorf("Error resolving database address: \n%s", err)
-		return
-	}
-
-	// Create users and schemas and assign permissions to opencx
-	if err = db.rootInitSchemas(); err != nil {
-		err = fmt.Errorf("Root could not initialize schemas: \n%s", err)
-		return
-	}
-
-	// open db handle
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", db.dbUsername, db.dbPassword, db.dbAddr.Network(), db.dbAddr)
-
-	if db.DBHandler, err = sql.Open("mysql", openString); err != nil {
-		err = fmt.Errorf("Error opening database: \n%s", err)
-		return
-	}
-
-	// Get all the pairs
-	if db.pairsArray, err = match.GenerateAssetPairs(constCoinParams()); err != nil {
-		return
-	}
-
-	if err = db.setupSchemasAndTables(); err != nil {
-		err = fmt.Errorf("Error setting up schemas and tables for setupclient: %s", err)
 		return
 	}
 
