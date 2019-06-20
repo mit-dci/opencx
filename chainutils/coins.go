@@ -6,12 +6,6 @@ import (
 	"github.com/mit-dci/lit/coinparam"
 )
 
-// GetSchemaNameFromParam is a function that returns a string according to how the schema is laid out.
-func GetSchemaNameFromParam(coinType *coinparam.Params) (schemaName string, err error) {
-	schemaName = coinType.Name
-	return
-}
-
 // GetParamFromName gets coin params from a name
 func GetParamFromName(name string) (coinType *coinparam.Params, err error) {
 	// create map for that O(1) access

@@ -90,13 +90,11 @@ func (server *OpencxServer) withdrawFromChain(params *coinparam.Params) (withdra
 			return
 		}
 
-		server.LockIngests()
-		if err = server.OpencxDB.Withdraw(pubkey, params, amount); err != nil {
-			// if errors out, unlock
-			server.UnlockIngests()
+		// clearing settlement layer
+		if err = server.creditUser(pubkey, amount, params); err != nil {
+			err = fmt.Errorf("Error while crediting user for CreateChannel: %s\n", err)
 			return
 		}
-		server.UnlockIngests()
 
 		// Decoding given address
 		var addr btcutil.Address
@@ -194,16 +192,11 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 
 		// TODO: this should only happen when we get a proof that the other person actually took the withdraw / updated the state. We don't have a guarantee that they will always accept
 
-		logging.Infof("Checking withdraw lock...")
-		server.LockIngests()
-		logging.Infof("Locked ingests, withdrawing")
-		if err = server.OpencxDB.Withdraw(pubkey, params, uint64(amount)); err != nil {
-			// if errors out, unlock
-			logging.Errorf("Error while withdrawing from db: %s\n", err)
-			server.UnlockIngests()
+		// clearing settlement layer
+		if err = server.creditUser(pubkey, uint64(amount), params); err != nil {
+			err = fmt.Errorf("Error while crediting user for CreateChannel: %s\n", err)
 			return
 		}
-		server.UnlockIngests()
 
 		// check if any of the channels are of the correct param and have enough capacity (-[min+fee])
 

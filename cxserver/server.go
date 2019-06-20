@@ -41,6 +41,8 @@ type OpencxServer struct {
 	HeightEventChanMap map[int]chan lnutil.HeightEvent
 	ingestMutex        sync.Mutex
 
+	OpencxRoot string
+
 	// All you should need to add a new coin to the exchange is the correct coin params to connect
 	// to nodes and (if it works), do proof of work and such.
 	HookMap    map[*coinparam.Params]*uspv.ChainHook
@@ -57,7 +59,7 @@ type OpencxServer struct {
 }
 
 // InitServer creates a new server
-func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.LimitEngine, books map[match.Pair]match.LimitOrderbook, depositStores map[*coinparam.Params]cxdb.DepositStore, settleStores map[*coinparam.Params]cxdb.SettlementStore) (server *OpencxServer, err error) {
+func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.LimitEngine, books map[match.Pair]match.LimitOrderbook, depositStores map[*coinparam.Params]cxdb.DepositStore, settleStores map[*coinparam.Params]cxdb.SettlementStore, rootDir string) (server *OpencxServer, err error) {
 	server = &OpencxServer{
 		SettlementEngines: setEngines,
 		MatchingEngines:   matchEngines,
@@ -65,6 +67,7 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		DepositStores:     depositStores,
 		SettlementStores:  settleStores,
 		dbLock:            new(sync.Mutex),
+		OpencxRoot:        rootDir,
 
 		registrationString: "opencx-register",
 		getOrdersString:    "opencx-getorders",

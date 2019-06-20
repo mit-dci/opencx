@@ -13,7 +13,6 @@ import (
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
-	"github.com/mit-dci/opencx/util"
 )
 
 // IngestTransactionListAndHeight processes a transaction list and corresponding height
@@ -24,25 +23,11 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 	// if so, add the deposit to the table, create a # of confirmations past the height at which it was received
 
 	server.dbLock.Lock()
-	// First get the correct deposit store, settlement engine, and settlement store
+	// First get the correct deposit store. We don't need the others just yet
 	var currDepositStore cxdb.DepositStore
 	var ok bool
 	if currDepositStore, ok = server.DepositStores[coinType]; !ok {
 		err = fmt.Errorf("Could not find deposit store for cointype %s: %s", coinType.Name, err)
-		server.dbLock.Unlock()
-		return
-	}
-
-	var currSettleStore cxdb.SettlementStore
-	if currSettleStore, ok = server.SettlementStores[coinType]; !ok {
-		err = fmt.Errorf("Could not find settlement store for cointype %s: %s", coinType.Name, err)
-		server.dbLock.Unlock()
-		return
-	}
-
-	var currSettleEngine match.SettlementEngine
-	if currSettleEngine, ok = server.SettlementEngines[coinType]; !ok {
-		err = fmt.Errorf("Could not find settlement engine for cointype %s: %s", coinType.Name, err)
 		server.dbLock.Unlock()
 		return
 	}
@@ -62,7 +47,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 		for _, output := range tx.TxOut {
 
 			// figure out if it's the right script type
-			scriptType, data := util.ScriptType(output.PkScript)
+			scriptType, data := chainutils.ScriptType(output.PkScript)
 			if scriptType == "P2PKH" {
 				// It's P2PKH, let's get the address
 				var addr *btcutil.AddressPubKeyHash
@@ -107,7 +92,7 @@ func (server *OpencxServer) ingestChannelPush(pushAmt uint64, pubkey *koblitz.Pu
 
 	logging.Infof("Confirmed push from %x to give me %d of cointype %d\n", pubkey.SerializeCompressed(), pushAmt, coinType)
 	var param *coinparam.Params
-	if param, err = util.GetParamFromHDCoinType(coinType); err != nil {
+	if param, err = chainutils.GetParamFromHDCoinType(coinType); err != nil {
 		err = fmt.Errorf("Error getting param from cointype while ingesting channel push: %s", err)
 		return
 	}
@@ -125,7 +110,7 @@ func (server *OpencxServer) ingestChannelConfirm(state *qln.StatCom, pubkey *kob
 	logging.Infof("Confirmed channel from %x to give me %d of cointype %d\n", pubkey.SerializeCompressed(), state.MyAmt, coinType)
 
 	var param *coinparam.Params
-	if param, err = util.GetParamFromHDCoinType(coinType); err != nil {
+	if param, err = chainutils.GetParamFromHDCoinType(coinType); err != nil {
 		err = fmt.Errorf("Error getting param from hdcointype for ingestChannelConfirm")
 		return
 	}
@@ -208,76 +193,6 @@ func (server *OpencxServer) updateDepositsAtHeight(deposits []match.Deposit, hei
 	return
 }
 
-// debutUser adds to the balance of the pubkey by issuing a settlement exec and bringing it through
-// all of the required data stores.
-// debitUser acquires dbLock so it can just be called.
-func (server *OpencxServer) debitUser(pubkey *koblitz.PublicKey, amount uint64, param *coinparam.Params) (err error) {
-
-	var assetToDebit match.Asset
-	if assetToDebit, err = match.AssetFromCoinParam(param); err != nil {
-		err = fmt.Errorf("Error getting asset from coin param for debitUser: %s", err)
-		return
-	}
-
-	// Lock!
-	server.dbLock.Lock()
-
-	// Get the settle store and the settle engine for the coin
-	var currSettleStore cxdb.SettlementStore
-	var ok bool
-	if currSettleStore, ok = server.SettlementStores[param]; !ok {
-		err = fmt.Errorf("Could not find settlement store for cointype %s: %s", param.Name, err)
-		server.dbLock.Unlock()
-		return
-	}
-
-	var currSettleEngine match.SettlementEngine
-	if currSettleEngine, ok = server.SettlementEngines[param]; !ok {
-		err = fmt.Errorf("Could not find settlement engine for cointype %s: %s", param.Name, err)
-		server.dbLock.Unlock()
-		return
-	}
-
-	setExecForPush := &match.SettlementExecution{
-		Type:   match.Debit,
-		Asset:  assetToDebit,
-		Amount: amount,
-	}
-	copy(setExecForPush.Pubkey[:], pubkey.SerializeCompressed())
-
-	var setRes *match.SettlementResult
-	var valid bool
-	if valid, err = currSettleEngine.CheckValid(setExecForPush); err != nil {
-		err = fmt.Errorf("Error checking valid exec for debitUser: %s", err)
-		server.dbLock.Unlock()
-		return
-	}
-
-	var settlementResults []*match.SettlementResult
-	if valid {
-		var setRes *match.SettlementResult
-		if setRes, err = currSettleEngine.ApplySettlementExecution(setExecForPush); err != nil {
-			err = fmt.Errorf("Error applying settlement exec for debitUser: %s", err)
-			server.dbLock.Unlock()
-			return
-		}
-		settlementResults = append(settlementResults, setRes)
-	} else {
-		err = fmt.Errorf("Error, invalid settlement exec for debitUser")
-		server.dbLock.Unlock()
-		return
-	}
-
-	if err = currSettleStore.UpdateBalances(settlementResults); err != nil {
-		err = fmt.Errorf("Error updating balances for debitUser: %s", err)
-		server.dbLock.Unlock()
-		return
-	}
-
-	server.dbLock.Unlock()
-	return
-}
-
 // ingestChannelFund only registers the user for deposit addresses because the fund channel hasn't
 // necessarily been confirmed yet
 func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblitz.PublicKey, coinType uint32, qchanID uint32) (err error) {
@@ -313,14 +228,4 @@ func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblit
 	}
 
 	return
-}
-
-// LockIngests makes the ingest wait for whatever is happening on the outside, probably creating accounts and such
-func (server *OpencxServer) LockIngests() {
-	server.ingestMutex.Lock()
-}
-
-// UnlockIngests releases the ingest wait for whatever is happening on the outside
-func (server *OpencxServer) UnlockIngests() {
-	server.ingestMutex.Unlock()
 }
