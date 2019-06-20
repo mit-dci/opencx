@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 
+	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/match"
 )
@@ -103,7 +105,7 @@ func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.Settlemen
 	var rows *sql.Rows
 	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", setExec.Asset, setExec.Pubkey)
 	if rows, err = tx.Query(curBalQuery); err != nil {
-		err = fmt.Errorf("Error querying for balance while applying settlement exec: %s")
+		err = fmt.Errorf("Error querying for balance while applying settlement exec: %s", err)
 		return
 	}
 
@@ -163,7 +165,7 @@ func (se *SQLSettlementEngine) CheckValid(setExec *match.SettlementExecution) (v
 	var rows *sql.Rows
 	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", setExec.Asset, setExec.Pubkey)
 	if rows, err = tx.Query(curBalQuery); err != nil {
-		err = fmt.Errorf("Error querying for balance while applying settlement exec: %s")
+		err = fmt.Errorf("Error querying for balance while applying settlement exec: %s", err)
 		return
 	}
 

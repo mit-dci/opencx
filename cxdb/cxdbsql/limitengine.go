@@ -7,6 +7,8 @@ import (
 	"net"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
+
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"
 )
@@ -176,7 +178,7 @@ func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match
 		}
 		err = tx.Commit()
 	}()
-	placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', '%s', %f, %d, %d, '%s');", le.pair.String(), order.Pubkey[:], order.Side, price, order.AmountHave, order.AmountWant, placementTimeFormatted)
+	placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%s');", le.pair.String(), order.Pubkey[:], order.Side.String(), price, order.AmountHave, order.AmountWant, placementTimeFormatted)
 	if _, err = tx.Exec(placeOrderQuery); err != nil {
 		err = fmt.Errorf("Error placing order into db for PlaceLimitOrder: %s", err)
 		return

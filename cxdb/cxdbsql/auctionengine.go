@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"
@@ -34,12 +35,7 @@ const (
 	auctionEngineSchema = "pubkey VARBINARY(66), side TEXT, price DOUBLE(30, 2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), sig BLOB, hashedOrder VARBINARY(64), PRIMARY KEY (hashedOrder)"
 )
 
-// CreateAuctionEngine creates a SQL Auction Engine as an auction matching engine
-func CreateAuctionEngine(pair *match.Pair) (engine match.AuctionEngine, err error) {
-
-	conf := new(dbsqlConfig)
-	*conf = *defaultConf
-
+func CreateAuctionEngineWithConf(pair *match.Pair, conf *dbsqlConfig) (engine match.AuctionEngine, err error) {
 	// Set the default conf
 	dbConfigSetup(conf)
 
@@ -76,6 +72,21 @@ func CreateAuctionEngine(pair *match.Pair) (engine match.AuctionEngine, err erro
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
 		return
 	}
+	return
+}
+
+// CreateAuctionEngine creates a SQL Auction Engine as an auction matching engine, with the default conf
+func CreateAuctionEngine(pair *match.Pair) (engine match.AuctionEngine, err error) {
+
+	conf := new(dbsqlConfig)
+	*conf = *defaultConf
+
+	if engine, err = CreateAuctionEngineWithConf(pair, conf); err != nil {
+		// Breaking err = fmt.Errorf(...) pattern because this is a cleaner way to return errors
+		// since the caller in the other case will not be very explicit
+		return
+	}
+
 	return
 }
 
