@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
