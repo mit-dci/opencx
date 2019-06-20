@@ -100,12 +100,12 @@ type GetPriceReply struct {
 
 // GetPrice returns the price for the specified asset
 func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) (err error) {
-	// reply.Price = cl.Server.OpencxDB.GetPrice(args.TradingPair.String())
 
-	if reply.Price, err = cl.Server.OpencxDB.CalculatePrice(args.TradingPair); err != nil {
-		err = fmt.Errorf("Error calculating price: \n%s", err)
+	if reply.Price, err = cl.Server.GetPrice(args.TradingPair); err != nil {
+		err = fmt.Errorf("Error calculating price for GetPrice RPC command: %s", err)
 		return
 	}
+
 	return
 }
 
@@ -161,7 +161,14 @@ func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) 
 		return
 	}
 
-	if err = cl.Server.OpencxDB.CancelOrder(args.OrderID); err != nil {
+	// More defensive programming
+	if *orderPair.OrderID != *unmarshalledOrderID {
+		err = fmt.Errorf("Error: OrderID from returned order differs from the order ID passed as argument")
+		return
+	}
+
+	if err = cl.Server.CancelOrder(orderPair); err != nil {
+		err = fmt.Errorf("Error cancelling order for CancelOrder RPC command: %s", err)
 		return
 	}
 
@@ -178,10 +185,10 @@ type GetPairsReply struct {
 	PairList []string
 }
 
-// GetPairs gets all the pairs
+// GetPairs gets all the pairs as nice strings
 func (cl *OpencxRPC) GetPairs(args GetPairsArgs, reply *GetPairsReply) (err error) {
 	// just go through all the pairs and prettily print them
-	for _, pair := range cl.Server.OpencxDB.GetPairs() {
+	for _, pair := range cl.Server.GetPairs() {
 		reply.PairList = append(reply.PairList, pair.PrettyString())
 	}
 
@@ -246,7 +253,7 @@ type GetOrdersForPubkeyArgs struct {
 
 // GetOrdersForPubkeyReply holds the reply for the GetOrdersForPubkey command
 type GetOrdersForPubkeyReply struct {
-	Orders map[float64][]*match.LimitOrderIDPair
+	Orders []*match.LimitOrderIDPair
 }
 
 // GetOrdersForPubkey gets the orders for the pubkey which has signed the getOrdersString
@@ -256,7 +263,7 @@ func (cl *OpencxRPC) GetOrdersForPubkey(args GetOrdersForPubkeyArgs, reply *GetO
 		return
 	}
 
-	if reply.Orders, err = cl.Server.OpencxDB.GetOrdersForPubkey(pubkey); err != nil {
+	if reply.Orders, err = cl.Server.GetOrdersForPubkey(pubkey); err != nil {
 		return
 	}
 
