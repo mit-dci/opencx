@@ -221,7 +221,7 @@ func (le *SQLLimitEngine) CancelLimitOrder(orderID *match.OrderID) (cancelled *m
 	}
 
 	var rows *sql.Rows
-	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, amountHave FROM %s WHERE hashedOrder = '%x';", le.pair, orderID)
+	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, amountHave FROM %s WHERE orderID = '%x';", le.pair, orderID)
 	if rows, err = tx.Query(selectOrderQuery); err != nil {
 		err = fmt.Errorf("Error getting order from db for CancelLimitOrder: %s", err)
 		return
@@ -353,12 +353,15 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 		var timeString string
 		sellOrderIDPair := new(match.LimitOrderIDPair)
 		sellOrderIDPair.Order = new(match.LimitOrder)
-		if err = sellRows.Scan(&pubkeyBytes, &sellOrderIDPair.Price, &orderIDBytes, &sellOrderIDPair.Order.AmountHave, &sellOrderIDPair.Order.AmountWant, timeString); err != nil {
+		if err = sellRows.Scan(&pubkeyBytes, &sellOrderIDPair.Price, &orderIDBytes, &sellOrderIDPair.Order.AmountHave, &sellOrderIDPair.Order.AmountWant, &timeString); err != nil {
 			err = fmt.Errorf("Error scanning sell rows for MatchLimitOrders: %s", err)
 			return
 		}
 
-		time.Parse(sqlTimeFormat, timeString)
+		if sellOrderIDPair.Timestamp, err = time.Parse(sqlTimeFormat, timeString); err != nil {
+			err = fmt.Errorf("Error parsing timestamp for MatchLimitOrders: %s", err)
+			return
+		}
 
 		// we have to do this because ugh they return my byte arrays as hex strings...
 		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
@@ -405,7 +408,10 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 			return
 		}
 
-		time.Parse(sqlTimeFormat, timeString)
+		if buyOrderIDPair.Timestamp, err = time.Parse(sqlTimeFormat, timeString); err != nil {
+			err = fmt.Errorf("Error parsing timestamp for MatchLimitOrders: %s", err)
+			return
+		}
 
 		// we have to do this because ugh they return my byte arrays as hex strings...
 		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {

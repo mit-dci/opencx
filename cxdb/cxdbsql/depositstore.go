@@ -182,7 +182,8 @@ func (ds *SQLDepositStore) GetDepositAddress(pubkey *koblitz.PublicKey) (addr st
 	return
 }
 
-// RegisterUser takes in a pubkey, and an address for the pubkey
+// RegisterUser takes in a pubkey, and an address for the pubkey, and puts the deposit address as the
+// value for the user's pubkey key
 func (ds *SQLDepositStore) RegisterUser(pubkey *koblitz.PublicKey, address string) (err error) {
 	// TODO
 	logging.Fatalf("UNIMPLEMENTED!")
