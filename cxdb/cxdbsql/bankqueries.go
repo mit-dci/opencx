@@ -78,7 +78,7 @@ func (db *DB) UpdateDeposits(deposits []match.Deposit, currentBlockHeight uint64
 		}
 	}
 
-	areDepositsValidQuery := fmt.Sprintf("SELECT pubkey, amount, txid FROM %s WHERE expectedConfirmHeight=%d;", coinSchema, currentBlockHeight)
+	areDepositsValidQuery := fmt.Sprintf("SELECT pubkey, amount, txid FROM %s WHERE expectedConfirmHeight=%d;", coinType.Name, currentBlockHeight)
 	rows, err := tx.Query(areDepositsValidQuery)
 	if err != nil {
 		return

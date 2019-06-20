@@ -10,6 +10,7 @@ import (
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/wire"
+	util "github.com/mit-dci/opencx/chainutils"
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
@@ -47,7 +48,7 @@ func (server *OpencxServer) ingestTransactionListAndHeight(txList []*wire.MsgTx,
 		for _, output := range tx.TxOut {
 
 			// figure out if it's the right script type
-			scriptType, data := chainutils.ScriptType(output.PkScript)
+			scriptType, data := util.ScriptType(output.PkScript)
 			if scriptType == "P2PKH" {
 				// It's P2PKH, let's get the address
 				var addr *btcutil.AddressPubKeyHash
@@ -92,7 +93,7 @@ func (server *OpencxServer) ingestChannelPush(pushAmt uint64, pubkey *koblitz.Pu
 
 	logging.Infof("Confirmed push from %x to give me %d of cointype %d\n", pubkey.SerializeCompressed(), pushAmt, coinType)
 	var param *coinparam.Params
-	if param, err = chainutils.GetParamFromHDCoinType(coinType); err != nil {
+	if param, err = util.GetParamFromHDCoinType(coinType); err != nil {
 		err = fmt.Errorf("Error getting param from cointype while ingesting channel push: %s", err)
 		return
 	}
@@ -110,7 +111,7 @@ func (server *OpencxServer) ingestChannelConfirm(state *qln.StatCom, pubkey *kob
 	logging.Infof("Confirmed channel from %x to give me %d of cointype %d\n", pubkey.SerializeCompressed(), state.MyAmt, coinType)
 
 	var param *coinparam.Params
-	if param, err = chainutils.GetParamFromHDCoinType(coinType); err != nil {
+	if param, err = util.GetParamFromHDCoinType(coinType); err != nil {
 		err = fmt.Errorf("Error getting param from hdcointype for ingestChannelConfirm")
 		return
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	flags "github.com/jessevdk/go-flags"
+	"github.com/mit-dci/opencx/chainutils"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"

@@ -5,7 +5,7 @@ import (
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/opencx/chainutils"
+	util "github.com/mit-dci/opencx/chainutils"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"
 )
@@ -36,7 +36,7 @@ func (cl *OpencxRPC) GetBalance(args GetBalanceArgs, reply *GetBalanceReply) (er
 	}
 
 	var param *coinparam.Params
-	if param, err = chainutils.GetParamFromName(args.Asset); err != nil {
+	if param, err = util.GetParamFromName(args.Asset); err != nil {
 		err = fmt.Errorf("Error getting coin type from name, pass in a different asset")
 		return
 	}
@@ -75,7 +75,10 @@ func (cl *OpencxRPC) GetDepositAddress(args GetDepositAddressArgs, reply *GetDep
 	}
 
 	var param *coinparam.Params
-	// if param, err =
+	if param, err = util.GetParamFromName(args.Asset); err != nil {
+		err = fmt.Errorf("Error getting param from name for asset: %s", err)
+		return
+	}
 
 	if reply.Address, err = cl.Server.GetDepositAddress(pubkey, param); err != nil {
 		err = fmt.Errorf("Error getting deposit address from server for GetDepositAddress RPC: %s", err)
@@ -111,7 +114,7 @@ func (cl *OpencxRPC) Withdraw(args WithdrawArgs, reply *WithdrawReply) (err erro
 	}
 
 	var coinType *coinparam.Params
-	if coinType, err = chainutils.GetParamFromName(args.Withdrawal.Asset.String()); err != nil {
+	if coinType, err = util.GetParamFromName(args.Withdrawal.Asset.String()); err != nil {
 		return
 	}
 
