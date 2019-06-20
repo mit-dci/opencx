@@ -8,6 +8,7 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 
 	"github.com/mit-dci/opencx/cxrpc"
 
@@ -47,8 +48,14 @@ func (cl *ocxClient) OrderCommand(args []string) (err error) {
 		return
 	}
 
+	var orderSide *match.Side = new(match.Side)
+	if err = orderSide.FromString(side); err != nil {
+		err = fmt.Errorf("Error getting side from string for OrderCommand: %s", err)
+		return
+	}
+
 	var reply *cxrpc.SubmitOrderReply
-	if reply, err = cl.RPCClient.OrderCommand(pubkey, side, pair, amountHave, price); err != nil {
+	if reply, err = cl.RPCClient.OrderCommand(pubkey, *orderSide, pair, amountHave, price); err != nil {
 		return
 	}
 
@@ -101,31 +108,26 @@ func (cl *ocxClient) ViewOrderbook(args []string) (err error) {
 	table.SetHeader([]string{"orderID", "price", "volume", "side"})
 
 	// get all buy orders and add to table
-	for _, buyOrder := range viewOrderbookReply.BuyOrderBook {
-		var buyPrice float64
-		if buyPrice, err = buyOrder.Price(); err != nil {
-			return
+	for pr, orderList := range viewOrderbookReply.Orderbook {
+		for _, order := range orderList {
+
+			if order.Price != pr {
+				warnDiscrepancy := `
+					WARNING: Price returned by exchange in map does not equal
+					         the price that is recognized in the order. This
+							 should be the same, and there may be some foul
+							 play done by the exchange.
+				`
+				logging.Errorf(warnDiscrepancy)
+			}
+
+			// convert stuff to strings
+			strOrderID := fmt.Sprintf("%x", order.OrderID)
+			strPrice := fmt.Sprintf("%f", order.Price)
+			strVolume := fmt.Sprintf("%d", order.Order.AmountHave)
+			// append to the table
+			data = append(data, []string{strOrderID, strPrice, strVolume, order.Order.Side.String()})
 		}
-
-		// convert stuff to strings
-		strPrice := fmt.Sprintf("%f", buyPrice)
-		strVolume := fmt.Sprintf("%d", buyOrder.AmountHave)
-		// append to the table
-		data = append(data, []string{buyOrder.OrderID, strPrice, strVolume, buyOrder.Side})
-	}
-
-	// get all the sell orders and add to table
-	for _, sellOrder := range viewOrderbookReply.SellOrderBook {
-		var sellPrice float64
-		if sellPrice, err = sellOrder.Price(); err != nil {
-			return
-		}
-
-		// convert stuff to strings
-		strPrice := fmt.Sprintf("%f", sellPrice)
-		strVolume := fmt.Sprintf("%d", sellOrder.AmountHave)
-		// append to the table
-		data = append(data, []string{sellOrder.OrderID, strPrice, strVolume, sellOrder.Side})
 	}
 
 	// render the table

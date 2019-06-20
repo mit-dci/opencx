@@ -98,7 +98,7 @@ func (server *OpencxServer) ingestChannelPush(pushAmt uint64, pubkey *koblitz.Pu
 		return
 	}
 
-	if err = server.debitUser(pubkey, pushAmt, param); err != nil {
+	if err = server.DebitUser(pubkey, pushAmt, param); err != nil {
 		err = fmt.Errorf("Error debiting user for ingestChannelPush: %s", err)
 		return
 	}
@@ -116,7 +116,7 @@ func (server *OpencxServer) ingestChannelConfirm(state *qln.StatCom, pubkey *kob
 		return
 	}
 
-	if err = server.debitUser(pubkey, uint64(state.MyAmt), param); err != nil {
+	if err = server.DebitUser(pubkey, uint64(state.MyAmt), param); err != nil {
 		err = fmt.Errorf("Error debiting user for ingestChannelConfirm: %s", err)
 		return
 	}

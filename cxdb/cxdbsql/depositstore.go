@@ -185,3 +185,19 @@ func (ds *SQLDepositStore) RegisterUser(pubkey *koblitz.PublicKey, address strin
 	logging.Fatalf("UNIMPLEMENTED!")
 	return
 }
+
+// CreateDepositStoreMap creates a map of pair to deposit store, given a list of pairs.
+func CreateDepositStoreMap(coinList []*coinparam.Params) (depositMap map[*coinparam.Params]cxdb.DepositStore, err error) {
+
+	depositMap = make(map[*coinparam.Params]cxdb.DepositStore)
+	var curDepositMap cxdb.DepositStore
+	for _, coin := range coinList {
+		if curDepositMap, err = CreateDepositStore(coin); err != nil {
+			err = fmt.Errorf("Error creating single limit engine while creating limit engine map: %s", err)
+			return
+		}
+		depositMap[coin] = curDepositMap
+	}
+
+	return
+}
