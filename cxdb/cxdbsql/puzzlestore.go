@@ -97,6 +97,39 @@ func (sp *SQLPuzzleStore) ViewAuctionPuzzleBook(auctionID *match.AuctionID) (puz
 func (sp *SQLPuzzleStore) PlaceAuctionPuzzle(puzzledOrder *match.EncryptedAuctionOrder) (err error) {
 	// TODO
 	logging.Fatalf("UNIMPLEMENTED!")
+	var tx *sql.Tx
+	if tx, err = sp.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for PlaceAuctionPuzzle: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error for PlaceAuctionPuzzle: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// First use the order schema
+	if _, err = tx.Exec("USE " + sp.puzzleSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using puzzle schema for PlaceAuctionPuzzle: %s", err)
+		return
+	}
+
+	var pzOrderBytes []byte
+	if pzOrderBytes, err = puzzledOrder.Serialize(); err != nil {
+		err = fmt.Errorf("Error serializing puzzled order for PlaceAuctionPuzzle: %s", err)
+		return
+	}
+
+	defaultSelected := false
+	insertPuzzleQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%x', %t);", sp.pair.String(), pzOrderBytes, puzzledOrder.IntendedAuction, defaultSelected)
+	if _, err = tx.Exec(insertPuzzleQuery); err != nil {
+		err = fmt.Errorf("Error placing puzzle into db for PlaceAuctionPuzzle: %s", err)
+		return
+	}
 	return
 }
 

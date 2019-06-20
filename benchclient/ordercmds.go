@@ -222,6 +222,8 @@ func (cl *BenchClient) AuctionOrderAsync(pubkey *koblitz.PublicKey, side string,
 			return
 		}
 
+		logging.Infof("client trading pair: %s", newAuctionOrder.TradingPair.PrettyString())
+
 		newAuctionOrder.AmountHave = amountHave
 		newAuctionOrder.AuctionID = auctionID
 
