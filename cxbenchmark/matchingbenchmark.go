@@ -4,6 +4,7 @@ import (
 	"github.com/mit-dci/opencx/benchclient"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 // PlaceAndFill places a whole bunch of orders (in goroutines of course) and fills a whole bunch of orders.
@@ -12,10 +13,10 @@ func PlaceAndFill(client1 *benchclient.BenchClient, client2 *benchclient.BenchCl
 		// This shouldnt make any change in balance but each account should have at least 2000 satoshis (or the smallest unit in whatever chain)
 		bufErrChan := make(chan error, 4)
 		orderChan := make(chan *cxrpc.SubmitOrderReply)
-		go client1.OrderAsync(client1.PrivKey.PubKey(), "buy", pair, 1000, 1.0, orderChan, bufErrChan)
-		go client2.OrderAsync(client2.PrivKey.PubKey(), "sell", pair, 1000, 1.0, orderChan, bufErrChan)
-		go client1.OrderAsync(client1.PrivKey.PubKey(), "sell", pair, 2000, 2.0, orderChan, bufErrChan)
-		go client2.OrderAsync(client2.PrivKey.PubKey(), "buy", pair, 1000, 2.0, orderChan, bufErrChan)
+		go client1.OrderAsync(client1.PrivKey.PubKey(), match.Buy, pair, 1000, 1.0, orderChan, bufErrChan)
+		go client2.OrderAsync(client2.PrivKey.PubKey(), match.Sell, pair, 1000, 1.0, orderChan, bufErrChan)
+		go client1.OrderAsync(client1.PrivKey.PubKey(), match.Sell, pair, 2000, 2.0, orderChan, bufErrChan)
+		go client2.OrderAsync(client2.PrivKey.PubKey(), match.Buy, pair, 1000, 2.0, orderChan, bufErrChan)
 
 		for i := 0; i < cap(bufErrChan); i++ {
 			select {
@@ -41,7 +42,7 @@ func PlaceManyBuy(client *benchclient.BenchClient, pair string, howMany int) {
 	bufErrChan := make(chan error, howMany)
 	orderChan := make(chan *cxrpc.SubmitOrderReply)
 	for i := 0; i < howMany; i++ {
-		go client.OrderAsync(client.PrivKey.PubKey(), "buy", pair, 1000, 1.0, orderChan, bufErrChan)
+		go client.OrderAsync(client.PrivKey.PubKey(), match.Buy, pair, 1000, 1.0, orderChan, bufErrChan)
 	}
 
 	for i := 0; i < cap(bufErrChan); i++ {
@@ -65,7 +66,7 @@ func PlaceManySell(client *benchclient.BenchClient, pair string, howMany int) {
 	bufErrChan := make(chan error, howMany)
 	orderChan := make(chan *cxrpc.SubmitOrderReply)
 	for i := 0; i < howMany; i++ {
-		go client.OrderAsync(client.PrivKey.PubKey(), "sell", pair, 1000, 1.0, orderChan, bufErrChan)
+		go client.OrderAsync(client.PrivKey.PubKey(), match.Sell, pair, 1000, 1.0, orderChan, bufErrChan)
 	}
 
 	for i := 0; i < cap(bufErrChan); i++ {

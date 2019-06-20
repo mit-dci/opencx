@@ -91,7 +91,7 @@ func (server *OpencxServer) withdrawFromChain(params *coinparam.Params) (withdra
 		}
 
 		// clearing settlement layer
-		if err = server.creditUser(pubkey, amount, params); err != nil {
+		if err = server.CreditUser(pubkey, amount, params); err != nil {
 			err = fmt.Errorf("Error while crediting user for CreateChannel: %s\n", err)
 			return
 		}
@@ -193,7 +193,7 @@ func (server *OpencxServer) withdrawFromLightning(params *coinparam.Params) (wit
 		// TODO: this should only happen when we get a proof that the other person actually took the withdraw / updated the state. We don't have a guarantee that they will always accept
 
 		// clearing settlement layer
-		if err = server.creditUser(pubkey, uint64(amount), params); err != nil {
+		if err = server.CreditUser(pubkey, uint64(amount), params); err != nil {
 			err = fmt.Errorf("Error while crediting user for CreateChannel: %s\n", err)
 			return
 		}

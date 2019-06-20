@@ -1,19 +1,21 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 
 	flags "github.com/jessevdk/go-flags"
-	"github.com/mit-dci/opencx/chainutils"
+	util "github.com/mit-dci/opencx/chainutils"
+	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 type opencxConfig struct {
@@ -109,19 +111,41 @@ func main() {
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
 
-	var db *cxdbsql.DB
-	db = new(cxdbsql.DB)
-
-	// Setup DB Client
-	if err = db.SetupClient(coinList); err != nil {
-		log.Fatalf("Error setting up sql client: \n%s", err)
+	var pairList []*match.Pair
+	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
+		logging.Fatalf("Could not generate asset pairs from coin list: %s", err)
 	}
 
-	// defer the db closing to when we stop
-	defer db.DBHandler.Close()
+	var mengines map[match.Pair]match.LimitEngine
+	if mengines, err = cxdbsql.CreateLimitEngineMap(pairList); err != nil {
+		logging.Fatalf("Error creating limit engine map with coinlist for opencxd: %s", err)
+	}
+
+	var setEngines map[*coinparam.Params]match.SettlementEngine
+	if setEngines, err = cxdbsql.CreateSettlementEngineMap(coinList); err != nil {
+		logging.Fatalf("Error creating settlement engine map for opencxd: %s", err)
+	}
+
+	var limBooks map[match.Pair]match.LimitOrderbook
+	if limBooks, err = cxdbsql.CreateLimitOrderbookMap(pairList); err != nil {
+		logging.Fatalf("Error creating limit orderbook map for opencxd: %s", err)
+	}
+
+	var depositStores map[*coinparam.Params]cxdb.DepositStore
+	if depositStores, err = cxdbsql.CreateDepositStoreMap(coinList); err != nil {
+		logging.Fatalf("Error creating deposit store map for opencxd: %s", err)
+	}
+
+	var setStores map[*coinparam.Params]cxdb.SettlementStore
+	if setStores, err = cxdbsql.CreateSettlementStoreMap(coinList); err != nil {
+		logging.Fatalf("Error creating settlement store map for opencxd: %s", err)
+	}
 
 	// Anyways, here's where we set the server
-	ocxServer := cxserver.InitServer(db, conf.OpencxHomeDir, conf.Rpcport, coinList)
+	var ocxServer *cxserver.OpencxServer
+	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, conf.OpencxHomeDir); err != nil {
+		logging.Fatalf("Error initializing server for opencxd: %s", err)
+	}
 
 	// Check that the private key exists and if it does, load it
 	if err = ocxServer.SetupServerKeys(key); err != nil {
@@ -150,7 +174,7 @@ func main() {
 		// Generate the host param list
 		// the host params are all of the coinparams / coins we support
 		// this coinparam list is generated from the configuration file with generateHostParams
-		hpList := chainutils.HostParamList(generateHostParams(&conf))
+		hpList := util.HostParamList(generateHostParams(&conf))
 
 		// Set up all chain hooks and wallets
 		if err = ocxServer.SetupAllWallets(hpList, "wallit/", conf.Resync); err != nil {

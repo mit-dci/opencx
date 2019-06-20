@@ -126,15 +126,6 @@ func main() {
 		logging.Fatalf("Could not generate asset pairs from coin list: %s", err)
 	}
 
-	// // init db
-	// var db *cxdbsql.DB
-	// db = new(cxdbsql.DB)
-
-	// // Setup DB Client
-	// if err = db.SetupClient(coinList); err != nil {
-	// 	log.Fatalf("Error setting up sql client: \n%s", err)
-	// }
-
 	// Create in memory matching engine
 	var mengines map[match.Pair]match.AuctionEngine
 	if mengines, err = cxdbsql.CreateAuctionEngineMap(pairList); err != nil {
