@@ -78,6 +78,9 @@ func CreatePuzzleStore(pair *match.Pair) (store cxdb.PuzzleStore, err error) {
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
 		return
 	}
+
+	// Now we actually set the engine
+	store = sp
 	return
 }
 

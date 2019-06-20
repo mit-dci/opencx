@@ -224,7 +224,7 @@ func (server *OpencxServer) ingestChannelFund(state *qln.StatCom, pubkey *koblit
 	server.dbLock.Unlock()
 
 	if err = server.SetupFundBack(pubkey, coinType, server.defaultCapacity); err != nil {
-		err = fmt.Errorf("Error setting up fund back for ingestChannelConfirm: %s")
+		err = fmt.Errorf("Error setting up fund back for ingestChannelConfirm: %s", err)
 		return
 	}
 

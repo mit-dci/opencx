@@ -80,6 +80,9 @@ func CreateSettlementStore(coin *coinparam.Params) (store cxdb.SettlementStore, 
 		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
 		return
 	}
+
+	// Now we actually set what we want
+	store = ss
 	return
 }
 

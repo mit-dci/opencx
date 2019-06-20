@@ -76,6 +76,8 @@ func CreateLimitOrderbook(pair *match.Pair) (book match.LimitOrderbook, err erro
 		return
 	}
 
+	// Actually set the return
+	book = lo
 	return
 }
 
