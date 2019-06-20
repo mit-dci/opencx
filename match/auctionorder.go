@@ -43,8 +43,10 @@ func (a *AuctionOrder) TurnIntoEncryptedOrder(t uint64) (encrypted *EncryptedAuc
 		err = fmt.Errorf("Error creating puzzle from auction order: %s", err)
 		return
 	}
+
 	// make sure they match
 	encrypted.IntendedAuction = a.AuctionID
+	encrypted.IntendedPair = a.TradingPair
 	return
 }
 
