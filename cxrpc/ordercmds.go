@@ -18,15 +18,21 @@ type SubmitOrderArgs struct {
 
 // SubmitOrderReply holds the reply for the submitorder command
 type SubmitOrderReply struct {
-	OrderID string
+	OrderID match.OrderID
 }
 
 // SubmitOrder submits an order to the order book or throws an error
 func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) (err error) {
 
+	var orderBytes []byte
+	if orderBytes, err = args.Order.Serialize(); err != nil {
+		err = fmt.Errorf("Error serializing order for SubmitOrder RPC command: %s", err)
+		return
+	}
+
 	// hash order.
 	sha3 := sha3.New256()
-	sha3.Write(args.Order.Serialize())
+	sha3.Write(orderBytes)
 	e := sha3.Sum(nil)
 
 	var sigPubKey *koblitz.PublicKey
@@ -51,14 +57,10 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 	// place an order on their exchange, even with a nonce, and then send it over to the other exchange. When you submit an order on one exchange,
 	// you essentially submit an order to all of them. But like once we have channels for orders then this isn't a thing anymore because the channel
 	// tx's are signed and funding stuff is published on chain
-	cl.Server.LockIngests()
-	if reply.OrderID, err = cl.Server.OpencxDB.PlaceOrder(args.Order); err != nil {
-		// gotta put these here cause if it errors out then oops just locked everything
-		cl.Server.UnlockIngests()
-		err = fmt.Errorf("Error placing order while submitting order: \n%s", err)
+	if reply.OrderID, err = cl.Server.PlaceOrder(args.Order); err != nil {
+		err = fmt.Errorf("Error placing order for PlaceOrder RPC command: %s", err)
 		return
 	}
-	cl.Server.UnlockIngests()
 
 	logging.Infof("User %x submitted OrderID %s", sigPubKey.SerializeCompressed(), reply.OrderID)
 
@@ -78,12 +80,10 @@ type ViewOrderBookReply struct {
 // ViewOrderBook handles the vieworderbook command
 func (cl *OpencxRPC) ViewOrderBook(args ViewOrderBookArgs, reply *ViewOrderBookReply) (err error) {
 
-	cl.Server.LockIngests()
-	if reply.Orderbook, err = cl.Server.OpencxDB.ViewLimitOrderBook(args.TradingPair); err != nil {
-		cl.Server.UnlockIngests()
+	if reply.Orderbook, err = cl.Server.ViewOrderbook(args.TradingPair); err != nil {
+		err = fmt.Errorf("Error with server ViewOrderbook for ViewOrderbook RPC command: %s", err)
 		return
 	}
-	cl.Server.UnlockIngests()
 
 	return
 }
@@ -100,15 +100,12 @@ type GetPriceReply struct {
 
 // GetPrice returns the price for the specified asset
 func (cl *OpencxRPC) GetPrice(args GetPriceArgs, reply *GetPriceReply) (err error) {
-	cl.Server.LockIngests()
 	// reply.Price = cl.Server.OpencxDB.GetPrice(args.TradingPair.String())
 
 	if reply.Price, err = cl.Server.OpencxDB.CalculatePrice(args.TradingPair); err != nil {
-		cl.Server.UnlockIngests()
 		err = fmt.Errorf("Error calculating price: \n%s", err)
 		return
 	}
-	cl.Server.UnlockIngests()
 	return
 }
 
@@ -140,16 +137,21 @@ func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) 
 		return
 	}
 
-	cl.Server.LockIngests()
-	var order *match.LimitOrder
-	if order, err = cl.Server.OpencxDB.GetOrder(args.OrderID); err != nil {
+	var unmarshalledOrderID *match.OrderID = new(match.OrderID)
+	if err = unmarshalledOrderID.UnmarshalText([]byte(args.OrderID)); err != nil {
+		err = fmt.Errorf("Error unmarshalling text for Order ID in CancelOrder RPC: %s", err)
 		return
 	}
-	cl.Server.LockIngests()
+
+	var orderPair *match.LimitOrderIDPair
+	if orderPair, err = cl.Server.GetOrder(unmarshalledOrderID); err != nil {
+		err = fmt.Errorf("Error calling GetOrder in CancelOrder RPC: %s", err)
+		return
+	}
 
 	// try to parse the order pubkey into koblitz
 	var orderPubKey *koblitz.PublicKey
-	if orderPubKey, err = koblitz.ParsePubKey(order.Pubkey[:], koblitz.S256()); err != nil {
+	if orderPubKey, err = koblitz.ParsePubKey(orderPair.Order.Pubkey[:], koblitz.S256()); err != nil {
 		err = fmt.Errorf("Public Key failed parsing check: \n%s", err)
 		return
 	}
@@ -159,12 +161,9 @@ func (cl *OpencxRPC) CancelOrder(args CancelOrderArgs, reply *CancelOrderReply) 
 		return
 	}
 
-	cl.Server.LockIngests()
 	if err = cl.Server.OpencxDB.CancelOrder(args.OrderID); err != nil {
-		cl.Server.UnlockIngests()
 		return
 	}
-	cl.Server.UnlockIngests()
 
 	return
 }
@@ -197,7 +196,7 @@ type GetOrderArgs struct {
 
 // GetOrderReply holds the reply for the GetOrder command
 type GetOrderReply struct {
-	Order *match.LimitOrder
+	Order *match.LimitOrderIDPair
 }
 
 // GetOrder gets an order based on orderID
@@ -214,16 +213,21 @@ func (cl *OpencxRPC) GetOrder(args GetOrderArgs, reply *GetOrderReply) (err erro
 		return
 	}
 
-	cl.Server.LockIngests()
-	if reply.Order, err = cl.Server.OpencxDB.GetOrder(args.OrderID); err != nil {
+	var unmarshalledOrderID *match.OrderID = new(match.OrderID)
+	if err = unmarshalledOrderID.UnmarshalText([]byte(args.OrderID)); err != nil {
+		err = fmt.Errorf("Could not unmarshal order ID for GetOrder command: %s", err)
 		return
 	}
-	cl.Server.UnlockIngests()
+
+	if reply.Order, err = cl.Server.GetOrder(unmarshalledOrderID); err != nil {
+		err = fmt.Errorf("Error getting order from server for GetOrder RPC command: %s", err)
+		return
+	}
 
 	// try to parse the order pubkey into koblitz
 	var orderPubKey *koblitz.PublicKey
-	if orderPubKey, err = koblitz.ParsePubKey(reply.Order.Pubkey[:], koblitz.S256()); err != nil {
-		err = fmt.Errorf("Public Key failed parsing check: \n%s", err)
+	if orderPubKey, err = koblitz.ParsePubKey(reply.Order.Order.Pubkey[:], koblitz.S256()); err != nil {
+		err = fmt.Errorf("Public Key failed parsing check for GetOrder RPC command: %s", err)
 		return
 	}
 
@@ -252,11 +256,9 @@ func (cl *OpencxRPC) GetOrdersForPubkey(args GetOrdersForPubkeyArgs, reply *GetO
 		return
 	}
 
-	cl.Server.LockIngests()
 	if reply.Orders, err = cl.Server.OpencxDB.GetOrdersForPubkey(pubkey); err != nil {
 		return
 	}
-	cl.Server.UnlockIngests()
 
 	return
 }

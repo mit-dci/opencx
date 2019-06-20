@@ -7,6 +7,8 @@ import (
 	"github.com/mit-dci/lit/btcutil"
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/wallit"
+	util "github.com/mit-dci/opencx/chainutils"
+
 	"github.com/mit-dci/opencx/logging"
 )
 
@@ -54,7 +56,7 @@ func (server *OpencxServer) SetupWallet(errChan chan error, subDirName string, p
 }
 
 // SetupAllWallets sets up all wallets with parameters as specified in the hostParamList
-func (server *OpencxServer) SetupAllWallets(hostParamList chainutils.HostParamList, subDirName string, resync bool) (err error) {
+func (server *OpencxServer) SetupAllWallets(hostParamList util.HostParamList, subDirName string, resync bool) (err error) {
 	hpLen := len(hostParamList)
 	errChan := make(chan error, hpLen)
 	for _, hostParam := range hostParamList {
