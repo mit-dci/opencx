@@ -5,7 +5,7 @@ package match
 // One of these should be made for every pair.
 type LimitEngine interface {
 	PlaceLimitOrder(order *LimitOrder) (idRes *LimitOrderIDPair, err error)
-	CancelLimitOrder(id *OrderID) (cancelled *CancelledOrder, err error)
+	CancelLimitOrder(id *OrderID) (cancelled *CancelledOrder, cancelSettlement *SettlementExecution, err error)
 	MatchLimitOrders() (orderExecs []*OrderExecution, settlementExecs []*SettlementExecution, err error)
 }
 
