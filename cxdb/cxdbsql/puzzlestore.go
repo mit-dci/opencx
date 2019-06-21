@@ -2,12 +2,12 @@ package cxdbsql
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"net"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/mit-dci/opencx/cxdb"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -87,16 +87,70 @@ func CreatePuzzleStore(pair *match.Pair) (store cxdb.PuzzleStore, err error) {
 // ViewAuctionPuzzleBook takes in an auction ID, and returns encrypted auction orders, and puzzles.
 // You don't know what auction IDs should be in the orders encrypted in the puzzle book, but this is
 // what was submitted.
+// This only selects "selected" orders, so while some could be censored and not shown, there is currently
+// no functionality for censoring orders and setting the 'selected' flag to false.
 func (sp *SQLPuzzleStore) ViewAuctionPuzzleBook(auctionID *match.AuctionID) (puzzles []*match.EncryptedAuctionOrder, err error) {
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+	// ACID
+	var tx *sql.Tx
+	if tx, err = sp.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for ViewAuctionPuzzleBook: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error for ViewAuctionPuzzleBook: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// First use the order schema
+	if _, err = tx.Exec("USE " + sp.puzzleSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using puzzle schema for ViewAuctionPuzzleBook: %s", err)
+		return
+	}
+
+	var serializedPuzzle []byte
+	var rows *sql.Rows
+	getPuzzleBookQuery := fmt.Sprintf("SELECT encodedOrder FROM %s WHERE auctionID='%x' AND selected='%t';", sp.pair.String(), auctionID[:], true)
+	if rows, err = tx.Query(getPuzzleBookQuery); err != nil {
+		err = fmt.Errorf("Error querying for puzzles for ViewAuctionPuzzleBook: %s", err)
+		return
+	}
+
+	var currPuzzle *match.EncryptedAuctionOrder
+	for rows.Next() {
+		if err = rows.Scan(&serializedPuzzle); err != nil {
+			err = fmt.Errorf("Error scanning puzzle for ViewAuctionPuzzleBook: %s", err)
+			return
+		}
+
+		if serializedPuzzle, err = hex.DecodeString(string(serializedPuzzle)); err != nil {
+			err = fmt.Errorf("Error decoding hex string serializedPuzzle for ViewAuctionPuzzleBook: %s", err)
+			return
+		}
+
+		// Just deserialize
+		currPuzzle = new(match.EncryptedAuctionOrder)
+		if err = currPuzzle.Deserialize(serializedPuzzle); err != nil {
+			err = fmt.Errorf("Error deserializing current puzzle for ViewAuctionPuzzleBook: %s", err)
+			return
+		}
+
+	}
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing rows for ViewAuctionPuzzleBook: %s", err)
+		return
+	}
+
 	return
 }
 
 // PlaceAuctionPuzzle puts an encrypted auction order in the datastore.
 func (sp *SQLPuzzleStore) PlaceAuctionPuzzle(puzzledOrder *match.EncryptedAuctionOrder) (err error) {
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+	// ACID
 	var tx *sql.Tx
 	if tx, err = sp.DBHandler.Begin(); err != nil {
 		err = fmt.Errorf("Error when beginning transaction for PlaceAuctionPuzzle: %s", err)
@@ -124,7 +178,7 @@ func (sp *SQLPuzzleStore) PlaceAuctionPuzzle(puzzledOrder *match.EncryptedAuctio
 		return
 	}
 
-	defaultSelected := false
+	defaultSelected := true
 	insertPuzzleQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%x', %t);", sp.pair.String(), pzOrderBytes, puzzledOrder.IntendedAuction, defaultSelected)
 	if _, err = tx.Exec(insertPuzzleQuery); err != nil {
 		err = fmt.Errorf("Error placing puzzle into db for PlaceAuctionPuzzle: %s", err)
