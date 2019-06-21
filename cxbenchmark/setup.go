@@ -18,7 +18,7 @@ import (
 // Let these be turned into config things at some point
 var (
 	defaultServer = "localhost"
-	defaultPort   = uint16(12346)
+	defaultPort   = uint16(12347)
 )
 
 // SetupBenchmarkClient sets up the benchmark and returns the client
@@ -54,7 +54,7 @@ func SetupNoiseBenchmarkClient() (client *benchclient.BenchClient, err error) {
 
 	var clientPrivKey *koblitz.PrivateKey
 	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
-		err = fmt.Errorf("Error setting key for client: \n%s", err)
+		err = fmt.Errorf("Error setting key for noise client: \n%s", err)
 		return
 	}
 
@@ -63,7 +63,7 @@ func SetupNoiseBenchmarkClient() (client *benchclient.BenchClient, err error) {
 	}
 
 	if err = client.SetupBenchNoiseClient(defaultServer, defaultPort); err != nil {
-		err = fmt.Errorf("Error setting up OpenCX RPC Client: \n%s", err)
+		err = fmt.Errorf("Error setting up OpenCX RPC-Noise Client: \n%s", err)
 		return
 	}
 

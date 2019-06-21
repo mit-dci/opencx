@@ -22,7 +22,7 @@ var (
 func initTestServer() (s *OpencxAuctionServer, err error) {
 
 	// Initialize the test server
-	if s, err = InitServerSQLDefault(testCoins, testOrderChanSize, testStandardAuctionTime); err != nil {
+	if s, err = InitServerMemoryDefault(testCoins, testOrderChanSize, testStandardAuctionTime); err != nil {
 		err = fmt.Errorf("Error initializing server for tests: %s", err)
 		return
 	}
