@@ -153,14 +153,14 @@ func (se *SQLSettlementEngine) CheckValid(setExec *match.SettlementExecution) (v
 	// First create transaction
 	var tx *sql.Tx
 	if tx, err = se.DBHandler.Begin(); err != nil {
-		err = fmt.Errorf("Error beginning transaction while applying settlement exec: \n%s", err)
+		err = fmt.Errorf("Error beginning transaction while checking settlement exec: \n%s", err)
 		return
 	}
 
 	defer func() {
 		if err != nil {
 			tx.Rollback()
-			err = fmt.Errorf("Error while applying settlement exec: \n%s", err)
+			err = fmt.Errorf("Error while checking settlement exec: \n%s", err)
 			return
 		}
 		err = tx.Commit()
@@ -168,22 +168,19 @@ func (se *SQLSettlementEngine) CheckValid(setExec *match.SettlementExecution) (v
 
 	// use balance schema
 	if _, err = tx.Exec("USE " + se.balanceSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using balance schema for CheckValid: %s", err)
 		return
 	}
 
-	var rows *sql.Rows
+	var row *sql.Row
 	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", setExec.Asset, setExec.Pubkey)
-	if rows, err = tx.Query(curBalQuery); err != nil {
-		err = fmt.Errorf("Error querying for balance while applying settlement exec: %s", err)
-		return
-	}
+	// error deferred to scan
+	row = tx.QueryRow(curBalQuery)
 
 	var curBal uint64
-	if rows.Next() {
-		if err = rows.Scan(&curBal); err != nil {
-			err = fmt.Errorf("Error scanning when applying settlement exec: %s", err)
-			return
-		}
+	if err = row.Scan(&curBal); err != nil {
+		err = fmt.Errorf("Error scanning when checking settlement exec: %s", err)
+		return
 	}
 
 	valid = setExec.Amount > curBal

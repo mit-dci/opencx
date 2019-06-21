@@ -163,8 +163,14 @@ func (server *OpencxServer) GetAddressMap(pubkey *koblitz.PublicKey) (addrMap ma
 // to a list
 func (server *OpencxServer) GetPairs() (pairs []*match.Pair) {
 	server.dbLock.Lock()
+	var currPair *match.Pair
 	for pair, _ := range server.MatchingEngines {
-		pairs = append(pairs, &pair)
+		currPair = new(match.Pair)
+		*currPair = pair
+		pairs = append(pairs, currPair)
+	}
+	for _, p := range pairs {
+		logging.Infof("pair: %s", p.PrettyString())
 	}
 	server.dbLock.Unlock()
 	return
