@@ -27,14 +27,14 @@ func (server *OpencxServer) DebitUser(pubkey *koblitz.PublicKey, amount uint64, 
 	var currSettleStore cxdb.SettlementStore
 	var ok bool
 	if currSettleStore, ok = server.SettlementStores[param]; !ok {
-		err = fmt.Errorf("Could not find settlement store for cointype %s: %s", param.Name, err)
+		err = fmt.Errorf("Could not find settlement store for cointype %s", param.Name)
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currSettleEngine match.SettlementEngine
 	if currSettleEngine, ok = server.SettlementEngines[param]; !ok {
-		err = fmt.Errorf("Could not find settlement engine for cointype %s: %s", param.Name, err)
+		err = fmt.Errorf("Could not find settlement engine for cointype %s", param.Name)
 		server.dbLock.Unlock()
 		return
 	}
@@ -97,14 +97,14 @@ func (server *OpencxServer) CreditUser(pubkey *koblitz.PublicKey, amount uint64,
 	var currSettleStore cxdb.SettlementStore
 	var ok bool
 	if currSettleStore, ok = server.SettlementStores[param]; !ok {
-		err = fmt.Errorf("Could not find settlement store for cointype %s: %s", param.Name, err)
+		err = fmt.Errorf("Could not find settlement store for cointype %s", param.Name)
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currSettleEngine match.SettlementEngine
 	if currSettleEngine, ok = server.SettlementEngines[param]; !ok {
-		err = fmt.Errorf("Could not find settlement engine for cointype %s: %s", param.Name, err)
+		err = fmt.Errorf("Could not find settlement engine for cointype %s", param.Name)
 		server.dbLock.Unlock()
 		return
 	}
