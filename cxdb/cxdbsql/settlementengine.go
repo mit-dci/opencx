@@ -106,7 +106,7 @@ func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.Settlemen
 	}
 
 	var rows *sql.Rows
-	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", setExec.Asset, setExec.Pubkey)
+	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", se.coin.Name, setExec.Pubkey)
 	if rows, err = tx.Query(curBalQuery); err != nil {
 		err = fmt.Errorf("Error querying for balance while applying settlement exec: %s", err)
 		return
@@ -126,10 +126,16 @@ func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.Settlemen
 	} else if setExec.Type == match.Credit {
 		newBal = curBal - setExec.Amount
 	}
-	newBalQuery := fmt.Sprintf("REPLACE INTO %s balance VALUES (%d);", setExec.Asset, newBal)
+	newBalQuery := fmt.Sprintf("REPLACE INTO %s balance VALUES (%d);", se.coin.Name, newBal)
 	if _, err = tx.Exec(newBalQuery); err != nil {
 		err = fmt.Errorf("Error applying settlement exec new bal query: %s", err)
 		return
+	}
+
+	// Finally set return value
+	setRes = &match.SettlementResult{
+		NewBal:         newBal,
+		SuccessfulExec: setExec,
 	}
 
 	return

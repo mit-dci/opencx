@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"
@@ -134,14 +133,8 @@ func (me *MemoryAuctionEngine) MatchAuctionOrders(auctionID *match.AuctionID) (o
 	return
 }
 
-func CreateAuctionEngineMap(coinList []*coinparam.Params) (mengines map[match.Pair]match.AuctionEngine, err error) {
+func CreateAuctionEngineMap(pairList []*match.Pair) (mengines map[match.Pair]match.AuctionEngine, err error) {
 	mengines = make(map[match.Pair]match.AuctionEngine)
-
-	var pairList []*match.Pair
-	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
-		err = fmt.Errorf("Error generating asset pairs while creating auction engine map: %s", err)
-		return
-	}
 
 	// We just create a new struct because that's all we really need, we satisfy the interface
 	for _, pair := range pairList {

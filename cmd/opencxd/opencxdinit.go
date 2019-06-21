@@ -140,19 +140,40 @@ func generateCoinList(conf *opencxConfig) []*coinparam.Params {
 
 func generateHostParams(conf *opencxConfig) (hostParamList []*util.HostParams) {
 	// Regular networks (Just like don't use any of these, I support them though)
-	hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.BitcoinParams, Host: conf.Btchost})
-	hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.VertcoinParams, Host: conf.Vtchost})
+	if conf.Btchost != "" {
+		hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.BitcoinParams, Host: conf.Btchost})
+	}
+
+	if conf.Vtchost != "" {
+		hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.VertcoinParams, Host: conf.Vtchost})
+	}
 	// Wait until supported by lit
 	// hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.LitecoinParams, Host: conf.Ltchost})
 
 	// Test nets
-	hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.TestNet3Params, Host: conf.Tn3host})
-	hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.VertcoinTestNetParams, Host: conf.Tvtchost})
-	hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.LiteCoinTestNet4Params, Host: conf.Lt4host})
+	if conf.Tn3host != "" {
+		hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.TestNet3Params, Host: conf.Tn3host})
+	}
+
+	if conf.Tvtchost != "" {
+		hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.VertcoinTestNetParams, Host: conf.Tvtchost})
+	}
+
+	if conf.Lt4host != "" {
+		hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.LiteCoinTestNet4Params, Host: conf.Lt4host})
+	}
 
 	// Regression nets
-	hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.RegressionNetParams, Host: conf.Reghost})
-	hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.VertcoinRegTestParams, Host: conf.Rtvtchost})
-	hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.LiteRegNetParams, Host: conf.Litereghost})
+	if conf.Reghost != "" {
+		hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.RegressionNetParams, Host: conf.Reghost})
+	}
+
+	if conf.Rtvtchost != "" {
+		hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.VertcoinRegTestParams, Host: conf.Rtvtchost})
+	}
+
+	if conf.Litereghost != "" {
+		hostParamList = append(hostParamList, &util.HostParams{Param: &coinparam.LiteRegNetParams, Host: conf.Litereghost})
+	}
 	return
 }
