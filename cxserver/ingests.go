@@ -134,21 +134,21 @@ func (server *OpencxServer) updateDepositsAtHeight(deposits []match.Deposit, hei
 	var currDepositStore cxdb.DepositStore
 	var ok bool
 	if currDepositStore, ok = server.DepositStores[coinType]; !ok {
-		err = fmt.Errorf("Could not find deposit store for cointype %s: %s", coinType.Name, err)
+		err = fmt.Errorf("Could not find deposit store for cointype %s", coinType.Name)
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currSettleStore cxdb.SettlementStore
 	if currSettleStore, ok = server.SettlementStores[coinType]; !ok {
-		err = fmt.Errorf("Could not find settlement store for cointype %s: %s", coinType.Name, err)
+		err = fmt.Errorf("Could not find settlement store for cointype %s", coinType.Name)
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currSettleEngine match.SettlementEngine
 	if currSettleEngine, ok = server.SettlementEngines[coinType]; !ok {
-		err = fmt.Errorf("Could not find settlement engine for cointype %s: %s", coinType.Name, err)
+		err = fmt.Errorf("Could not find settlement engine for cointype %s", coinType.Name)
 		server.dbLock.Unlock()
 		return
 	}

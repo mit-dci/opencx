@@ -18,7 +18,7 @@ func (server *OpencxServer) GetBalance(pubkey *koblitz.PublicKey, coin *coinpara
 	var currSettlementStore cxdb.SettlementStore
 	var ok bool
 	if currSettlementStore, ok = server.SettlementStores[coin]; !ok {
-		err = fmt.Errorf("Cannot find the settlement store for GetBalance: %s", err)
+		err = fmt.Errorf("Cannot find the settlement store for GetBalance")
 		server.dbLock.Unlock()
 		return
 	}

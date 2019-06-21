@@ -11,7 +11,7 @@ func (server *OpencxServer) GetPrice(pair *match.Pair) (price float64, err error
 	var currOrderbook match.LimitOrderbook
 	var ok bool
 	if currOrderbook, ok = server.Orderbooks[*pair]; !ok {
-		err = fmt.Errorf("Could not find orderbooks for trading pair for GetPrice: %s", err)
+		err = fmt.Errorf("Could not find orderbooks for trading pair for GetPrice")
 		server.dbLock.Unlock()
 		return
 	}
