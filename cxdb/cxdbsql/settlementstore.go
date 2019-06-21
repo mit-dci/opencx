@@ -173,9 +173,9 @@ func (ss *SQLSettlementStore) UpdateBalances(settlementResults []*match.Settleme
 	}
 
 	for _, setResult := range settlementResults {
-		newBalQuery := fmt.Sprintf("REPLACE INTO %s balance VALUES (%d) WHERE pubkey='%x';", assetForBal, setResult.NewBal, setResult.SuccessfulExec.Pubkey[:])
+		newBalQuery := fmt.Sprintf("INSERT INTO %s (balance, pubkey) VALUES (%d, '%x') ON DUPLICATE KEY UPDATE  balance='%[2]d';", assetForBal, setResult.NewBal, setResult.SuccessfulExec.Pubkey[:])
 		if _, err = tx.Exec(newBalQuery); err != nil {
-			err = fmt.Errorf("Error applying settlement exec new bal query: %s", err)
+			err = fmt.Errorf("Error applying insert for GetBalance: %s", err)
 			return
 		}
 	}
