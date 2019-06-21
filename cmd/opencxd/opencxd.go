@@ -111,11 +111,6 @@ func main() {
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
 
-	logging.Infof("config: %v", &conf)
-	for _, coin := range coinList {
-		logging.Infof("Coin to use: %s", coin.Name)
-	}
-
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
 		logging.Fatalf("Could not generate asset pairs from coin list: %s", err)
@@ -150,6 +145,11 @@ func main() {
 	var ocxServer *cxserver.OpencxServer
 	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, conf.OpencxHomeDir); err != nil {
 		logging.Fatalf("Error initializing server for opencxd: %s", err)
+	}
+
+	// For debugging but also it looks nice
+	for _, coin := range coinList {
+		logging.Infof("Coin supported: %s", coin.Name)
 	}
 
 	// Check that the private key exists and if it does, load it
