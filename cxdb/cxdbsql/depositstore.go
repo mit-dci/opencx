@@ -2,6 +2,7 @@ package cxdbsql
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"net"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/cxdb"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -161,32 +161,220 @@ func (ds *SQLDepositStore) setupDepositTables() (err error) {
 	return
 }
 
-// UpdateDeposits updates the deposits when a block comes in
+// UpdateDeposits updates the deposits when a block comes in, and returns execs for deposits that are
+// now confirmed
 func (ds *SQLDepositStore) UpdateDeposits(deposits []match.Deposit, blockheight uint64) (depositExecs []*match.SettlementExecution, err error) {
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+
+	// first get debit asset
+	var depositAsset match.Asset
+	if depositAsset, err = match.AssetFromCoinParam(ds.coin); err != nil {
+		err = fmt.Errorf("Error getting asset from coin param for UpdateDeposits: %s", err)
+		return
+	}
+
+	// ACID
+	var tx *sql.Tx
+	if tx, err = ds.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for UpdateDeposits: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error for UpdateDeposits: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// First use the pending deposit schema
+	if _, err = tx.Exec("USE " + ds.pendingDepositSchemaName + ";"); err != nil {
+		err = fmt.Errorf("Error using puzzle schema for UpdateDeposits: %s", err)
+		return
+	}
+
+	// First we insert these deposits
+	for _, deposit := range deposits {
+		txid := []byte(deposit.Txid)
+		expectedConfirm := deposit.BlockHeightReceived + deposit.Confirmations
+		insertDepQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', %d, %d, %d, '%x');", ds.coin.Name, deposit.Pubkey.SerializeCompressed(), expectedConfirm, deposit.BlockHeightReceived, deposit.Amount, txid)
+		if _, err = tx.Exec(insertDepQuery); err != nil {
+			err = fmt.Errorf("Error inserting deposit for UpdateDeposits: %s", err)
+			return
+		}
+	}
+
+	// There is an issue with the way we do this, if a reorg were to happen, users would be credited
+	// twice because there would be two blocks worth of deposits for some expected confirm heights.
+	// This is why we use non custodial / lightning anyways, if my channel fund was confirmed 15 days ago
+	// I really don't think it will be reorged. So for all intents and purposes this method of taking
+	// money from people should be considered legacy.
+
+	// Now we select the ones where expectedConfirm EQUALS the current height.
+	var rows *sql.Rows
+	selectConfirmedQuery := fmt.Sprintf("SELECT pubkey, amount FROM %s WHERE expectedConfirmHeight=%d;", ds.coin.Name, blockheight)
+	if rows, err = tx.Query(selectConfirmedQuery); err != nil {
+		err = fmt.Errorf("Error running select confirmed query for UpdateDeposits: %s", err)
+		return
+	}
+
+	var currSettlement *match.SettlementExecution
+	var pubkeyBytes []byte
+	for rows.Next() {
+		// A confirmed deposit is a debit for the deposit store's asset
+		currSettlement = &match.SettlementExecution{
+			Asset: depositAsset,
+			Type:  match.Debit,
+		}
+		if err = rows.Scan(&pubkeyBytes, &currSettlement.Amount); err != nil {
+			err = fmt.Errorf("Error scanning for confirmed deposit: %s", err)
+			return
+		}
+
+		// because we really only know that sql will give us a hex string, not actual bytes
+		if pubkeyBytes, err = hex.DecodeString(string(pubkeyBytes)); err != nil {
+			err = fmt.Errorf("Error decoding pubkey bytes string for UpdateDeposits: %s", err)
+			return
+		}
+		copy(currSettlement.Pubkey[:], pubkeyBytes)
+		// Now that the settlement is filled in, let's add it
+		depositExecs = append(depositExecs, currSettlement)
+	}
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing rows for UpdateDeposits: %s", err)
+		return
+	}
+
 	return
 }
 
 // GetDepositAddressMap gets a map of the deposit addresses we own to pubkeys
 func (ds *SQLDepositStore) GetDepositAddressMap() (depAddrMap map[string]*koblitz.PublicKey, err error) {
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+	depAddrMap = make(map[string]*koblitz.PublicKey)
+	// ACID
+	var tx *sql.Tx
+	if tx, err = ds.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for GetDepositAddressMap: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error for GetDepositAddressMap: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// First use the deposit address schema
+	if _, err = tx.Exec("USE " + ds.depositAddrSchemaName + ";"); err != nil {
+		err = fmt.Errorf("Error using puzzle schema for GetDepositAddressMap: %s", err)
+		return
+	}
+
+	var rows *sql.Rows
+	selectAddrQuery := fmt.Sprintf("SELECT pubkey, address FROM %s;", ds.coin.Name)
+	// errors deferred to scan
+	if rows, err = tx.Query(selectAddrQuery); err != nil {
+		err = fmt.Errorf("Error querying for pubkey address map for GetDepositAddressMap: %s", err)
+		return
+	}
+
+	var currAddr string
+	var currPubkeyBytes []byte
+	for rows.Next() {
+		if err = rows.Scan(&currPubkeyBytes, &currAddr); err != nil {
+			err = fmt.Errorf("Error scanning for address for GetDepositAddressMap: %s", err)
+			return
+		}
+
+		// frustrating sql marshalling
+		if currPubkeyBytes, err = hex.DecodeString(string(currPubkeyBytes)); err != nil {
+			err = fmt.Errorf("Error decoding pubkey for GetDepositAddressMap: %s", err)
+			return
+		}
+
+		if depAddrMap[currAddr], err = koblitz.ParsePubKey(currPubkeyBytes, koblitz.S256()); err != nil {
+			err = fmt.Errorf("Error parsing pub key from bytes for GetDepositAddressMap: %s", err)
+			return
+		}
+	}
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing rows for GetDepositAddressMap: %s", err)
+		return
+	}
 	return
 }
 
 // GetDepositAddress gets the deposit address for a pubkey and an asset.
 func (ds *SQLDepositStore) GetDepositAddress(pubkey *koblitz.PublicKey) (addr string, err error) {
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+	// ACID
+	var tx *sql.Tx
+	if tx, err = ds.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for GetDepositAddress: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error for GetDepositAddress: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// First use the deposit address schema
+	if _, err = tx.Exec("USE " + ds.depositAddrSchemaName + ";"); err != nil {
+		err = fmt.Errorf("Error using puzzle schema for GetDepositAddress: %s", err)
+		return
+	}
+
+	var row *sql.Row
+	selectAddrQuery := fmt.Sprintf("SELECT address FROM %s WHERE pubkey='%s';", ds.coin.Name, pubkey.SerializeCompressed())
+	// errors deferred to scan
+	row = tx.QueryRow(selectAddrQuery)
+
+	if err = row.Scan(&addr); err != nil {
+		err = fmt.Errorf("Error scanning for address for GetDepositAddress: %s", err)
+		return
+	}
+
 	return
 }
 
 // RegisterUser takes in a pubkey, and an address for the pubkey, and puts the deposit address as the
 // value for the user's pubkey key
 func (ds *SQLDepositStore) RegisterUser(pubkey *koblitz.PublicKey, address string) (err error) {
-	// TODO
-	logging.Fatalf("UNIMPLEMENTED!")
+	// ACID
+	var tx *sql.Tx
+	if tx, err = ds.DBHandler.Begin(); err != nil {
+		err = fmt.Errorf("Error when beginning transaction for RegisterUser: %s", err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			err = fmt.Errorf("Error for RegisterUser: \n%s", err)
+			return
+		}
+		err = tx.Commit()
+	}()
+
+	// First use the deposit address schema
+	if _, err = tx.Exec("USE " + ds.depositAddrSchemaName + ";"); err != nil {
+		err = fmt.Errorf("Error using puzzle schema for RegisterUser: %s", err)
+		return
+	}
+
+	insertUserQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s');", ds.coin.Name, pubkey.SerializeCompressed(), address)
+	if _, err = tx.Exec(insertUserQuery); err != nil {
+		err = fmt.Errorf("Error adding user and address for RegisterUser: %s", err)
+		return
+	}
 	return
 }
 

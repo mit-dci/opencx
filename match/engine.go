@@ -23,6 +23,8 @@ type AuctionEngine interface {
 // One of these should be made for every asset.
 type SettlementEngine interface {
 	// ApplySettlementExecution is a method that applies a settlement execution.
+	// TODO: switch this over to have setExec []*SettlementExecution as the param
+	// and setRes []*SettlementResult as the return value
 	ApplySettlementExecution(setExec *SettlementExecution) (setRes *SettlementResult, err error)
 	// CheckValid is a method that returns true if the settlement execution would be valid.
 	CheckValid(setExec *SettlementExecution) (valid bool, err error)
