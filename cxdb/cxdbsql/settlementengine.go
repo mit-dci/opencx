@@ -120,13 +120,18 @@ func (se *SQLSettlementEngine) ApplySettlementExecution(setExec *match.Settlemen
 		}
 	}
 
+	if err = rows.Close(); err != nil {
+		err = fmt.Errorf("Error closing rows for ApplySettlementExecution: %s", err)
+		return
+	}
+
 	var newBal uint64
 	if setExec.Type == match.Debit {
 		newBal = curBal + setExec.Amount
 	} else if setExec.Type == match.Credit {
 		newBal = curBal - setExec.Amount
 	}
-	newBalQuery := fmt.Sprintf("REPLACE INTO %s balance VALUES (%d);", se.coin.Name, newBal)
+	newBalQuery := fmt.Sprintf("INSERT INTO %s (balance, pubkey) VALUES (%d, '%x') ON DUPLICATE KEY UPDATE  balance='%[2]d';", se.coin.Name, newBal, setExec.Pubkey)
 	if _, err = tx.Exec(newBalQuery); err != nil {
 		err = fmt.Errorf("Error applying settlement exec new bal query: %s", err)
 		return
