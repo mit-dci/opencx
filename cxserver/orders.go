@@ -58,28 +58,28 @@ func (server *OpencxServer) PlaceOrder(order *match.LimitOrder) (orderID match.O
 	var currSetEng match.SettlementEngine
 	var ok bool
 	if currSetEng, ok = server.SettlementEngines[param]; !ok {
-		err = fmt.Errorf("Could not find correct settlement engine for PlaceOrder: %s", err)
+		err = fmt.Errorf("Could not find correct settlement engine for PlaceOrder")
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currMatchEng match.LimitEngine
 	if currMatchEng, ok = server.MatchingEngines[order.TradingPair]; !ok {
-		err = fmt.Errorf("Could not find matching engine for trading pair for PlaceOrder: %s", err)
+		err = fmt.Errorf("Could not find matching engine for trading pair for PlaceOrder")
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currOrderbook match.LimitOrderbook
 	if currOrderbook, ok = server.Orderbooks[order.TradingPair]; !ok {
-		err = fmt.Errorf("Could not find orderbooks for trading pair for PlaceOrder: %s", err)
+		err = fmt.Errorf("Could not find orderbooks for trading pair for PlaceOrder")
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currSetStore cxdb.SettlementStore
 	if currSetStore, ok = server.SettlementStores[param]; !ok {
-		err = fmt.Errorf("Could not find settlement store for asset for PlaceOrder: %s", err)
+		err = fmt.Errorf("Could not find settlement store for asset for PlaceOrder")
 		server.dbLock.Unlock()
 		return
 	}
@@ -208,7 +208,7 @@ func (server *OpencxServer) ViewOrderbook(pair *match.Pair) (book map[float64][]
 	var currOrderbook match.LimitOrderbook
 	var ok bool
 	if currOrderbook, ok = server.Orderbooks[*pair]; !ok {
-		err = fmt.Errorf("Could not find orderbooks for trading pair for ViewOrderbook: %s", err)
+		err = fmt.Errorf("Could not find orderbooks for trading pair for ViewOrderbook")
 		server.dbLock.Unlock()
 		return
 	}
@@ -273,28 +273,28 @@ func (server *OpencxServer) CancelOrder(order *match.LimitOrderIDPair) (err erro
 	var currSetEng match.SettlementEngine
 	var ok bool
 	if currSetEng, ok = server.SettlementEngines[param]; !ok {
-		err = fmt.Errorf("Could not find correct settlement engine for CancelOrder: %s", err)
+		err = fmt.Errorf("Could not find correct settlement engine for CancelOrder")
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currMatchEng match.LimitEngine
 	if currMatchEng, ok = server.MatchingEngines[order.Order.TradingPair]; !ok {
-		err = fmt.Errorf("Could not find matching engine for trading pair for CancelOrder: %s", err)
+		err = fmt.Errorf("Could not find matching engine for trading pair for CancelOrder")
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currOrderbook match.LimitOrderbook
 	if currOrderbook, ok = server.Orderbooks[order.Order.TradingPair]; !ok {
-		err = fmt.Errorf("Could not find orderbooks for trading pair for CancelOrder: %s", err)
+		err = fmt.Errorf("Could not find orderbooks for trading pair for CancelOrder")
 		server.dbLock.Unlock()
 		return
 	}
 
 	var currSetStore cxdb.SettlementStore
 	if currSetStore, ok = server.SettlementStores[param]; !ok {
-		err = fmt.Errorf("Could not find settlement store for asset for CancelOrder: %s", err)
+		err = fmt.Errorf("Could not find settlement store for asset for CancelOrder")
 		server.dbLock.Unlock()
 		return
 	}
