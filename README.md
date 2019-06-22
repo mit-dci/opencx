@@ -8,6 +8,7 @@ Cryptocurrency exchanges are some of the largest businesses in the cryptocurrenc
 Because of this, cryptocurrency exchanges have been a hotbed of crime in the form of hacks, front-running, wash trading, fake orderbooks, and much more.
 In order for cryptocurrency to be successful, we need safe, trustworthy ways to exchange cryptocurrencies, without fear that coins will be stolen, or trades executed unfairly.
 Additionally, the vast majority of exchange software is closed-source, and exchanges have historically not implemented technological upgrades that would substantially decrease risk for users.
+
 OpenCX hopes to solve this problem by making it trivially easy to run a secure, scalable cryptocurrency exchange which implements many of these features, including:
 
   - Layer two compatibility
@@ -23,7 +24,9 @@ The goal is to fit those requirements well enough to be competitive with modern 
 
 # Contributing
 
-Please see the [contributing](./CONTRIBUTING.md) file to get started with contributing!
+Please see the 
+[contributing](./CONTRIBUTING.md) 
+file to get started with contributing!
 
 # Requirements
  - Go 1.12+
@@ -69,6 +72,8 @@ go build ./cmd/ocx/...
 You can now issue any of the commands in the cxrpc README.md file.
 
 # Configuration
-There are configuration options (both command line and .conf) for the client and the server, and by default home folders for these files will be created at `~/.opencx/opencxd/` and `~/.opencx/ocx/` respectively. You can decide whether or not to use the NOISE protocol for authentication, which hostnames and ports to use for connecting to certain clients, which coins you would like to support, and whether or not to support lightning.
+There are configuration options (both command line and .conf) for the client and the server, and by default home folders for these files will be created at `~/.opencx/opencxd/` and `~/.opencx/ocx/` respectively. You can decide whether or not to use the 
+[NOISE protocol](http://www.noiseprotocol.org/)
+for authentication, which hostnames and ports to use for connecting to certain clients, which coins you would like to support, and whether or not to support lightning.
 
 If you'd like to add your own coins, just add a coinparam struct like in `lit`.
