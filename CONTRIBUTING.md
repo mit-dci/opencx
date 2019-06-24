@@ -31,7 +31,7 @@ If you don't know what to work on, here are some things that generally increase 
 ## Who is the maintainer?
 
 Currently, [rjected](https://github.com/rjected) is the maintainer.
-You can contact them by [email!](dan@dancline.net)
+You can contact them by [email!](mailto:dan@dancline.net)
 
 ## How can I get my pull request merged?
 
