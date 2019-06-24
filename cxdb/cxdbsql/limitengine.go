@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"
 )
@@ -34,7 +35,7 @@ type SQLLimitEngine struct {
 // The schema for the limit orderbook
 const (
 	limitEngineSchema = "pubkey VARBINARY(66), orderID VARBINARY(64), side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP"
-	sqlTimeFormat     = "1000-01-01 00:00:00"
+	sqlTimeFormat     = "2006-01-02 15:04:05"
 )
 
 // CreateLimitEngine creates a limit matching engine that operates using SQL as a database
@@ -143,7 +144,6 @@ func (le *SQLLimitEngine) setupLimitOrderbookTables() (err error) {
 // PlaceLimitOrder places an order in the limit matching engine.
 // This assumes that the order is valid and is for the same pair as the matching engine
 func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match.LimitOrderIDPair, err error) {
-
 	// First, get the time.
 	placementTime := time.Now()
 	placementTimeFormatted := placementTime.Format(sqlTimeFormat)
@@ -180,7 +180,13 @@ func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match
 		}
 		err = tx.Commit()
 	}()
-	placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%s');", le.pair.String(), order.Pubkey[:], order.Side.String(), price, order.AmountHave, order.AmountWant, placementTimeFormatted)
+
+	if _, err = tx.Exec("USE " + le.orderSchema + ";"); err != nil {
+		err = fmt.Errorf("Error using order schema while matching limit orders: %s", err)
+		return
+	}
+
+	placeOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%x', '%s', %f, %d, %d, '%s');", le.pair.String(), order.Pubkey[:], hashedOrder, order.Side.String(), price, order.AmountHave, order.AmountWant, placementTimeFormatted)
 	if _, err = tx.Exec(placeOrderQuery); err != nil {
 		err = fmt.Errorf("Error placing order into db for PlaceLimitOrder: %s", err)
 		return
@@ -188,6 +194,7 @@ func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match
 
 	// Finally, set the auction order / id pair
 	idRes = &match.LimitOrderIDPair{
+		OrderID:   new(match.OrderID),
 		Order:     order,
 		Price:     price,
 		Timestamp: placementTime,
@@ -310,6 +317,7 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 	var maxSellRow *sql.Row
 	getMaxSellPrice := fmt.Sprintf("SELECT MAX(price) FROM %s WHERE side='%s';", le.pair.String(), sellSide.String())
 	// errors for queryrow are deferred until scan -- this is important, that's why we don't err != nil here
+	logging.Infof("maxsell: %s", sellSide.String())
 	maxSellRow = tx.QueryRow(getMaxSellPrice)
 
 	var maxSell float64
@@ -351,8 +359,10 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 		var pubkeyBytes []byte
 		var orderIDBytes []byte
 		var timeString string
-		sellOrderIDPair := new(match.LimitOrderIDPair)
-		sellOrderIDPair.Order = new(match.LimitOrder)
+		sellOrderIDPair := &match.LimitOrderIDPair{
+			Order:   new(match.LimitOrder),
+			OrderID: new(match.OrderID),
+		}
 		if err = sellRows.Scan(&pubkeyBytes, &sellOrderIDPair.Price, &orderIDBytes, &sellOrderIDPair.Order.AmountHave, &sellOrderIDPair.Order.AmountWant, &timeString); err != nil {
 			err = fmt.Errorf("Error scanning sell rows for MatchLimitOrders: %s", err)
 			return
@@ -368,6 +378,7 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 			err = fmt.Errorf("Error decoding hex for sell pubkey for MatchLimitOrders: %s", err)
 			return
 		}
+
 		// We prepared for this and made a type that knows what's coming with SQL, so we don't
 		// have to do the above
 		if err = sellOrderIDPair.OrderID.UnmarshalText(orderIDBytes); err != nil {
@@ -401,9 +412,11 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 		var pubkeyBytes []byte
 		var orderIDBytes []byte
 		var timeString string
-		buyOrderIDPair := new(match.LimitOrderIDPair)
-		buyOrderIDPair.Order = new(match.LimitOrder)
-		if err = buyRows.Scan(&pubkeyBytes, &buyOrderIDPair.Price, &orderIDBytes, &buyOrderIDPair.Order.AmountHave, &buyOrderIDPair.Order.AmountWant, timeString); err != nil {
+		buyOrderIDPair := &match.LimitOrderIDPair{
+			Order:   new(match.LimitOrder),
+			OrderID: new(match.OrderID),
+		}
+		if err = buyRows.Scan(&pubkeyBytes, &buyOrderIDPair.Price, &orderIDBytes, &buyOrderIDPair.Order.AmountHave, &buyOrderIDPair.Order.AmountWant, &timeString); err != nil {
 			err = fmt.Errorf("Error scanning buy rows for MatchLimitOrders: %s", err)
 			return
 		}

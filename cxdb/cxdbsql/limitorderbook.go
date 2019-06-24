@@ -270,9 +270,7 @@ func (lo *SQLLimitOrderbook) UpdateBookPlace(limitIDPair *match.LimitOrderIDPair
 		return
 	}
 
-	logging.Infof("Placing order in orderbook: \n%s", limitIDPair.Order)
-
-	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%x', '%s', %f, %d, %d, '%s');", lo.pair.String(), limitIDPair.Order.Pubkey, limitIDPair.OrderID, limitIDPair.Order.Side.String(), limitIDPair.Price, limitIDPair.Order.AmountHave, limitIDPair.Order.AmountWant, limitIDPair.Timestamp.Format(sqlTimeFormat))
+	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%x', '%s', %f, %d, %d, '%s');", lo.pair.String(), limitIDPair.Order.Pubkey, limitIDPair.OrderID[:], limitIDPair.Order.Side.String(), limitIDPair.Price, limitIDPair.Order.AmountHave, limitIDPair.Order.AmountWant, limitIDPair.Timestamp.Format(sqlTimeFormat))
 	if _, err = tx.Exec(insertOrderQuery); err != nil {
 		err = fmt.Errorf("Error placing order into db for UpdateBookPlace: %s", err)
 		return
