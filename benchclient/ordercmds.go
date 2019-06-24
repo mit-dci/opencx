@@ -83,6 +83,8 @@ func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side match.Side, pa
 			return
 		}
 
+		logging.Infof("The reply needed one thing and one thing only: \n%s", *orderReply)
+
 		replyChan <- orderReply
 
 		return

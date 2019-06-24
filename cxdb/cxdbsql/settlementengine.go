@@ -8,6 +8,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -188,7 +189,8 @@ func (se *SQLSettlementEngine) CheckValid(setExec *match.SettlementExecution) (v
 		return
 	}
 
-	valid = setExec.Amount > curBal
+	logging.Infof("User with %d %s trying to complete action costing %d %[2]s.", curBal, se.coin.Name, setExec.Amount)
+	valid = setExec.Amount < curBal
 	return
 }
 
