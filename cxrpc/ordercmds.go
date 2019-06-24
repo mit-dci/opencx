@@ -62,7 +62,7 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 		return
 	}
 
-	logging.Infof("User %x submitted OrderID %s", sigPubKey.SerializeCompressed(), reply.OrderID)
+	logging.Infof("User %x submitted OrderID %x", sigPubKey.SerializeCompressed(), reply.OrderID)
 
 	return
 }

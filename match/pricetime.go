@@ -2,8 +2,6 @@ package match
 
 import (
 	"fmt"
-
-	"github.com/mit-dci/opencx/logging"
 )
 
 // MatchPTPAlgorithm runs matching on an orderbook that is unsorted or unprioritized.
@@ -90,7 +88,6 @@ func MatchPrioritizedOrders(buyOrders []*LimitOrderIDPair, sellOrders []*LimitOr
 		// changing (due to time priority)
 		settlementExecs = append(settlementExecs, prelimSettlementExecs...)
 	}
-	logging.Fatalf("UNIMPLEMENTED!!!")
 	return
 }
 
