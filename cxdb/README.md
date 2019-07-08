@@ -4,21 +4,53 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx/cxdb?status.svg)](https://godoc.org/github.com/mit-dci/opencx/cxdb)
 
-The package cxdb contains two interfaces in order to standardize and abstract data store interaction.
-There are also contained implementations of these interfaces, some more complete than others.
-These interfaces are `OpencxStore` and `OpencxAuctionStore`, the former defining interfaces for a typical exchange, the other based on batch auctions.
+The code which manages exchange datastore interactions is split into a set of useful interfaces:
+### SettlementEngine
+SettlementEngine has two methods. One method checks whether or not a settlement execution could take place if it were executed (think of this as "can we credit this user X of an asset").
+The second method actually executes the settlement execution(s).
 
-Here are the respective statuses of implementations:
+### AuctionEngine
+AuctionEngine is the matching engine for auction orders. It has a place method, a cancel method, and a match method. The match method takes an auction ID as input, since orders cannot be matched cross-auction. This matches according to a clearing price based auction matching algorithm.
+### LimitEngine
+LimitEngine is the matching engine for limit orders. It has a place method, a cancel method, and a match method. This matches according to a price-time priority auction matching algorithm.
+### AuctionOrderbook
+AuctionOrderbook gets updated by the auction matching engine, and is viewable by the user. This also has other methods that may be useful, for example methods to get orders by ID, pubkey, or auction.
+### LimitOrderbook
+LimitOrderbook is very similar to AuctionOrderbook except it does not have methods dependent on a specific auction, since limit orderbooks do not have auctions.
+### PuzzleStore
+PuzzleStore is a simple store for storing timelock puzzles, as well as marking specific timelock puzzles to commit to or match.
+### DepositStore
+DepositStore stores the mapping from pubkey to deposit address. This also keeps track of pending deposits. Pending deposits do not have a fixed number of confirmations, and can be set arbitrarily.
 
-  - **cxdbmemory**
-    - Conforms to the `OpencxAuctionStore` interface but some of the methods are not functional.
-    - This is, and always will be, **ONLY** for rapid prototyping, **NOT** for actual use.
-  - **cxdbredis**
-    - Defunct, not updated, doesn't work.
-    - The reason why it ever existed is because that is what OpenCX used before the need for ACID transactions was realized.
-    - See [Issue #16](https://github.com/mit-dci/opencx/issues/16).
-  - **cxdbsql**
-    - Conforms to `OpencxStore` and `OpencxAuctionStore`.
-    - There is a lot of code here, and it needs a lot of tests, as well as a refactor.
+### DB interface implementation status
+  - SettlementEngine
+    - [x] cxdbsql
+    - [x] cxdbmemory
+    - [ ] cxdbredis
+  - AuctionEngine
+    - [x] cxdbsql
+    - [ ] cxdbemory (partial)
+    - [ ] cxdbredis
+  - LimitEngine
+    - [x] cxdbsql
+    - [ ] cxdbmemory
+    - [ ] cxdbredis
+  - AuctionOrderbook
+    - [x] cxdbsql
+    - [ ] cxdbmemory
+    - [ ] cxdbredis
+  - LimitOrderbook
+    - [x] cxdbsql
+    - [ ] cxdbmemory
+    - [ ] cxdbredis
+  - PuzzleStore
+    - [x] cxdbsql
+    - [x] cxdbmemory
+    - [ ] cxdbredis
+  - DepositStore
+    - [x] cxdbsql
+    - [ ] cxdbmemory
+    - [ ] cxdbredis
 
-The issues related to refactoring cxdb are [#16](https://github.com/mit-dci/opencx/issues/16), [#11](https://github.com/mit-dci/opencx/issues/11), [#6](https://github.com/mit-dci/opencx/issues/6), [#7](https://github.com/mit-dci/opencx/issues/7).
+Some old code still exists in `cxdbmemory`.
+The issues related to refactoring cxdb are [#16](https://github.com/mit-dci/opencx/issues/16).
