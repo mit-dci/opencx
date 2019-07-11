@@ -1,6 +1,7 @@
 package cxdbmemory
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/mit-dci/lit/coinparam"
@@ -30,6 +31,7 @@ func CreatePinkySwearEngine(coin *coinparam.Params, whitelist [][33]byte) (engin
 		pe.whitelist[pubkey] = true
 	}
 	pe.whitelistMtx.Unlock()
+	engine = pe
 	return
 }
 
@@ -47,6 +49,19 @@ func (pe *PinkySwearEngine) ApplySettlementExecution(setExec *match.SettlementEx
 
 // CheckValid returns true if the settlement execution would be valid
 func (pe *PinkySwearEngine) CheckValid(setExec *match.SettlementExecution) (valid bool, err error) {
+	// Finally a case that we can handle
+	// if the coin is not the same then CheckValid fails
+	var execAsset match.Asset
+	if execAsset, err = match.AssetFromCoinParam(pe.coin); err != nil {
+		err = fmt.Errorf("Error getting asset for engine coin: %s", err)
+		return
+	}
+
+	if execAsset != setExec.Asset {
+		valid = false
+		return
+	}
+
 	pe.whitelistMtx.Lock()
 	var ok bool
 	if valid, ok = pe.whitelist[setExec.Pubkey]; !ok {
