@@ -143,43 +143,6 @@ func (ib *intermediateBatch) solveSingleOrder(eOrder *match.EncryptedAuctionOrde
 	return
 }
 
-// solveSingleOrder solves a single order and deposits the result into the sendResChan. This should
-// be done in a goroutine.
-func (ib *intermediateBatch) solveSingleOrder(eOrder *match.EncryptedAuctionOrder) {
-	var err error
-	result := new(match.OrderPuzzleResult)
-	result.Encrypted = eOrder
-
-	logging.Infof("Start of solve, num orders left: %d", ib.numOrders)
-
-	// send to channel at end of method
-	defer func() {
-		// Make sure we can actually send to this channel
-		logging.Infof("Try send, num orders left: %d", ib.numOrders)
-		select {
-		case ib.orderChan <- result:
-			logging.Infof("Sent order to channel")
-			return
-		default:
-			panic("Couldn't send result to channel! panicking!")
-		}
-	}()
-
-	var orderBytes []byte
-	if orderBytes, err = timelockencoders.SolvePuzzleRC5(eOrder.OrderCiphertext, eOrder.OrderPuzzle); err != nil {
-		result.Err = fmt.Errorf("Error solving RC5 puzzle for solve single order: %s", err)
-		return
-	}
-
-	result.Auction = new(match.AuctionOrder)
-	if err = result.Auction.Deserialize(orderBytes); err != nil {
-		result.Err = fmt.Errorf("Error deserializing order from puzzle for solve single order: %s", err)
-		return
-	}
-
-	return
-}
-
 // AddEncrypted adds an encrypted order to an auction. This should error if either the auction doesn't
 // exist, or the auction is ended.
 func (ab *ABatcher) AddEncrypted(order *match.EncryptedAuctionOrder) (err error) {
@@ -255,7 +218,7 @@ func CreateAuctionBatcherMap(pairList []*match.Pair, maxBatchSize uint64) (batch
 			err = fmt.Errorf("Error creating new batcher for %s pair: %s", pair.String(), err)
 			return
 		}
-		batcher[*pair] = currBatcher
+		batchers[*pair] = currBatcher
 	}
 
 	return

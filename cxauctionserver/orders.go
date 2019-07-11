@@ -36,14 +36,26 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 	}
 
 	if err = pzEngine.PlaceAuctionPuzzle(order); err != nil {
-		s.dbLock.Unlock()
 		err = fmt.Errorf("Error placing puzzled order: \n%s", err)
+		s.dbLock.Unlock()
 		return
 	}
-	s.dbLock.Unlock()
+
+	var correctBatcher match.AuctionBatcher
+	if correctBatcher, ok = s.OrderBatchers[order.IntendedPair]; !ok {
+		err = fmt.Errorf("Could not find batcher for pair %s", order.IntendedPair.String())
+		s.dbLock.Unlock()
+		return
+	}
 
 	// This will add to the batcher
-	s.OrderBatcher.AddEncrypted(order)
+	if err = correctBatcher.AddEncrypted(order); err != nil {
+		err = fmt.Errorf("Error adding encrypted order to batcher: %s", err)
+		s.dbLock.Unlock()
+		return
+	}
+
+	s.dbLock.Unlock()
 
 	return
 }
@@ -73,9 +85,10 @@ func (s *OpencxAuctionServer) solveOrderIntoResChan(eOrder *match.EncryptedAucti
 	return
 }
 
-// CommitOrdersNewAuction commits to a set of decypted orders and changes the auction ID.
+// CommitOrdersNewAuction commits to a set of encrypted orders and changes the auction ID.
 // TODO: figure out how to broadcast these, and where to store them, if we need to store them
-func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err error) {
+// also TODO: REWRITE because batcher is a better way of doing things
+func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair, auctionID [32]byte) (newID [32]byte, err error) {
 
 	// Lock!
 	s.dbLock.Lock()
@@ -89,14 +102,6 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err erro
 		return
 	}
 
-	// get the current auction ID
-	var auctionID [32]byte
-	if auctionID, err = s.CurrentAuctionID(); err != nil {
-		err = fmt.Errorf("Eror getting current auction id for commit: %s", err)
-		s.dbLock.Unlock()
-		return
-	}
-
 	var matchAuctionID *match.AuctionID
 	matchAuctionID = new(match.AuctionID)
 	if err = matchAuctionID.UnmarshalBinary(auctionID[:]); err != nil {
@@ -105,10 +110,18 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err erro
 		return
 	}
 
+	var correctBatcher match.AuctionBatcher
+	if correctBatcher, ok = s.OrderBatchers[*pair]; !ok {
+		err = fmt.Errorf("Could not find batcher for pair %s", pair.String())
+		s.dbLock.Unlock()
+		return
+	}
+
 	// First, get the commitorderschannel
 	var commitOrderChannel chan *match.AuctionBatch
-	if commitOrderChannel, err = s.OrderBatcher.EndAuction(auctionID); err != nil {
+	if commitOrderChannel, err = correctBatcher.EndAuction(auctionID); err != nil {
 		err = fmt.Errorf("Error ending auction while committing orders for new auction: %s", err)
+		s.dbLock.Unlock()
 		return
 	}
 
@@ -138,30 +151,30 @@ func (s *OpencxAuctionServer) CommitOrdersNewAuction(pair *match.Pair) (err erro
 		sha3.Write(pzRaw)
 	}
 
-	// Set the new auction ID to the hash of the orders. TODO: figure out if signing the puzzles
-	// instead is a good idea, and if the dependence on the previous commitment is a good idea.
-	copy(s.auctionID[:], sha3.Sum(nil))
+	// Set the new auction ID to the hash of the orders. TODO: figure out if
+	// dependence on the previous commitment is a good idea.
+	var newAuctionID [32]byte
+	copy(newAuctionID[:], sha3.Sum(nil))
+	// TODO: sign
+	// TODO: how to broadcast and timestamp these?
 
 	// Start the new auction by registering
-	if err = s.OrderBatcher.RegisterAuction(s.auctionID); err != nil {
+	if err = correctBatcher.RegisterAuction(newAuctionID); err != nil {
 		err = fmt.Errorf("Error registering auction while committing / creating new auction: %s", err)
+		s.dbLock.Unlock()
 		return
 	}
 
-	var height uint64
-	if height, err = s.MatchingEngine.NewAuctionHeight(s.auctionID); err != nil {
-		err = fmt.Errorf("Error updating auction in DB while committing orders and creating new auction: %s", err)
-		return
-	}
-
-	// Start the new auction by registering
-	if err = s.OrderBatcher.RegisterAuction(s.auctionID); err != nil {
-		err = fmt.Errorf("Error registering auction while committing / creating new auction: %s", err)
-		return
-	}
+	// var height uint64
+	// if height, err = s.MatchingEngine.NewAuctionHeight(newAuctionID); err != nil {
+	// 	err = fmt.Errorf("Error updating auction in DB while committing orders and creating new auction: %s", err)
+	// 	s.dbLock.Unlock()
+	// 	return
+	// }
 
 	// Unlock!
 	s.dbLock.Unlock()
+	newID = newAuctionID
 
 	return
 }

@@ -150,9 +150,14 @@ func main() {
 		logging.Fatalf("Error creating puzzle store map: %s", err)
 	}
 
+	var batchers map[match.Pair]match.AuctionBatcher
+	if batchers, err = cxauctionserver.CreateAuctionBatcherMap(pairList, conf.MaxBatchSize); err != nil {
+		logging.Fatalf("Error creating batcher map: %s", err)
+	}
+
 	// Anyways, here's where we set the server
 	var fredServer *cxauctionserver.OpencxAuctionServer
-	if fredServer, err = cxauctionserver.InitServer(setEngines, mengines, auctionBooks, puzzleStores, 100, conf.AuctionTime); err != nil {
+	if fredServer, err = cxauctionserver.InitServer(setEngines, mengines, auctionBooks, puzzleStores, batchers, 100, conf.AuctionTime); err != nil {
 		logging.Fatalf("Error initializing server: \n%s", err)
 	}
 

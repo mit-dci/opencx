@@ -69,7 +69,7 @@ func InitServerMemoryDefault(coinList []*coinparam.Params, orderChanSize uint64,
 		return
 	}
 
-	if server, err = InitServer(setEngines, mengines, aucBooks, pzEngines, orderChanSize, standardAuctionTime); err != nil {
+	if server, err = InitServer(setEngines, mengines, aucBooks, pzEngines, batchers, orderChanSize, standardAuctionTime); err != nil {
 		err = fmt.Errorf("Error initializing server for InitServerMemoryDefault: %s", err)
 		return
 	}
@@ -78,7 +78,7 @@ func InitServerMemoryDefault(coinList []*coinparam.Params, orderChanSize uint64,
 
 // InitServerSQLDefault initializes an auction server with SQL engines, orderbooks, and puzzle stores.
 // This generates everything using built in methods
-func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, standardAuctionTime uint64, maxBatchSize) (server *OpencxAuctionServer, err error) {
+func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, standardAuctionTime uint64, maxBatchSize uint64) (server *OpencxAuctionServer, err error) {
 
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
@@ -138,12 +138,12 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		t:                 standardAuctionTime,
 	}
 
-	var randBuf [32]byte
+	var randID [32]byte
 	var bytesRead int
-	for _, batcher := range server.OrderBatchers {
+	for pair, batcher := range server.OrderBatchers {
 
 		// Set auctionID to something random for each batcher
-		if bytesRead, err = rand.Read(randBuf[:]); err != nil {
+		if bytesRead, err = rand.Read(randID[:]); err != nil {
 			err = fmt.Errorf("Error getting random auction ID for initializing server: %s", err)
 			return
 		}
@@ -151,11 +151,11 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		logging.Infof("Read %d bytes for auctionID! Starting first auction.", bytesRead)
 
 		// // Start the solved order handler (TODO: is this the right place to put this?)
-		batcher.RegisterAuction(randBuf)
-	}
+		batcher.RegisterAuction(randID)
 
-	// Start the auction clock (also TODO: is this the right place to put this?)
-	go server.AuctionClock()
+		// Start the auction clock (also TODO: is this the right place to put this?)
+		go server.AuctionClock(&pair, randID)
+	}
 
 	return
 }
