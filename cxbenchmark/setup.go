@@ -4,15 +4,10 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/golangcrypto/sha3"
-	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/benchclient"
-	"github.com/mit-dci/opencx/cxdb"
-	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
-	"github.com/mit-dci/opencx/logging"
-	"github.com/mit-dci/opencx/match"
 )
 
 // Let these be turned into config things at some point
@@ -20,6 +15,18 @@ var (
 	defaultServer = "localhost"
 	defaultPort   = uint16(12347)
 )
+
+func SetupBenchmarkClientWithKey(clientPrivKey *koblitz.PrivateKey) (client *benchclient.BenchClient, err error) {
+	client = &benchclient.BenchClient{
+		PrivKey: clientPrivKey,
+	}
+
+	if err = client.SetupBenchClient(defaultServer, defaultPort); err != nil {
+		err = fmt.Errorf("Error setting up OpenCX RPC Client: \n%s", err)
+		return
+	}
+	return
+}
 
 // SetupBenchmarkClient sets up the benchmark and returns the client
 func SetupBenchmarkClient() (client *benchclient.BenchClient, err error) {
@@ -34,12 +41,8 @@ func SetupBenchmarkClient() (client *benchclient.BenchClient, err error) {
 		return
 	}
 
-	client = &benchclient.BenchClient{
-		PrivKey: clientPrivKey,
-	}
-
-	if err = client.SetupBenchClient(defaultServer, defaultPort); err != nil {
-		err = fmt.Errorf("Error setting up OpenCX RPC Client: \n%s", err)
+	if client, err = SetupBenchmarkClientWithKey(clientPrivKey); err != nil {
+		err = fmt.Errorf("Error setting up benchmark client with key: %s", err)
 		return
 	}
 
@@ -107,137 +110,6 @@ func registerClient(client *benchclient.BenchClient) (err error) {
 	return
 }
 
-// createFullServer creates a server after starting the database with a bunch of parameters
-func createFullServer(coinList []*coinparam.Params, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
-
-	var pairList []*match.Pair
-	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
-		err = fmt.Errorf("Could not generate asset pairs from coin list: %s", err)
-		return
-	}
-
-	var mengines map[match.Pair]match.LimitEngine
-	if mengines, err = cxdbsql.CreateLimitEngineMap(pairList); err != nil {
-		err = fmt.Errorf("Error creating limit engine map with coinlist for createFullServer: %s", err)
-		return
-	}
-
-	var setEngines map[*coinparam.Params]match.SettlementEngine
-	if setEngines, err = cxdbsql.CreateSettlementEngineMap(coinList); err != nil {
-		err = fmt.Errorf("Error creating settlement engine map for createFullServer: %s", err)
-		return
-	}
-
-	var limBooks map[match.Pair]match.LimitOrderbook
-	if limBooks, err = cxdbsql.CreateLimitOrderbookMap(pairList); err != nil {
-		err = fmt.Errorf("Error creating limit orderbook map for createFullServer: %s", err)
-		return
-	}
-
-	var depositStores map[*coinparam.Params]cxdb.DepositStore
-	if depositStores, err = cxdbsql.CreateDepositStoreMap(coinList); err != nil {
-		err = fmt.Errorf("Error creating deposit store map for createFullServer: %s", err)
-		return
-	}
-
-	var setStores map[*coinparam.Params]cxdb.SettlementStore
-	if setStores, err = cxdbsql.CreateSettlementStoreMap(coinList); err != nil {
-		err = fmt.Errorf("Error creating settlement store map for createFullServer: %s", err)
-		return
-	}
-
-	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, ""); err != nil {
-		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
-		return
-	}
-
-	key := new([32]byte)
-	copy(key[:], privkey.Serialize())
-
-	// Check that the private key exists and if it does, load it
-	if err = ocxServer.SetupServerKeys(key); err != nil {
-		err = fmt.Errorf("Error setting up server keys: \n%s", err)
-	}
-
-	// Register RPC Commands and set server
-	rpc1 := new(cxrpc.OpencxRPC)
-	rpc1.OffButton = make(chan bool, 1)
-	rpc1.Server = ocxServer
-
-	if !authrpc {
-		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
-		logging.Infof(" === will start to listen on rpc ===")
-		go cxrpc.RPCListenAsync(doneChan, rpc1, serverhost, serverport)
-	} else {
-
-		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
-		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
-		logging.Infof(" === will start to listen on noise-rpc ===")
-		go cxrpc.NoiseListenAsync(doneChan, privkey, rpc1, serverhost, serverport)
-	}
-
-	offChan = rpc1.OffButton
-	// // create function and add it to closing stack that we made ourselves.
-	// closeListeners := func() (err error) {
-	// 	// lol just turn it off
-	// 	rpc1.OffButton <- true
-	// 	return
-	// }
-	// functionCloser(closeFunc, closeListeners)
-
-	return
-}
-
-// functionCloser modifies the original function to add another one on to its stack. Uses function pointers. Honestly just having fun here to see what compiles, might not even work. This is the most impure thing I've ever written.
-func functionCloser(original func() error, additionalCloser func() error) {
-	original = func() (newErr error) {
-		err := original()
-		newErr = additionalCloser()
-		if err != nil {
-			if newErr != nil {
-				newErr = fmt.Errorf("Two errors: error when calling original function: %s\nOriginal errors: %s", err, newErr)
-				return
-			}
-			err = fmt.Errorf("One original error: %s", err)
-			return
-		}
-		if newErr != nil {
-			newErr = fmt.Errorf("New error after calling additional closer: \n%s", newErr)
-			return
-		}
-		return
-	}
-	return
-}
-
-// createDefaultParamServerWithKey creates a server with a bunch of default params minus privkey and authrpc
-func createDefaultParamServerWithKey(privkey *koblitz.PrivateKey, authrpc bool) (server *cxserver.OpencxServer, offChan chan bool, err error) {
-	return createFullServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, "localhost", uint16(12346), privkey, authrpc)
-}
-
-// prepareBalances adds tons of money to both accounts
-func prepareBalances(client *benchclient.BenchClient, server *cxserver.OpencxServer) (err error) {
-
-	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.RegressionNetParams); err != nil {
-		err = fmt.Errorf("Error adding a bunch of regtest to client: \n%s", err)
-		return
-	}
-
-	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.LiteRegNetParams); err != nil {
-		err = fmt.Errorf("Error adding a bunch of litereg to client: \n%s", err)
-		return
-	}
-
-	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.VertcoinRegTestParams); err != nil {
-		err = fmt.Errorf("Error adding a bunch of vtcreg to client: \n%s", err)
-		return
-	}
-
-	return
-}
-
 // setupBenchmarkDualClient sets up an environment where we can test two very well funded clients client1 and client2 with configurable authrpc
 func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, offChan chan bool, err error) {
 	var serverKey *koblitz.PrivateKey
@@ -277,6 +149,59 @@ func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, c
 
 	if err = prepareBalances(client2, server); err != nil {
 		err = fmt.Errorf("Could not add balances to client2: \n%s", err)
+		return
+	}
+
+	return
+}
+
+// setupEasyBenchmarkDualClient sets up an environment where we can test two infinitely funded clients
+func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, offChan chan bool, err error) {
+	var serverKey *koblitz.PrivateKey
+	if serverKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		err = fmt.Errorf("Could not get new private key: \n%s", err)
+		return
+	}
+
+	var clientKeyOne *koblitz.PrivateKey
+	if clientKeyOne, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		err = fmt.Errorf("Could not get new client #1 privkey: %s", err)
+		return
+	}
+
+	var clientKeyTwo *koblitz.PrivateKey
+	if clientKeyTwo, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		err = fmt.Errorf("Could not get new client #2 privkey: %s", err)
+		return
+	}
+
+	whitelist := []*koblitz.PublicKey{
+		clientKeyOne.PubKey(),
+		clientKeyTwo.PubKey(),
+	}
+
+	// set the closing function here as well
+	// We don't really care about the actual server object if it's running and we know it's running
+	if _, offChan, err = createDefaultLightServerWithKey(serverKey, whitelist, authrpc); err != nil {
+		err = fmt.Errorf("Could not create default server with key: \n%s", err)
+	}
+
+	if client1, err = SetupBenchmarkClientWithKey(clientKeyOne); err != nil {
+		err = fmt.Errorf("Error setting up benchmark client for client 1: \n%s", err)
+		return
+	}
+
+	if client2, err = SetupBenchmarkClientWithKey(clientKeyTwo); err != nil {
+		err = fmt.Errorf("Error setting up benchmark cient for client 2: \n%s", err)
+	}
+
+	if err = registerClient(client1); err != nil {
+		err = fmt.Errorf("Could not register client2: \n%s", err)
+		return
+	}
+
+	if err = registerClient(client2); err != nil {
+		err = fmt.Errorf("Could not register client2: \n%s", err)
 		return
 	}
 

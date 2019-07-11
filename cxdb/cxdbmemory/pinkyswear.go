@@ -41,7 +41,7 @@ func (pe *PinkySwearEngine) ApplySettlementExecution(setExec *match.SettlementEx
 	// this highlights potentially how not generic the SettlementResult struct is, what to put in the NewBal field???
 	setRes = &match.SettlementResult{
 		// this is where we have sort of undefined on what we do
-		NewBal:         uint64(0),
+		NewBal:         0,
 		SuccessfulExec: setExec,
 	}
 	return
@@ -72,5 +72,23 @@ func (pe *PinkySwearEngine) CheckValid(setExec *match.SettlementExecution) (vali
 		return
 	}
 	pe.whitelistMtx.Unlock()
+	return
+}
+
+// CreatePinkySwearEngineMap creates a map of coin to settlement engine, given a map of coins to whitelists.
+// This creates pinky swear settlement engines, so beware because those let anyone on the
+// whitelist do settlement.
+func CreatePinkySwearEngineMap(whitelistMap map[*coinparam.Params][][33]byte) (setMap map[*coinparam.Params]match.SettlementEngine, err error) {
+
+	setMap = make(map[*coinparam.Params]match.SettlementEngine)
+	var curSetEng match.SettlementEngine
+	for coin, whitelist := range whitelistMap {
+		if curSetEng, err = CreatePinkySwearEngine(coin, whitelist); err != nil {
+			err = fmt.Errorf("Error creating single settlement engine while creating pinky swear engine map: %s", err)
+			return
+		}
+		setMap[coin] = curSetEng
+	}
+
 	return
 }
