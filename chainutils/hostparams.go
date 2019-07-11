@@ -17,7 +17,9 @@ type HostParamList []*HostParams
 // CoinListFromHostParams generates a list of coinparams from an existing host param list.
 func (hpList HostParamList) CoinListFromHostParams() (coinList []*coinparam.Params) {
 	for _, hostParam := range hpList {
-		coinList = append(coinList, hostParam.Param)
+		if hostParam.Host != "" {
+			coinList = append(coinList, hostParam.Param)
+		}
 	}
 	return
 }

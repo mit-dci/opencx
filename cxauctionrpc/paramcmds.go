@@ -1,10 +1,15 @@
 package cxauctionrpc
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+
+	"github.com/mit-dci/opencx/match"
+)
 
 // GetPublicParametersArgs holds the args for the getpublicparameters command
 type GetPublicParametersArgs struct {
-	// empty
+	pair match.Pair
 }
 
 // GetPublicParametersReply holds the reply for the getpublicparameters command
@@ -14,11 +19,12 @@ type GetPublicParametersReply struct {
 	// take any less than this, and can actually verify that the exchange isn't running it
 	// for extra time.
 	AuctionTime uint64
+	StartTime   time.Time
 }
 
 // GetPublicParameters gets public parameters from the exchange, like time and auctionID
 func (cl *OpencxAuctionRPC) GetPublicParameters(args GetPublicParametersArgs, reply *GetPublicParametersReply) (err error) {
-	if reply.AuctionID, err = cl.Server.CurrentAuctionID(); err != nil {
+	if reply.AuctionID, reply.StartTime, err = cl.Server.GetIDTimeFromPair(&args.pair); err != nil {
 		err = fmt.Errorf("Error getting public param auction id: %s", err)
 		return
 	}

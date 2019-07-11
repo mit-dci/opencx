@@ -5,60 +5,69 @@ import (
 	"time"
 
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
+type timeID struct {
+	time time.Time
+	id   [32]byte
+}
+
 // AuctionClock should be run in a goroutine and just commit to puzzles after some time
-func (s *OpencxAuctionServer) AuctionClock() {
+// What this does is first makes a channel called doneChan.
+// This channel keeps track of the time that each auction is committed to.
+func (s *OpencxAuctionServer) AuctionClock(pair match.Pair, startID [32]byte) {
 	logging.Infof("Starting Auction Clock!")
 
 	// We make the variables here because we don't want to fill up our memory with stuff in the loop
-	doneChan := make(chan time.Time, 1)
-	var tickDone time.Time
-
-	// afterTick is how we call the auction tick
-	afterTick := func() {
-		s.auctionTick(doneChan)
-	}
+	doneChan := make(chan timeID, 1)
+	var tickResult timeID
 
 	// FOR STATS / DEBUG
 	var m *runtime.MemStats
 	m = new(runtime.MemStats)
 
+	// This takes currAuctionID, plugs it in to auctionTick, gets back a new auction id from the channel so it
+	// can continue the loop
+	var currAuctionID [32]byte = startID
 	for {
 		// Read mem stats FOR STATISTICS
 		runtime.ReadMemStats(m)
 
-		logging.Debugf("MEMORY STATS BEFORE: %d heap allocated, %d allocated", m.HeapAlloc, m.Alloc)
-		logging.Infof("Auction clock tick!")
-
 		// TODO: configurable time, work out schedule, base it on the AuctionTime option
-		time.AfterFunc(time.Duration(s.t)*time.Microsecond, afterTick)
-
-		logging.Infof("Waiting for tick")
+		time.AfterFunc(time.Duration(s.t)*time.Microsecond, func() {
+			s.auctionTick(pair, currAuctionID, doneChan)
+		})
 
 		// retrieve the tick from the channel
-		tickDone = <-doneChan
+		tickResult = <-doneChan
 
-		logging.Infof("Tick done at %s", tickDone.String())
-		logging.Debugf("MEMORY STATS AFTER: %d heap allocated, %d allocated", m.HeapAlloc, m.Alloc)
+		// Now set the new id to the result
+		currAuctionID = tickResult.id
+
+		logging.Infof("Tick done at %s", tickResult.time.String())
 	}
 }
 
 // auctionTick commits to orders and creates a new auction, while making sure to send a "done" time to a channel afterwards
-func (s *OpencxAuctionServer) auctionTick(doneChan chan time.Time) {
+func (s *OpencxAuctionServer) auctionTick(pair match.Pair, oldID [32]byte, doneChan chan timeID) {
 	var err error
+
+	var tickRes timeID
 
 	// this basically makes sure we send something to doneChan
 	// when we're done
 	defer func() {
-		doneChan <- time.Now()
+		doneChan <- tickRes
 	}()
-	for pair, _ := range s.PuzzleEngines {
-		if err = s.CommitOrdersNewAuction(&pair); err != nil {
-			// TODO: What should happen in this case? How can we prevent this case?
-			logging.Fatalf("Exchange commitment failed!!! Fatal error: %s", err)
-		}
+	// batcher solves puzzles, puzzle engine stores puzzles.
+	if tickRes.id, err = s.CommitOrdersNewAuction(&pair, oldID); err != nil {
+		// TODO: What should happen in this case? How can we prevent this case?
+		logging.Fatalf("Exchange commitment for %x failed!!! Fatal error: %s", oldID, err)
 	}
+
+	// Now set the time
+	tickRes.time = time.Now()
 
 	return
 }

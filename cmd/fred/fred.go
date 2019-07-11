@@ -68,7 +68,8 @@ type fredConfig struct {
 	LightningSupport bool `long:"lightning" description:"Whether or not to support lightning on the exchange"`
 
 	// Auction server options
-	AuctionTime uint64 `long:"auctiontime" description:"Time it should take to generate a timelock puzzle protected order"`
+	AuctionTime  uint64 `long:"auctiontime" description:"Time it should take to generate a timelock puzzle protected order"`
+	MaxBatchSize uint64 `long:"maxbatchsize" description:"Maximum number of orders that can go in a batch"`
 }
 
 var (
@@ -90,7 +91,8 @@ var (
 	defaultLightningSupport = true
 
 	// default auction options
-	defaultAuctionTime = uint64(30000)
+	defaultAuctionTime  = uint64(30000)
+	defaultMaxBatchSize = uint64(1000)
 )
 
 // newConfigParser returns a new command line flags parser.
@@ -113,6 +115,7 @@ func main() {
 		AuthenticatedRPC: defaultAuthenticatedRPC,
 		LightningSupport: defaultLightningSupport,
 		AuctionTime:      defaultAuctionTime,
+		MaxBatchSize:     defaultMaxBatchSize,
 	}
 
 	// Check and load config params
@@ -147,9 +150,14 @@ func main() {
 		logging.Fatalf("Error creating puzzle store map: %s", err)
 	}
 
+	var batchers map[match.Pair]match.AuctionBatcher
+	if batchers, err = cxauctionserver.CreateAuctionBatcherMap(pairList, conf.MaxBatchSize); err != nil {
+		logging.Fatalf("Error creating batcher map: %s", err)
+	}
+
 	// Anyways, here's where we set the server
 	var fredServer *cxauctionserver.OpencxAuctionServer
-	if fredServer, err = cxauctionserver.InitServer(setEngines, mengines, auctionBooks, puzzleStores, 100, conf.AuctionTime); err != nil {
+	if fredServer, err = cxauctionserver.InitServer(setEngines, mengines, auctionBooks, puzzleStores, batchers, 100, conf.AuctionTime); err != nil {
 		logging.Fatalf("Error initializing server: \n%s", err)
 	}
 
