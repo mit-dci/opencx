@@ -213,24 +213,16 @@ func (ss *SQLSettlementStore) GetBalance(pubkey *koblitz.PublicKey) (balance uin
 		return
 	}
 
-	var rows *sql.Rows
+	var row *sql.Row
 	curBalQuery := fmt.Sprintf("SELECT balance FROM %s WHERE pubkey='%x';", assetForBal, pubkey.SerializeCompressed())
-	if rows, err = tx.Query(curBalQuery); err != nil {
-		err = fmt.Errorf("Error querying for balance while getting balance: %s", err)
+	// errs deferred until scan
+	row = tx.QueryRow(curBalQuery)
+
+	if err = row.Scan(&balance); err != nil {
+		err = fmt.Errorf("Error scanning when getting balance: %s", err)
 		return
 	}
 
-	if rows.Next() {
-		if err = rows.Scan(&balance); err != nil {
-			err = fmt.Errorf("Error scanning when getting balance: %s", err)
-			return
-		}
-	}
-
-	if err = rows.Close(); err != nil {
-		err = fmt.Errorf("Error closing rows when getting balance: %s", err)
-		return
-	}
 	return
 }
 
