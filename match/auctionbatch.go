@@ -1,5 +1,7 @@
 package match
 
+import "time"
+
 // AuctionBatch is a struct that represents a batch of auction order results
 type AuctionBatch struct {
 	Batch     []*OrderPuzzleResult
@@ -24,6 +26,9 @@ type AuctionBatcher interface {
 	// EndAuction ends the auction with the specified auction ID, and returns the channel which will
 	// receive a batch of orders puzzle results. This is like a promise. This channel should be of size 1.
 	EndAuction(auctionID [32]byte) (batchChan chan *AuctionBatch, err error)
+
+	// ActiveAuctions returns a map of auction id to time TODO: figure out if this is really necessary
+	ActiveAuctions() (activeBatches map[[32]byte]time.Time)
 }
 
 // BatchResult is a struct that represents the result of a batch auction.

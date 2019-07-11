@@ -3,6 +3,7 @@ package cxauctionserver
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
 	"github.com/mit-dci/opencx/logging"
@@ -21,6 +22,8 @@ type intermediateBatch struct {
 	orderUpdateMtx sync.Mutex
 	offChan        chan bool
 	maxOrders      uint64
+	// just for display
+	started time.Time
 }
 
 // ABather is a very simple, small scale, non-persistent batcher.
@@ -51,6 +54,7 @@ func (ab *ABatcher) RegisterAuction(auctionID [32]byte) (err error) {
 		err = fmt.Errorf("Cannot have a max batch size of 0")
 		return
 	}
+
 	ab.batchMapMtx.Lock()
 	var thisBatch *intermediateBatch
 	thisBatch = &intermediateBatch{
@@ -63,13 +67,31 @@ func (ab *ABatcher) RegisterAuction(auctionID [32]byte) (err error) {
 		orderUpdateMtx: sync.Mutex{},
 		offChan:        make(chan bool, 1),
 		maxOrders:      ab.maxBatchSize,
+		started:        time.Now(),
 	}
 	ab.batchMap[auctionID] = thisBatch
+
 	// Start the solver
 	go thisBatch.OrderSolver()
 
 	ab.batchMapMtx.Unlock()
-	logging.Infof("Auction with ID %x registered", auctionID)
+	return
+}
+
+// ActiveAuctions returns a map of auction id to time
+func (ab *ABatcher) ActiveAuctions() (activeBatches map[[32]byte]time.Time) {
+	activeBatches = make(map[[32]byte]time.Time)
+
+	ab.batchMapMtx.Lock()
+
+	for id, batch := range ab.batchMap {
+		if batch.active {
+			activeBatches[id] = batch.started
+		}
+	}
+
+	ab.batchMapMtx.Unlock()
+
 	return
 }
 
@@ -180,14 +202,14 @@ func (ab *ABatcher) AddEncrypted(order *match.EncryptedAuctionOrder) (err error)
 // receive a batch of orders puzzle results. This is like a promise. This channel should be of size 1.
 // TODO: add commitment to this?
 func (ab *ABatcher) EndAuction(auctionID [32]byte) (batchChan chan *match.AuctionBatch, err error) {
-	// First retreive the interBatch, this shouldn't change but we use a mutex to access the map.
 	ab.batchMapMtx.Lock()
 
+	// First retreive the interBatch, this shouldn't change but we use a mutex to access the map.
 	// Check that we can do things to the batch
 	var interBatch *intermediateBatch
 	var ok bool
 	if interBatch, ok = ab.batchMap[auctionID]; !ok {
-		err = fmt.Errorf("Cannot end unregistered auction")
+		err = fmt.Errorf("Cannot end unregistered auction %x", auctionID)
 		ab.batchMapMtx.Unlock()
 		return
 	}

@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	testOrderChanSize       = 100
-	testStandardAuctionTime = 100000
+	testOrderChanSize       = uint64(100)
+	testStandardAuctionTime = uint64(100000)
+	testMaxBatchSize        = uint64(10)
 )
 
 var (
@@ -22,7 +23,7 @@ var (
 func initTestServer() (s *OpencxAuctionServer, err error) {
 
 	// Initialize the test server
-	if s, err = InitServerMemoryDefault(testCoins, testOrderChanSize, testStandardAuctionTime); err != nil {
+	if s, err = InitServerMemoryDefault(testCoins, testOrderChanSize, testStandardAuctionTime, testMaxBatchSize); err != nil {
 		err = fmt.Errorf("Error initializing server for tests: %s", err)
 		return
 	}

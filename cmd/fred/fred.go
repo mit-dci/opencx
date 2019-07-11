@@ -124,6 +124,8 @@ func main() {
 	// Generate the coin list based on the parameters we know
 	coinList := generateCoinList(&conf)
 
+	logging.Infof("len of coinlist: %d", len(coinList))
+
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
 		logging.Fatalf("Could not generate asset pairs from coin list: %s", err)

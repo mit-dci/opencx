@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/cxdb"
@@ -25,8 +26,7 @@ type OpencxAuctionServer struct {
 	orderChanMap      map[[32]byte]chan *match.OrderPuzzleResult
 
 	// auction params -- we'll store them in here for now
-	auctionID [32]byte
-	t         uint64
+	t uint64
 }
 
 // InitServerMemoryDefault initializes an auction server with in memory auction engines, settlement engines,
@@ -138,6 +138,8 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		t:                 standardAuctionTime,
 	}
 
+	server.dbLock.Lock()
+
 	var randID [32]byte
 	var bytesRead int
 	for pair, batcher := range server.OrderBatchers {
@@ -145,6 +147,7 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		// Set auctionID to something random for each batcher
 		if bytesRead, err = rand.Read(randID[:]); err != nil {
 			err = fmt.Errorf("Error getting random auction ID for initializing server: %s", err)
+			server.dbLock.Unlock()
 			return
 		}
 
@@ -154,15 +157,52 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		batcher.RegisterAuction(randID)
 
 		// Start the auction clock (also TODO: is this the right place to put this?)
-		go server.AuctionClock(&pair, randID)
+		go server.AuctionClock(pair, randID)
 	}
+	server.dbLock.Unlock()
 
 	return
 }
 
-// CurrentAuctionID gets the current auction ID
-func (s *OpencxAuctionServer) CurrentAuctionID() (currentAuctionID [32]byte, err error) {
-	currentAuctionID = s.auctionID
+// GetIDTimeFromPair gets the most recent auction ID and its start time
+func (s *OpencxAuctionServer) GetIDTimeFromPair(pair *match.Pair) (id [32]byte, recent time.Time, err error) {
+
+	s.dbLock.Lock()
+	var currBatcher match.AuctionBatcher
+	var ok bool
+	if currBatcher, ok = s.OrderBatchers[*pair]; !ok {
+		err = fmt.Errorf("Error getting correct batcher for pair %s", pair.String())
+		s.dbLock.Unlock()
+		return
+	}
+	s.dbLock.Unlock()
+
+	// activeauctions has no err because it doesn't really need it
+	var activeBatcher map[[32]byte]time.Time = currBatcher.ActiveAuctions()
+	// but we make one here if there are no active auctions
+	if len(activeBatcher) == 0 {
+		err = fmt.Errorf("No active auctions returned, either there actually are no active auctions or it's a bug")
+		return
+	}
+
+	var start bool = true
+	for currID, startTime := range activeBatcher {
+		if start {
+			// the first iteration, just set the highest to the first time
+			// that we see
+			recent = startTime
+			start = false
+			continue
+		}
+
+		if recent.Before(startTime) {
+			recent = startTime
+			id = currID
+		}
+	}
+
+	// We should have actually set the correct id and time parameters within the loop
+
 	return
 }
 

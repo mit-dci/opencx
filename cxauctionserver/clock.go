@@ -16,7 +16,7 @@ type timeID struct {
 // AuctionClock should be run in a goroutine and just commit to puzzles after some time
 // What this does is first makes a channel called doneChan.
 // This channel keeps track of the time that each auction is committed to.
-func (s *OpencxAuctionServer) AuctionClock(pair *match.Pair, startID [32]byte) {
+func (s *OpencxAuctionServer) AuctionClock(pair match.Pair, startID [32]byte) {
 	logging.Infof("Starting Auction Clock!")
 
 	// We make the variables here because we don't want to fill up our memory with stuff in the loop
@@ -29,7 +29,7 @@ func (s *OpencxAuctionServer) AuctionClock(pair *match.Pair, startID [32]byte) {
 
 	// This takes currAuctionID, plugs it in to auctionTick, gets back a new auction id from the channel so it
 	// can continue the loop
-	var currAuctionID [32]byte
+	var currAuctionID [32]byte = startID
 	for {
 		// Read mem stats FOR STATISTICS
 		runtime.ReadMemStats(m)
@@ -50,21 +50,20 @@ func (s *OpencxAuctionServer) AuctionClock(pair *match.Pair, startID [32]byte) {
 }
 
 // auctionTick commits to orders and creates a new auction, while making sure to send a "done" time to a channel afterwards
-func (s *OpencxAuctionServer) auctionTick(pair *match.Pair, oldID [32]byte, doneChan chan timeID) {
+func (s *OpencxAuctionServer) auctionTick(pair match.Pair, oldID [32]byte, doneChan chan timeID) {
 	var err error
 
 	var tickRes timeID
+
 	// this basically makes sure we send something to doneChan
 	// when we're done
 	defer func() {
 		doneChan <- tickRes
 	}()
 	// batcher solves puzzles, puzzle engine stores puzzles.
-	for pair, _ := range s.PuzzleEngines {
-		if tickRes.id, err = s.CommitOrdersNewAuction(&pair, oldID); err != nil {
-			// TODO: What should happen in this case? How can we prevent this case?
-			logging.Fatalf("Exchange commitment failed!!! Fatal error: %s", err)
-		}
+	if tickRes.id, err = s.CommitOrdersNewAuction(&pair, oldID); err != nil {
+		// TODO: What should happen in this case? How can we prevent this case?
+		logging.Fatalf("Exchange commitment for %x failed!!! Fatal error: %s", oldID, err)
 	}
 
 	// Now set the time
