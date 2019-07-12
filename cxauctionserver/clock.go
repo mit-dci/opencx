@@ -31,6 +31,19 @@ func (s *OpencxAuctionServer) AuctionClock(pair match.Pair, startID [32]byte) {
 	// can continue the loop
 	var currAuctionID [32]byte = startID
 	for {
+
+		// Before we commit to anything, let's check that we should turn the clock off
+		select {
+		case <-s.clockOffButton:
+			logging.Infof("Stopping clock at %s", time.Now())
+			// this is probably the jankiest code I've written but I don't care because
+			// this will all probably get rewritten and is the least important part
+			// of the system
+			s.clockOffButton <- true
+			return
+		default:
+		}
+
 		// Read mem stats FOR STATISTICS
 		runtime.ReadMemStats(m)
 
@@ -55,11 +68,22 @@ func (s *OpencxAuctionServer) auctionTick(pair match.Pair, oldID [32]byte, doneC
 
 	var tickRes timeID
 
+	select {
+	case <-s.clockOffButton:
+		logging.Infof("trying to not do commitments")
+		s.clockOffButton <- true
+		doneChan <- tickRes
+		logging.Infof("not doing commitments")
+		return
+	default:
+	}
+
 	// this basically makes sure we send something to doneChan
 	// when we're done
 	defer func() {
 		doneChan <- tickRes
 	}()
+
 	// batcher solves puzzles, puzzle engine stores puzzles.
 	if tickRes.id, err = s.CommitOrdersNewAuction(&pair, oldID); err != nil {
 		// TODO: What should happen in this case? How can we prevent this case?

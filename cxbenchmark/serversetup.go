@@ -19,6 +19,17 @@ import (
 	"github.com/mit-dci/opencx/match"
 )
 
+var (
+	newVTC = changePort(&coinparam.VertcoinRegTestParams, "20444")
+)
+
+// changePort is a gross method that I wrote. It's a hack to change the port of the VertcoinRegTestParams because the Bitcoin regtest and Vertcoin regtest ports are the same
+func changePort(param *coinparam.Params, port string) (newparam *coinparam.Params) {
+	newparam = param
+	newparam.DefaultPort = port
+	return
+}
+
 // createLightSettleServer creates a server with "pinky swear settlement" after starting the database with a bunch of parameters for everything else
 func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.PublicKey, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
 
@@ -115,9 +126,10 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 }
 
 // createLightAuctionServer creates a server with "pinky swear settlement" after starting the database with a bunch of parameters for everything else
-func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz.PublicKey, maxBatchSize uint64, auctionTime uint64, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxauctionserver.OpencxAuctionServer, offChan chan bool, err error) {
+func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz.PublicKey, maxBatchSize uint64, auctionTime uint64, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (rpcListener *cxauctionrpc.AuctionRPCCaller, err error) {
 
-	logging.Infof("Create light settle server start -- %s", time.Now())
+	logging.SetLogLevel(3)
+	logging.Infof("Create light auction server start -- %s", time.Now())
 
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
@@ -160,8 +172,9 @@ func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz
 	}
 
 	// orderChanSize = 100 because uh why not?
+	var ocxServer *cxauctionserver.OpencxAuctionServer
 	if ocxServer, err = cxauctionserver.InitServer(setEngines, mengines, aucBooks, pzEngines, batchers, 100, auctionTime); err != nil {
-		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
+		err = fmt.Errorf("Error initializing server for createLightAuctionServer: %s", err)
 		return
 	}
 
@@ -170,25 +183,29 @@ func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz
 	copy(key[:], privkey.Serialize())
 
 	// Register RPC Commands and set server
-	rpc1 := new(cxauctionrpc.OpencxAuctionRPC)
-	rpc1.OffButton = make(chan bool, 1)
-	rpc1.Server = ocxServer
+	if rpcListener, err = cxauctionrpc.CreateRPCForServer(ocxServer); err != nil {
+		err = fmt.Errorf("Error creating rpc for server in createLightAuctionServer: %s", err)
+		return
+	}
 
 	if !authrpc {
 		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on rpc ===")
-		go cxauctionrpc.RPCListenAsync(doneChan, rpc1, serverhost, serverport)
+		if err = rpcListener.RPCListen(serverhost, serverport); err != nil {
+			err = fmt.Errorf("Error listening for RPC for auction server: %s", err)
+			return
+		}
 	} else {
 
 		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
 		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on noise-rpc ===")
-		go cxauctionrpc.NoiseListenAsync(doneChan, privkey, rpc1, serverhost, serverport)
+		if err = rpcListener.NoiseListen(privkey, serverhost, serverport); err != nil {
+			err = fmt.Errorf("Error listening for RPC for auction server: %s", err)
+			return
+		}
 	}
 
-	offChan = rpc1.OffButton
 	return
 }
 
@@ -272,6 +289,9 @@ func createFullServer(coinList []*coinparam.Params, serverhost string, serverpor
 		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on rpc ===")
 		go cxrpc.RPCListenAsync(doneChan, rpc1, serverhost, serverport)
+		// wait till rpc stuff is done
+		<-doneChan
+		close(doneChan)
 	} else {
 
 		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
@@ -279,6 +299,9 @@ func createFullServer(coinList []*coinparam.Params, serverhost string, serverpor
 		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on noise-rpc ===")
 		go cxrpc.NoiseListenAsync(doneChan, privkey, rpc1, serverhost, serverport)
+		// wait till rpc stuff is done
+		<-doneChan
+		close(doneChan)
 	}
 
 	offChan = rpc1.OffButton
@@ -287,11 +310,12 @@ func createFullServer(coinList []*coinparam.Params, serverhost string, serverpor
 }
 
 // createFullAuctionServer creates an auction server after starting the database with a bunch of parameters
-func createFullAuctionServer(coinList []*coinparam.Params, maxBatchSize uint64, auctionTime uint64, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxauctionserver.OpencxAuctionServer, offChan chan bool, err error) {
+func createFullAuctionServer(coinList []*coinparam.Params, maxBatchSize uint64, auctionTime uint64, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (rpcListener *cxauctionrpc.AuctionRPCCaller, err error) {
 
 	logging.Infof("Create full auction server start -- %s", time.Now())
 
 	// defaults -- orderChanSize is like 100, TODO: delete orderChanSize because it's probably obsolete
+	var ocxServer *cxauctionserver.OpencxAuctionServer
 	if ocxServer, err = cxauctionserver.InitServerSQLDefault(coinList, 100, auctionTime, maxBatchSize); err != nil {
 		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
 		return
@@ -301,58 +325,61 @@ func createFullAuctionServer(coinList []*coinparam.Params, maxBatchSize uint64, 
 	copy(key[:], privkey.Serialize())
 
 	// Register RPC Commands and set server
-	rpc1 := new(cxauctionrpc.OpencxAuctionRPC)
-	rpc1.OffButton = make(chan bool, 1)
-	rpc1.Server = ocxServer
+	if rpcListener, err = cxauctionrpc.CreateRPCForServer(ocxServer); err != nil {
+		err = fmt.Errorf("Error creating rpc for server in createLightAuctionServer: %s", err)
+		return
+	}
 
 	if !authrpc {
 		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on rpc ===")
-		go cxauctionrpc.RPCListenAsync(doneChan, rpc1, serverhost, serverport)
+		if err = rpcListener.RPCListen(serverhost, serverport); err != nil {
+			err = fmt.Errorf("Error listening for RPC for auction server: %s", err)
+			return
+		}
 	} else {
 
 		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
 		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on noise-rpc ===")
-		go cxauctionrpc.NoiseListenAsync(doneChan, privkey, rpc1, serverhost, serverport)
+		if err = rpcListener.NoiseListen(privkey, serverhost, serverport); err != nil {
+			err = fmt.Errorf("Error listening for RPC for auction server: %s", err)
+			return
+		}
 	}
-
-	offChan = rpc1.OffButton
 
 	return
 }
 
 // createDefaultParamServerWithKey creates a server with a bunch of default params minus privkey and authrpc
 func createDefaultParamServerWithKey(privkey *koblitz.PrivateKey, authrpc bool) (server *cxserver.OpencxServer, offChan chan bool, err error) {
-	return createFullServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, "localhost", uint16(12347), privkey, authrpc)
+	return createFullServer([]*coinparam.Params{&coinparam.RegressionNetParams, newVTC, &coinparam.LiteRegNetParams}, "localhost", uint16(12347), privkey, authrpc)
 }
 
 // createDefaultLightServerWithKey creates a server with a bunch of default params minus privkey and authrpc
 func createDefaultLightServerWithKey(privkey *koblitz.PrivateKey, whitelist []*koblitz.PublicKey, authrpc bool) (server *cxserver.OpencxServer, offChan chan bool, err error) {
-	return createLightSettleServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, whitelist, "localhost", uint16(12347), privkey, authrpc)
+	return createLightSettleServer([]*coinparam.Params{&coinparam.RegressionNetParams, newVTC, &coinparam.LiteRegNetParams}, whitelist, "localhost", uint16(12347), privkey, authrpc)
 }
 
 // createDefaultLightAuctionServerWithKey creates a server with a bunch of default params minus privkey and authrpc
-func createDefaultLightAuctionServerWithKey(privkey *koblitz.PrivateKey, whitelist []*koblitz.PublicKey, authrpc bool) (server *cxauctionserver.OpencxAuctionServer, offChan chan bool, err error) {
-	return createLightAuctionServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, whitelist, 100, 1000, "localhost", uint16(12347), privkey, authrpc)
+func createDefaultLightAuctionServerWithKey(privkey *koblitz.PrivateKey, whitelist []*koblitz.PublicKey, authrpc bool) (rpcListener *cxauctionrpc.AuctionRPCCaller, err error) {
+	return createLightAuctionServer([]*coinparam.Params{&coinparam.RegressionNetParams, newVTC, &coinparam.LiteRegNetParams}, whitelist, 100, 7000000, "localhost", uint16(12347), privkey, authrpc)
 }
 
 // prepareBalances adds tons of money to both accounts
 func prepareBalances(client *benchclient.BenchClient, server *cxserver.OpencxServer) (err error) {
 
-	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.RegressionNetParams); err != nil {
+	if err = server.DebitUser(client.PrivKey.PubKey(), 10000000000, &coinparam.RegressionNetParams); err != nil {
 		err = fmt.Errorf("Error adding a bunch of regtest to client: \n%s", err)
 		return
 	}
 
-	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.LiteRegNetParams); err != nil {
+	if err = server.DebitUser(client.PrivKey.PubKey(), 10000000000, &coinparam.LiteRegNetParams); err != nil {
 		err = fmt.Errorf("Error adding a bunch of litereg to client: \n%s", err)
 		return
 	}
 
-	if err = server.DebitUser(client.PrivKey.PubKey(), 1000000000, &coinparam.VertcoinRegTestParams); err != nil {
+	if err = server.DebitUser(client.PrivKey.PubKey(), 10000000000, &coinparam.VertcoinRegTestParams); err != nil {
 		err = fmt.Errorf("Error adding a bunch of vtcreg to client: \n%s", err)
 		return
 	}

@@ -175,7 +175,7 @@ func (ab *ABatcher) AddEncrypted(order *match.EncryptedAuctionOrder) (err error)
 	var interBatch *intermediateBatch
 	var ok bool
 	if interBatch, ok = ab.batchMap[order.IntendedAuction]; !ok {
-		err = fmt.Errorf("Cannot add encrypted order to unregistered auction")
+		err = fmt.Errorf("Cannot add encrypted order to unregistered auction %x", order.IntendedAuction)
 		ab.batchMapMtx.Unlock()
 		return
 	}
@@ -217,15 +217,12 @@ func (ab *ABatcher) EndAuction(auctionID [32]byte) (batchChan chan *match.Auctio
 	ab.batchMapMtx.Unlock()
 
 	// now we have this other mutex because we are going to be checking and modifying the contents
-	interBatch.orderUpdateMtx.Lock()
 	if !interBatch.active {
 		err = fmt.Errorf("Cannot end inactive auction")
-		interBatch.orderUpdateMtx.Unlock()
 		return
 	}
 	interBatch.active = false
 	batchChan = interBatch.solvedChan
-	interBatch.orderUpdateMtx.Unlock()
 	return
 }
 

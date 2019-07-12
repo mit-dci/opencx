@@ -137,17 +137,17 @@ func AuctionPlaceManySell(client *benchclient.BenchClient, pair string, howMany 
 // AuctionPlaceBuySellX runs functions with predone parameters, you only tell it how many times it should run and what client to use
 func AuctionPlaceBuySellX(client *benchclient.BenchClient, varRuns int) {
 	AuctionPlaceManyBuy(client, "regtest/litereg", varRuns)
-	AuctionPlaceManyBuy(client, "regtest/vtcreg", varRuns)
-	AuctionPlaceManyBuy(client, "vtcreg/litereg", varRuns)
+	// AuctionPlaceManyBuy(client, "regtest/vtcreg", varRuns)
+	// AuctionPlaceManyBuy(client, "vtcreg/litereg", varRuns)
 	AuctionPlaceManySell(client, "regtest/litereg", varRuns)
-	AuctionPlaceManySell(client, "regtest/vtcreg", varRuns)
-	AuctionPlaceManySell(client, "vtcreg/litereg", varRuns)
+	// AuctionPlaceManySell(client, "regtest/vtcreg", varRuns)
+	// AuctionPlaceManySell(client, "vtcreg/litereg", varRuns)
 	return
 }
 
 // AuctionPlaceFillX runs functions with predone parameters, you only tell it how many times it should run and what client to use
 func AuctionPlaceFillX(client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, varRuns int) {
 	AuctionPlaceAndFill(client1, client2, "regtest/litereg", varRuns)
-	AuctionPlaceAndFill(client1, client2, "regtest/vtcreg", varRuns)
-	AuctionPlaceAndFill(client1, client2, "vtcreg/litereg", varRuns)
+	// AuctionPlaceAndFill(client1, client2, "regtest/vtcreg", varRuns)
+	// AuctionPlaceAndFill(client1, client2, "vtcreg/litereg", varRuns)
 }

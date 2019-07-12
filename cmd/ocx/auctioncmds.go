@@ -8,6 +8,7 @@ import (
 	"github.com/mit-dci/lit/lnutil"
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/logging"
+	"github.com/mit-dci/opencx/match"
 )
 
 var placeAuctionOrderCommand = &Command{
@@ -45,8 +46,14 @@ func (cl *ocxClient) AuctionOrderCommand(args []string) (err error) {
 		return
 	}
 
+	pairParam := new(match.Pair)
+	if err = pairParam.FromString(pair); err != nil {
+		err = fmt.Errorf("Error parsing pair, please enter something valid: %s", err)
+		return
+	}
+
 	var paramreply *cxauctionrpc.GetPublicParametersReply
-	if paramreply, err = cl.RPCClient.GetPublicParameters(); err != nil {
+	if paramreply, err = cl.RPCClient.GetPublicParameters(pairParam); err != nil {
 		err = fmt.Errorf("Error getting public parameters before placing auction order: %s", err)
 		return
 	}

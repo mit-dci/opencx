@@ -189,7 +189,9 @@ func (s *OpencxAuctionServer) asyncBatchPlacer(batchChan chan *match.AuctionBatc
 		}
 	}()
 
+	// TODO: fix this spaghet
 	batch := <-batchChan
+	batchChan <- batch
 
 	s.dbLock.Lock()
 
