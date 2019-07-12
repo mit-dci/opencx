@@ -44,10 +44,24 @@ Memory Device
 
 All tests are run on the regtest environment as well.
 
+# How to run the benchmarks
+
+```sh
+go test -v -benchtime TIME -bench=.
+```
+
+If you run it in this (`cxbenchmark/`) directory it will create a directory for wallets, in `.benchmarkInfo/`.
+By default the benchmarks connect to local Litecoin, Vertcoin, and Bitcoin regtest nodes and there's no configuration for the benchmarks unless you edit the code directly.
+If you'd like to do this, the methods `createDefaultParamServerWithKey` and `createDefaultLightServerWithKey` are where the default parameters are set.
+It's a little messy because currently both of those methods are in one line each.
+
+These benchmarks currently run one normal exchange server (custodial, proper balances, etc.), and one "light" server.
+The "light" server has no settlement, so it's a bit easier to black box benchmark everything else.
+What "no settlement" means is that there's no idea of any balance, it just will always accept your order as long as your public key is on a whitelist of "those authorized to make orders," like a traditional stock exchange.
+
 ### Currently known limits:
 
- - If you try to use SQL injection you will succeed. The honor system is currently in place to protect against that vulnerability.
- - From start to finish, with many thousands of blocks, it takes a while to sync up.
+ - From start to finish, with many thousands of blocks, it takes a while to sync up, if you want to use testnet or mainnet for your benchmarks. You probably shouldn't do either of those things, and should use regtest instead for benchmarking.
 
 ## Placing orders and matching
 
