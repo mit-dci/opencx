@@ -16,60 +16,39 @@ var (
 	defaultPort   = uint16(12347)
 )
 
-func SetupBenchmarkClientWithKey(clientPrivKey *koblitz.PrivateKey) (client *benchclient.BenchClient, err error) {
+// SetupBenchmarkClientWithKey sets up a benchmark client with a key and authrpc, which determines whether or not to use noise or no noise
+func SetupBenchmarkClientWithKey(clientPrivKey *koblitz.PrivateKey, authrpc bool) (client *benchclient.BenchClient, err error) {
 	client = &benchclient.BenchClient{
 		PrivKey: clientPrivKey,
 	}
 
-	if err = client.SetupBenchClient(defaultServer, defaultPort); err != nil {
-		err = fmt.Errorf("Error setting up OpenCX RPC Client: \n%s", err)
-		return
+	if authrpc {
+		if err = client.SetupBenchNoiseClient(defaultServer, defaultPort); err != nil {
+			err = fmt.Errorf("Error setting up OpenCX RPC Client: \n%s", err)
+			return
+		}
+	} else {
+		if err = client.SetupBenchClient(defaultServer, defaultPort); err != nil {
+			err = fmt.Errorf("Error setting up OpenCX RPC Client: \n%s", err)
+			return
+		}
 	}
 	return
 }
 
-// SetupBenchmarkClient sets up the benchmark and returns the client
-func SetupBenchmarkClient() (client *benchclient.BenchClient, err error) {
+// SetupBenchmarkClientWithoutKey sets does SetupBenchmarkClientWithKey but generates a key
+func SetupBenchmarkClientWithoutKey(authrpc bool) (client *benchclient.BenchClient, err error) {
 
-	// TODO: Figure out why this is here and remove if unnecessary, uncomment if necessary
-	// logging.SetLogLevel(3)
-
-	// have to set this for non noise client because while we don't use things for authentication we do use it for signing
 	var clientPrivKey *koblitz.PrivateKey
 	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
 		err = fmt.Errorf("Error setting key for client: \n%s", err)
 		return
 	}
 
-	if client, err = SetupBenchmarkClientWithKey(clientPrivKey); err != nil {
-		err = fmt.Errorf("Error setting up benchmark client with key: %s", err)
+	if client, err = SetupBenchmarkClientWithKey(clientPrivKey, authrpc); err != nil {
+		err = fmt.Errorf("Error Setting up bench clien for SetupBenchmarkClientWithoutKey: %s", err)
 		return
 	}
-
-	return
-}
-
-// SetupNoiseBenchmarkClient sets up the benchmark and returns the client
-func SetupNoiseBenchmarkClient() (client *benchclient.BenchClient, err error) {
-
-	// TODO: Figure out why this is here and remove if unnecessary, uncomment if necessary
-	// logging.SetLogLevel(3)
-
-	var clientPrivKey *koblitz.PrivateKey
-	if clientPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
-		err = fmt.Errorf("Error setting key for noise client: \n%s", err)
-		return
-	}
-
-	client = &benchclient.BenchClient{
-		PrivKey: clientPrivKey,
-	}
-
-	if err = client.SetupBenchNoiseClient(defaultServer, defaultPort); err != nil {
-		err = fmt.Errorf("Error setting up OpenCX RPC-Noise Client: \n%s", err)
-		return
-	}
-
 	return
 }
 
@@ -124,11 +103,11 @@ func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, c
 		err = fmt.Errorf("Could not create default server with key: \n%s", err)
 	}
 
-	if client1, err = SetupBenchmarkClient(); err != nil {
+	if client1, err = SetupBenchmarkClientWithoutKey(authrpc); err != nil {
 		err = fmt.Errorf("Error setting up benchmark client for client 1: \n%s", err)
 		return
 	}
-	if client2, err = SetupBenchmarkClient(); err != nil {
+	if client2, err = SetupBenchmarkClientWithoutKey(authrpc); err != nil {
 		err = fmt.Errorf("Error setting up benchmark cient for client 2: \n%s", err)
 	}
 
@@ -186,12 +165,12 @@ func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClien
 		err = fmt.Errorf("Could not create default server with key: \n%s", err)
 	}
 
-	if client1, err = SetupBenchmarkClientWithKey(clientKeyOne); err != nil {
+	if client1, err = SetupBenchmarkClientWithKey(clientKeyOne, authrpc); err != nil {
 		err = fmt.Errorf("Error setting up benchmark client for client 1: \n%s", err)
 		return
 	}
 
-	if client2, err = SetupBenchmarkClientWithKey(clientKeyTwo); err != nil {
+	if client2, err = SetupBenchmarkClientWithKey(clientKeyTwo, authrpc); err != nil {
 		err = fmt.Errorf("Error setting up benchmark cient for client 2: \n%s", err)
 	}
 
@@ -203,6 +182,51 @@ func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClien
 	if err = registerClient(client2); err != nil {
 		err = fmt.Errorf("Could not register client2: \n%s", err)
 		return
+	}
+
+	return
+}
+
+// setupEasyAuctionBenchmarkDualClient sets up an environment where we can test two infinitely funded clients
+func setupEasyAuctionBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, offChan chan bool, err error) {
+	var serverKey *koblitz.PrivateKey
+	if serverKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		err = fmt.Errorf("Could not get new private key: \n%s", err)
+		return
+	}
+
+	var clientKeyOne *koblitz.PrivateKey
+	if clientKeyOne, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		err = fmt.Errorf("Could not get new client #1 privkey: %s", err)
+		return
+	}
+
+	var clientKeyTwo *koblitz.PrivateKey
+	if clientKeyTwo, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		err = fmt.Errorf("Could not get new client #2 privkey: %s", err)
+		return
+	}
+
+	whitelist := []*koblitz.PublicKey{
+		clientKeyOne.PubKey(),
+		clientKeyTwo.PubKey(),
+	}
+
+	// set the closing function here as well
+	// We don't really care about the actual server object if it's running and we know it's running
+	// default batch size -- 100
+	// default auction time -- 1000
+	if _, offChan, err = createDefaultLightAuctionServerWithKey(serverKey, whitelist, authrpc); err != nil {
+		err = fmt.Errorf("Could not create default server with key: \n%s", err)
+	}
+
+	if client1, err = SetupBenchmarkClientWithKey(clientKeyOne, authrpc); err != nil {
+		err = fmt.Errorf("Error setting up benchmark client for client 1: \n%s", err)
+		return
+	}
+
+	if client2, err = SetupBenchmarkClientWithKey(clientKeyTwo, authrpc); err != nil {
+		err = fmt.Errorf("Error setting up benchmark cient for client 2: \n%s", err)
 	}
 
 	return
