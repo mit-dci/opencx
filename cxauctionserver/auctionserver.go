@@ -12,6 +12,9 @@ import (
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
+	"golang.org/x/text/number"
 )
 
 // OpencxAuctionServer is what will hopefully help handle and manage the auction logic, rpc, and db
@@ -27,6 +30,9 @@ type OpencxAuctionServer struct {
 
 	// auction params -- we'll store them in here for now
 	t uint64
+
+	// clock off button
+	clockOffButton chan bool
 }
 
 // InitServerMemoryDefault initializes an auction server with in memory auction engines, settlement engines,
@@ -136,6 +142,7 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		orderChannel:      make(chan *match.OrderPuzzleResult, orderChanSize),
 		orderChanMap:      make(map[[32]byte]chan *match.OrderPuzzleResult),
 		t:                 standardAuctionTime,
+		clockOffButton:    make(chan bool, 1),
 	}
 
 	server.dbLock.Lock()
@@ -191,6 +198,7 @@ func (s *OpencxAuctionServer) GetIDTimeFromPair(pair *match.Pair) (id [32]byte, 
 			// the first iteration, just set the highest to the first time
 			// that we see
 			recent = startTime
+			id = currID
 			start = false
 			continue
 		}
@@ -202,6 +210,85 @@ func (s *OpencxAuctionServer) GetIDTimeFromPair(pair *match.Pair) (id [32]byte, 
 	}
 
 	// We should have actually set the correct id and time parameters within the loop
+
+	return
+}
+
+// StopClock stops the server clock
+func (s *OpencxAuctionServer) StopClock() (err error) {
+	s.clockOffButton <- true
+	return
+}
+
+// StopClockDoNotWait stops the clocks and ends, does not wait for active auctions to finish, just marks them as inactive.
+func (s *OpencxAuctionServer) StopClockDoNotWait() (err error) {
+
+	numberPrinter := message.NewPrinter(language.English)
+	logging.Infof("Trying to stop clock...")
+	if err = s.StopClock(); err != nil {
+		err = fmt.Errorf("Error stopping clock for StopClockAndWait: %s", err)
+		return
+	}
+
+	logging.Infof("Killing auctions...")
+	s.dbLock.Lock()
+	howManyBatchers := float64(len(s.OrderBatchers))
+	var activeAuctions map[[32]byte]time.Time
+	num := 0
+	for _, batcher := range s.OrderBatchers {
+		activeAuctions = batcher.ActiveAuctions()
+		for id, _ := range activeAuctions {
+			if _, err = batcher.EndAuction(id); err != nil {
+				err = fmt.Errorf("Error ending auction for StopClockAndWait: %s", err)
+				s.dbLock.Unlock()
+				return
+			}
+		}
+		num++
+		logging.Infoln(numberPrinter.Sprintf("Ending auction results, progress: %v", number.Percent(float64(num)/howManyBatchers)))
+	}
+	s.dbLock.Unlock()
+
+	return
+}
+
+// StopClockAndWait stops the clock and ends, waits for all active auctions to finish
+func (s *OpencxAuctionServer) StopClockAndWait() (err error) {
+	// Since we're acquiring this lock, we know other things won't end the auctions
+	// in the time that we're trying to
+
+	logging.Infof("Trying to stop clock...")
+	if err = s.StopClock(); err != nil {
+		err = fmt.Errorf("Error stopping clock for StopClockAndWait: %s", err)
+		return
+	}
+
+	logging.Infof("waiting for results to roll in...")
+	howManyBatchers := float64(len(s.OrderBatchers))
+	var activeAuctions map[[32]byte]time.Time
+	num := 0
+	doneChan := make(chan bool)
+	for _, batcher := range s.OrderBatchers {
+		activeAuctions = batcher.ActiveAuctions()
+		for id, _ := range activeAuctions {
+			go func() {
+				var batchChan chan *match.AuctionBatch
+				if batchChan, err = batcher.EndAuction(id); err != nil {
+					err = fmt.Errorf("Error ending auction for StopClockAndWait: %s", err)
+					return
+				}
+				<-batchChan
+				close(batchChan)
+				doneChan <- true
+			}()
+			num++
+		}
+		logging.Infof("Ending auction results progress: %v ", number.Percent(float64(num)/howManyBatchers))
+	}
+
+	for i := num; i > 0; i-- {
+		<-doneChan
+	}
 
 	return
 }

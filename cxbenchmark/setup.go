@@ -6,6 +6,7 @@ import (
 	"github.com/btcsuite/golangcrypto/sha3"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/benchclient"
+	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
 )
@@ -101,6 +102,7 @@ func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, c
 	var server *cxserver.OpencxServer
 	if server, offChan, err = createDefaultParamServerWithKey(serverKey, authrpc); err != nil {
 		err = fmt.Errorf("Could not create default server with key: \n%s", err)
+		return
 	}
 
 	if client1, err = SetupBenchmarkClientWithoutKey(authrpc); err != nil {
@@ -109,6 +111,7 @@ func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, c
 	}
 	if client2, err = SetupBenchmarkClientWithoutKey(authrpc); err != nil {
 		err = fmt.Errorf("Error setting up benchmark cient for client 2: \n%s", err)
+		return
 	}
 
 	if err = registerClient(client1); err != nil {
@@ -163,6 +166,7 @@ func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClien
 	// We don't really care about the actual server object if it's running and we know it's running
 	if _, offChan, err = createDefaultLightServerWithKey(serverKey, whitelist, authrpc); err != nil {
 		err = fmt.Errorf("Could not create default server with key: \n%s", err)
+		return
 	}
 
 	if client1, err = SetupBenchmarkClientWithKey(clientKeyOne, authrpc); err != nil {
@@ -172,6 +176,7 @@ func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClien
 
 	if client2, err = SetupBenchmarkClientWithKey(clientKeyTwo, authrpc); err != nil {
 		err = fmt.Errorf("Error setting up benchmark cient for client 2: \n%s", err)
+		return
 	}
 
 	if err = registerClient(client1); err != nil {
@@ -188,7 +193,7 @@ func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClien
 }
 
 // setupEasyAuctionBenchmarkDualClient sets up an environment where we can test two infinitely funded clients
-func setupEasyAuctionBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, offChan chan bool, err error) {
+func setupEasyAuctionBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, rpcListener *cxauctionrpc.AuctionRPCCaller, err error) {
 	var serverKey *koblitz.PrivateKey
 	if serverKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
 		err = fmt.Errorf("Could not get new private key: \n%s", err)
@@ -216,8 +221,9 @@ func setupEasyAuctionBenchmarkDualClient(authrpc bool) (client1 *benchclient.Ben
 	// We don't really care about the actual server object if it's running and we know it's running
 	// default batch size -- 100
 	// default auction time -- 1000
-	if _, offChan, err = createDefaultLightAuctionServerWithKey(serverKey, whitelist, authrpc); err != nil {
+	if rpcListener, err = createDefaultLightAuctionServerWithKey(serverKey, whitelist, authrpc); err != nil {
 		err = fmt.Errorf("Could not create default server with key: \n%s", err)
+		return
 	}
 
 	if client1, err = SetupBenchmarkClientWithKey(clientKeyOne, authrpc); err != nil {
@@ -227,6 +233,7 @@ func setupEasyAuctionBenchmarkDualClient(authrpc bool) (client1 *benchclient.Ben
 
 	if client2, err = SetupBenchmarkClientWithKey(clientKeyTwo, authrpc); err != nil {
 		err = fmt.Errorf("Error setting up benchmark cient for client 2: \n%s", err)
+		return
 	}
 
 	return

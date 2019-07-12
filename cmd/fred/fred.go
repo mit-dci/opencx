@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -161,9 +159,10 @@ func main() {
 	}
 
 	// Register RPC Commands and set server
-	rpc1 := new(cxauctionrpc.OpencxAuctionRPC)
-	rpc1.OffButton = make(chan bool, 1)
-	rpc1.Server = fredServer
+	var rpcListener *cxauctionrpc.AuctionRPCCaller
+	if rpcListener, err = cxauctionrpc.CreateRPCForServer(fredServer); err != nil {
+		logging.Fatalf("Error creating rpc caller for server: %s", err)
+	}
 
 	// SIGINT and SIGTERM and SIGQUIT handler for CTRL-c, KILL, CTRL-/, etc.
 	go func() {
@@ -177,29 +176,31 @@ func main() {
 			logging.Infof("Received %s signal, Stopping server gracefully...", signal.String())
 
 			// send off button to off button
-			rpc1.OffButton <- true
+			if err = rpcListener.KillServerNoWait(); err != nil {
+				logging.Fatalf("Error killing server: %s", err)
+			}
 
 			return
 		}
 	}()
 
-	doneChan := make(chan bool, 1)
 	if !conf.AuthenticatedRPC {
 		// this tells us when the rpclisten is done
 		logging.Infof(" === will start to listen on rpc ===")
-		go cxauctionrpc.RPCListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
+		if err = rpcListener.RPCListen(conf.Rpchost, conf.Rpcport); err != nil {
+			logging.Fatalf("Error listening for rpc for auction serer: %s", err)
+		}
 	} else {
 		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
 		// this tells us when the rpclisten is done
 		logging.Infof(" === will start to listen on noise-rpc ===")
-		go cxauctionrpc.NoiseListenAsync(doneChan, privkey, rpc1, conf.Rpchost, conf.Rpcport)
+		if err = rpcListener.NoiseListen(privkey, conf.Rpchost, conf.Rpcport); err != nil {
+			logging.Fatalf("Error listening for noise rpc for auction serer: %s", err)
+		}
 	}
 
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-
-	<-doneChan
+	// wait until the listener dies
+	rpcListener.WaitUntilDead()
 
 	return
 }
