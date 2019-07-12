@@ -98,7 +98,7 @@ func BenchmarkEasyPlaceOrders(b *testing.B) {
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
 	var offChan chan bool
-	if client1, client2, offChan, err = setupBenchmarkDualClient(false); err != nil {
+	if client1, client2, offChan, err = setupEasyBenchmarkDualClient(false); err != nil {
 		b.Errorf("Something is wrong with test, stopping benchmark")
 		offChan <- true
 		b.Fatalf("Could not start dual client benchmark: \n%s", err)
