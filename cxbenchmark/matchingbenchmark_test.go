@@ -3,6 +3,7 @@ package cxbenchmark
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/mit-dci/opencx/benchclient"
 )
@@ -11,12 +12,14 @@ import (
 func BenchmarkPlaceOrders(b *testing.B) {
 	var err error
 
-	b.Logf("Test start")
+	b.Logf("Test start -- time: %s", time.Now())
 
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
 	var offChan chan bool
 	if client1, client2, offChan, err = setupBenchmarkDualClient(false); err != nil {
+		b.Errorf("Something is wrong with test, stopping benchmark")
+		offChan <- true
 		b.Fatalf("Could not start dual client benchmark: \n%s", err)
 	}
 
@@ -50,10 +53,14 @@ func BenchmarkPlaceOrders(b *testing.B) {
 func BenchmarkNoisePlaceOrders(b *testing.B) {
 	var err error
 
+	b.Logf("Test start -- time: %s", time.Now())
+
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
 	var offChan chan bool
 	if client1, client2, offChan, err = setupBenchmarkDualClient(true); err != nil {
+		b.Errorf("Something is wrong with test, stopping benchmark")
+		offChan <- true
 		b.Fatalf("Could not start dual client benchmark: \n%s", err)
 	}
 
@@ -86,12 +93,14 @@ func BenchmarkNoisePlaceOrders(b *testing.B) {
 func BenchmarkEasyPlaceOrders(b *testing.B) {
 	var err error
 
-	b.Logf("Test start")
+	b.Logf("Test start -- time: %s", time.Now())
 
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
 	var offChan chan bool
 	if client1, client2, offChan, err = setupBenchmarkDualClient(false); err != nil {
+		b.Errorf("Something is wrong with test, stopping benchmark")
+		offChan <- true
 		b.Fatalf("Could not start dual client benchmark: \n%s", err)
 	}
 
@@ -126,10 +135,14 @@ func BenchmarkEasyPlaceOrders(b *testing.B) {
 func BenchmarkEasyNoisePlaceOrders(b *testing.B) {
 	var err error
 
+	b.Logf("Test start -- time: %s", time.Now())
+
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
 	var offChan chan bool
 	if client1, client2, offChan, err = setupEasyBenchmarkDualClient(true); err != nil {
+		b.Errorf("Something is wrong with test, stopping benchmark")
+		offChan <- true
 		b.Fatalf("Could not start dual client benchmark: \n%s", err)
 	}
 

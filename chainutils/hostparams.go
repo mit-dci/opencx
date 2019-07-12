@@ -23,3 +23,16 @@ func (hpList HostParamList) CoinListFromHostParams() (coinList []*coinparam.Para
 	}
 	return
 }
+
+func HostParamsFromCoinList(coinList []*coinparam.Params) (hParams []*HostParams) {
+	hParams = make([]*HostParams, len(coinList))
+	// if you want to go in circles with this method and CoinListFromHostParams, you're losing information
+	for i, coin := range coinList {
+		hParams[i] = &HostParams{
+			Param: coin,
+			// Default host
+			Host: "",
+		}
+	}
+	return
+}

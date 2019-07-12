@@ -10,10 +10,14 @@ import (
 
 // GetAddrForCoin gets an address based on a wallet and pubkey
 func (server *OpencxServer) GetAddrForCoin(coinType *coinparam.Params, pubkey *koblitz.PublicKey) (addr string, err error) {
+	server.walletMtx.Lock()
 	wallet, found := server.WalletMap[coinType]
 	if !found {
 		err = fmt.Errorf("Could not find wallet to create address for")
+		server.walletMtx.Unlock()
+		return
 	}
+	server.walletMtx.Unlock()
 
 	pubKeyHashAddrID := wallet.Param.PubKeyHashAddrID
 

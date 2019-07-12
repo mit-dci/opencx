@@ -157,6 +157,17 @@ func main() {
 		logging.Fatalf("Error setting up server keys: \n%s", err)
 	}
 
+	// Generate the host param list
+	// the host params are all of the coinparams / coins we support
+	// this coinparam list is generated from the configuration file with generateHostParams
+	hpList := util.HostParamList(generateHostParams(&conf))
+
+	// Set up all chain hooks and wallets
+	if err = ocxServer.SetupAllWallets(hpList, "wallit/", conf.Resync); err != nil {
+		logging.Fatalf("Error setting up wallets: \n%s", err)
+		return
+	}
+
 	if conf.LightningSupport {
 		// start the lit node for the exchange
 		if err = ocxServer.SetupLitNode(key, "lit", "http://hubris.media.mit.edu:46580", "", ""); err != nil {
@@ -175,17 +186,6 @@ func main() {
 		logging.Infof("registering push handler")
 		ocxServer.ExchangeNode.Events.RegisterHandler("qln.chanupdate.push", ocxServer.GetPushHandler())
 		logging.Infof("done registering push handler")
-
-		// Generate the host param list
-		// the host params are all of the coinparams / coins we support
-		// this coinparam list is generated from the configuration file with generateHostParams
-		hpList := util.HostParamList(generateHostParams(&conf))
-
-		// Set up all chain hooks and wallets
-		if err = ocxServer.SetupAllWallets(hpList, "wallit/", conf.Resync); err != nil {
-			logging.Fatalf("Error setting up wallets: \n%s", err)
-			return
-		}
 
 		// Waited until the wallets are started, time to link them!
 		if err = ocxServer.LinkAllWallets(); err != nil {

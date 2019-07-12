@@ -2,10 +2,12 @@ package cxbenchmark
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/benchclient"
+	util "github.com/mit-dci/opencx/chainutils"
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/cxdb/cxdbmemory"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
@@ -18,12 +20,16 @@ import (
 // createLightSettleServer creates a server with "pinky swear settlement" after starting the database with a bunch of parameters for everything else
 func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.PublicKey, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
 
+	logging.SetLogLevel(3)
+	logging.Infof("Create light settle server start -- %s", time.Now())
+
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
 		err = fmt.Errorf("Could not generate asset pairs from coin list: %s", err)
 		return
 	}
 
+	logging.Infof("Creating engines...")
 	var mengines map[match.Pair]match.LimitEngine
 	if mengines, err = cxdbsql.CreateLimitEngineMap(pairList); err != nil {
 		err = fmt.Errorf("Error creating limit engine map with coinlist for createFullServer: %s", err)
@@ -38,6 +44,7 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 		return
 	}
 
+	logging.Infof("Creating stores...")
 	var limBooks map[match.Pair]match.LimitOrderbook
 	if limBooks, err = cxdbsql.CreateLimitOrderbookMap(pairList); err != nil {
 		err = fmt.Errorf("Error creating limit orderbook map for createFullServer: %s", err)
@@ -56,17 +63,30 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 		return
 	}
 
-	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, ""); err != nil {
+	// TODO: change this root directory nonsense!!!
+	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, "benchmarkInfo/"); err != nil {
 		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
 		return
 	}
 
+	logging.Infof("Starting RPC Listen process.")
 	key := new([32]byte)
 	copy(key[:], privkey.Serialize())
 
 	// Check that the private key exists and if it does, load it
 	if err = ocxServer.SetupServerKeys(key); err != nil {
 		err = fmt.Errorf("Error setting up server keys: \n%s", err)
+	}
+
+	// Generate the host param list
+	// the host params are all of the coinparams / coins we support
+	// this coinparam list is generated from the configuration file with generateHostParams
+	hpList := util.HostParamsFromCoinList(coinList)
+
+	// Set up all chain hooks and wallets
+	if err = ocxServer.SetupAllWallets(hpList, "benchmarkInfo/wallit/", false); err != nil {
+		logging.Fatalf("Error setting up wallets: \n%s", err)
+		return
 	}
 
 	// Register RPC Commands and set server
@@ -95,12 +115,16 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 // createFullServer creates a server after starting the database with a bunch of parameters
 func createFullServer(coinList []*coinparam.Params, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
 
+	logging.SetLogLevel(3)
+	logging.Infof("Create full server start -- %s", time.Now())
+
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(coinList); err != nil {
 		err = fmt.Errorf("Could not generate asset pairs from coin list: %s", err)
 		return
 	}
 
+	logging.Infof("Creating engines...")
 	var mengines map[match.Pair]match.LimitEngine
 	if mengines, err = cxdbsql.CreateLimitEngineMap(pairList); err != nil {
 		err = fmt.Errorf("Error creating limit engine map with coinlist for createFullServer: %s", err)
@@ -113,6 +137,7 @@ func createFullServer(coinList []*coinparam.Params, serverhost string, serverpor
 		return
 	}
 
+	logging.Infof("Creating stores...")
 	var limBooks map[match.Pair]match.LimitOrderbook
 	if limBooks, err = cxdbsql.CreateLimitOrderbookMap(pairList); err != nil {
 		err = fmt.Errorf("Error creating limit orderbook map for createFullServer: %s", err)
@@ -131,17 +156,29 @@ func createFullServer(coinList []*coinparam.Params, serverhost string, serverpor
 		return
 	}
 
-	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, ""); err != nil {
+	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, "benchmarkInfo"); err != nil {
 		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
 		return
 	}
 
+	logging.Infof("Starting RPC Listen process.")
 	key := new([32]byte)
 	copy(key[:], privkey.Serialize())
 
 	// Check that the private key exists and if it does, load it
 	if err = ocxServer.SetupServerKeys(key); err != nil {
 		err = fmt.Errorf("Error setting up server keys: \n%s", err)
+	}
+
+	// Generate the host param list
+	// the host params are all of the coinparams / coins we support
+	// this coinparam list is generated from the configuration file with generateHostParams
+	hpList := util.HostParamsFromCoinList(coinList)
+
+	// Set up all chain hooks and wallets
+	if err = ocxServer.SetupAllWallets(hpList, "benchmarkInfo/wallit/", false); err != nil {
+		logging.Fatalf("Error setting up wallets: \n%s", err)
+		return
 	}
 
 	// Register RPC Commands and set server
@@ -170,12 +207,12 @@ func createFullServer(coinList []*coinparam.Params, serverhost string, serverpor
 
 // createDefaultParamServerWithKey creates a server with a bunch of default params minus privkey and authrpc
 func createDefaultParamServerWithKey(privkey *koblitz.PrivateKey, authrpc bool) (server *cxserver.OpencxServer, offChan chan bool, err error) {
-	return createFullServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, "localhost", uint16(12346), privkey, authrpc)
+	return createFullServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, "localhost", uint16(12347), privkey, authrpc)
 }
 
 // createDefaultLightServerWithKey creates a server with a bunch of default params minus privkey and authrpc
 func createDefaultLightServerWithKey(privkey *koblitz.PrivateKey, whitelist []*koblitz.PublicKey, authrpc bool) (server *cxserver.OpencxServer, offChan chan bool, err error) {
-	return createLightSettleServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, whitelist, "localhost", uint16(12346), privkey, authrpc)
+	return createLightSettleServer([]*coinparam.Params{&coinparam.RegressionNetParams, &coinparam.VertcoinRegTestParams, &coinparam.LiteRegNetParams}, whitelist, "localhost", uint16(12347), privkey, authrpc)
 }
 
 // prepareBalances adds tons of money to both accounts
