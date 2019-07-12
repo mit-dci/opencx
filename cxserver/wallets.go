@@ -33,7 +33,7 @@ func (server *OpencxServer) SetupWallet(errChan chan error, subDirName string, p
 
 	// create wallit root directory
 	if _, err = os.Stat(server.OpencxRoot + subDirName); os.IsNotExist(err) {
-		if err = os.Mkdir(server.OpencxRoot+subDirName, 0700); err != nil {
+		if err = os.MkdirAll(server.OpencxRoot+subDirName, 0700); err != nil {
 			logging.Errorf("Error while creating a directory: \n%s", err)
 		}
 	}

@@ -1,0 +1,4 @@
+# Because inevitably someone will run `go test -bench=.` and make these directories, then try to
+# commit them. Making them is fine, committing them is not
+benchmarkInfo/
+.benchmarkInfo/

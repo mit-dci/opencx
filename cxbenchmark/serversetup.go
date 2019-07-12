@@ -64,7 +64,7 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 	}
 
 	// TODO: change this root directory nonsense!!!
-	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, "benchmarkInfo/"); err != nil {
+	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, ".benchmarkInfo/"); err != nil {
 		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
 		return
 	}
@@ -84,7 +84,7 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 	hpList := util.HostParamsFromCoinList(coinList)
 
 	// Set up all chain hooks and wallets
-	if err = ocxServer.SetupAllWallets(hpList, "benchmarkInfo/wallit/", false); err != nil {
+	if err = ocxServer.SetupAllWallets(hpList, "wallit/", false); err != nil {
 		logging.Fatalf("Error setting up wallets: \n%s", err)
 		return
 	}
@@ -156,7 +156,8 @@ func createFullServer(coinList []*coinparam.Params, serverhost string, serverpor
 		return
 	}
 
-	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, "benchmarkInfo"); err != nil {
+	// TODO: get rid of this directory nonsense, just figure out a nice way to deal with these things
+	if ocxServer, err = cxserver.InitServer(setEngines, mengines, limBooks, depositStores, setStores, ".benchmarkInfo/"); err != nil {
 		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
 		return
 	}
@@ -176,7 +177,7 @@ func createFullServer(coinList []*coinparam.Params, serverhost string, serverpor
 	hpList := util.HostParamsFromCoinList(coinList)
 
 	// Set up all chain hooks and wallets
-	if err = ocxServer.SetupAllWallets(hpList, "benchmarkInfo/wallit/", false); err != nil {
+	if err = ocxServer.SetupAllWallets(hpList, "wallit/", false); err != nil {
 		logging.Fatalf("Error setting up wallets: \n%s", err)
 		return
 	}
