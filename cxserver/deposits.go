@@ -35,13 +35,12 @@ func (server *OpencxServer) RegisterUser(pubkey *koblitz.PublicKey) (err error) 
 			server.dbLock.Unlock()
 			return
 		}
+		server.dbLock.Unlock()
 
 		if err = currDepositStore.RegisterUser(pubkey, addr); err != nil {
 			err = fmt.Errorf("Error registering user for deposit address for ingestChannelFund: %s", err)
-			server.dbLock.Unlock()
 			return
 		}
-		server.dbLock.Unlock()
 
 		if err = server.DebitUser(pubkey, 0, param); err != nil {
 			err = fmt.Errorf("Error giving user a balance of zero for RegisterUser: %s", err)
