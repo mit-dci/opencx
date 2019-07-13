@@ -17,14 +17,18 @@ type PinkySwearEngine struct {
 
 	// this coin
 	coin *coinparam.Params
+
+	// acceptAll, if true, accepts all transactions
+	acceptAll bool
 }
 
 // CreatePinkySwearEngine creates a "pinky swear" engine for a specific coin
-func CreatePinkySwearEngine(coin *coinparam.Params, whitelist [][33]byte) (engine match.SettlementEngine, err error) {
+func CreatePinkySwearEngine(coin *coinparam.Params, whitelist [][33]byte, acceptAll bool) (engine match.SettlementEngine, err error) {
 	pe := &PinkySwearEngine{
 		coin:         coin,
 		whitelist:    make(map[[33]byte]bool),
 		whitelistMtx: new(sync.Mutex),
+		acceptAll:    acceptAll,
 	}
 	pe.whitelistMtx.Lock()
 	for _, pubkey := range whitelist {
@@ -62,6 +66,11 @@ func (pe *PinkySwearEngine) CheckValid(setExec *match.SettlementExecution) (vali
 		return
 	}
 
+	if pe.acceptAll {
+		valid = true
+		return
+	}
+
 	pe.whitelistMtx.Lock()
 	var ok bool
 	if valid, ok = pe.whitelist[setExec.Pubkey]; !ok {
@@ -78,12 +87,13 @@ func (pe *PinkySwearEngine) CheckValid(setExec *match.SettlementExecution) (vali
 // CreatePinkySwearEngineMap creates a map of coin to settlement engine, given a map of coins to whitelists.
 // This creates pinky swear settlement engines, so beware because those let anyone on the
 // whitelist do settlement.
-func CreatePinkySwearEngineMap(whitelistMap map[*coinparam.Params][][33]byte) (setMap map[*coinparam.Params]match.SettlementEngine, err error) {
+// acceptAll will just accept all, pretty much ignores the whitelist
+func CreatePinkySwearEngineMap(whitelistMap map[*coinparam.Params][][33]byte, acceptAll bool) (setMap map[*coinparam.Params]match.SettlementEngine, err error) {
 
 	setMap = make(map[*coinparam.Params]match.SettlementEngine)
 	var curSetEng match.SettlementEngine
 	for coin, whitelist := range whitelistMap {
-		if curSetEng, err = CreatePinkySwearEngine(coin, whitelist); err != nil {
+		if curSetEng, err = CreatePinkySwearEngine(coin, whitelist, acceptAll); err != nil {
 			err = fmt.Errorf("Error creating single settlement engine while creating pinky swear engine map: %s", err)
 			return
 		}

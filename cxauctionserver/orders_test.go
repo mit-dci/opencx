@@ -50,7 +50,7 @@ func TestMemPlacePuzzledOrder(t *testing.T) {
 		s.PlacePuzzledOrder(order)
 		// Okay now we'll wait a little bit to make sure we see this memory issue in action
 	}
-	time.Sleep(time.Duration(testStandardAuctionTime))
+	time.Sleep(100 * time.Duration(testStandardAuctionTime))
 
 	return
 }

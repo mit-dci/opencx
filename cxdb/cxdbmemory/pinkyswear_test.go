@@ -27,7 +27,7 @@ var (
 func TestCreatePinkySwearEngine(t *testing.T) {
 	var err error
 
-	if _, err = CreatePinkySwearEngine(&coinparam.BitcoinParams, testWhitelist); err != nil {
+	if _, err = CreatePinkySwearEngine(&coinparam.BitcoinParams, testWhitelist, false); err != nil {
 		t.Errorf("Error creating pinky swear engine for TestCreatePinkySwear: %s", err)
 		return
 	}
@@ -39,7 +39,7 @@ func TestPinkySwearWrongAsset(t *testing.T) {
 	var err error
 
 	var engine match.SettlementEngine
-	if engine, err = CreatePinkySwearEngine(&coinparam.VertcoinParams, testWhitelist); err != nil {
+	if engine, err = CreatePinkySwearEngine(&coinparam.VertcoinParams, testWhitelist, false); err != nil {
 		t.Errorf("Error creating pinky swear engine for TestPinkySwearWrongAsset: %s", err)
 		return
 	}
@@ -64,7 +64,7 @@ func TestPinkySwearRightAsset(t *testing.T) {
 	var err error
 
 	var engine match.SettlementEngine
-	if engine, err = CreatePinkySwearEngine(&coinparam.BitcoinParams, testWhitelist); err != nil {
+	if engine, err = CreatePinkySwearEngine(&coinparam.BitcoinParams, testWhitelist, false); err != nil {
 		t.Errorf("Error creating pinky swear engine for TestPinkySwearRightAsset: %s", err)
 		return
 	}
