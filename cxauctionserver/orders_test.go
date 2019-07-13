@@ -1,6 +1,7 @@
 package cxauctionserver
 
 import (
+	"encoding/binary"
 	"testing"
 	"time"
 
@@ -27,6 +28,25 @@ var (
 	doneChan              = make(chan bool)
 )
 
+// incrementNonce increments a 2 byte nonce -- keep in mind that if you use this naively
+// in the testAuctionOrder and then timelock puzzle it, it makes the order invalid,
+// since the signature is dependent on the nonce.
+// We do this in the tests because the auction engine should only match and do no
+// other validation.
+// However, any outside-facing program SHOULD do other validation and detect this.
+func incrementNonce(currNonce [2]byte) (nextNonce [2]byte) {
+
+	var inputSlice [8]byte
+	copy(inputSlice[:], currNonce[:])
+	currInt, _ := binary.Uvarint(inputSlice[:])
+	currInt++
+	var outBufSlice []byte = make([]byte, 8)
+	binary.PutUvarint(outBufSlice, currInt)
+	copy(nextNonce[:], outBufSlice[:1])
+
+	return
+}
+
 func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 	var err error
 
@@ -45,13 +65,22 @@ func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 	}
 	t.Logf("%s: Started Auction", time.Now())
 
+	baseOrder := *testAuctionOrder
+
 	var orders []*match.EncryptedAuctionOrder
 	// Add a bunch of orders to the order list
+	var newEncrypted *match.EncryptedAuctionOrder
 	for i := 0; i < testNumOrders; i++ {
-		orders = append(orders, testEncryptedOrder)
+		// We increment the nonce so orders are unique
+		baseOrder.Nonce = incrementNonce(baseOrder.Nonce)
+		if newEncrypted, err = (&baseOrder).TurnIntoEncryptedOrder(testStandardAuctionTime); err != nil {
+			t.Errorf("Error turning base order into timelock encrypted order: %s", err)
+		}
+		orders = append(orders, newEncrypted)
 	}
 
 	t.Logf("%s: Placing all orders", time.Now())
+
 	// Place a bunch of orders
 	for _, order := range orders {
 		// We can do this in sequence because it's going to start a goroutine anyways
