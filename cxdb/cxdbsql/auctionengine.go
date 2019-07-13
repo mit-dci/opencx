@@ -190,6 +190,7 @@ func (ae *SQLAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auction
 
 	insertOrderQuery := fmt.Sprintf("INSERT INTO %s VALUES ('%x', '%s', %f, %d, %d, '%x', '%x', '%x', '%x');", ae.pair.String(), order.Pubkey, order.Side, price, order.AmountHave, order.AmountWant, order.AuctionID, order.Nonce, order.Signature, hashedOrder)
 	if _, err = tx.Exec(insertOrderQuery); err != nil {
+		logging.Errorf("Bad query run: %s", insertOrderQuery)
 		err = fmt.Errorf("Error placing order into db for placeauctionorder: %s", err)
 		return
 	}

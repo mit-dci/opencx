@@ -49,3 +49,28 @@ func TestCreateEngineAllParams(t *testing.T) {
 
 	killFunc(t)
 }
+
+func TestPlaceSingleAuctionOrder(t *testing.T) {
+	var err error
+
+	var killFunc func(t *testing.T)
+	if killFunc, err = createUserAndDatabase(); err != nil {
+		t.Skipf("Error creating user and database, skipping: %s", err)
+	}
+
+	var engine match.AuctionEngine
+	if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+		t.Errorf("Error creating auction engine for pair: %s", err)
+	}
+
+	var idStruct *match.AuctionID = new(match.AuctionID)
+	if err = idStruct.UnmarshalBinary(testEncryptedOrder.IntendedAuction[:]); err != nil {
+		t.Errorf("Error unmarshalling auction ID: %s", err)
+	}
+
+	if _, err = engine.PlaceAuctionOrder(testAuctionOrder, idStruct); err != nil {
+		t.Errorf("Error placing auction order: %s", err)
+	}
+
+	killFunc(t)
+}
