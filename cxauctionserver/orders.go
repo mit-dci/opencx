@@ -16,6 +16,10 @@ import (
 
 // PlacePuzzledOrder places a timelock encrypted order. It also starts to decrypt the order in a goroutine.
 func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrder) (err error) {
+	if order == nil {
+		err = fmt.Errorf("Cannot place nil order, invalid")
+		return
+	}
 
 	logging.Infof("Got a new puzzle for auction %x", order.IntendedAuction)
 

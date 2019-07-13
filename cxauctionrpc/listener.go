@@ -83,7 +83,7 @@ func (rpc1 *AuctionRPCCaller) RPCListen(host string, port uint16) (err error) {
 
 // KillServerNoWait kills the server, stops the clock, everything, doesn't
 func (rpc1 *AuctionRPCCaller) KillServerNoWait() (err error) {
-	if err = rpc1.caller.Server.StopClockDoNotWait(); err != nil {
+	if err = rpc1.caller.Server.StopClock(); err != nil {
 		err = fmt.Errorf("Error stopping clock, not waiting for results: %s", err)
 		return
 	}

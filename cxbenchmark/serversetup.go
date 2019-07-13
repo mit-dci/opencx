@@ -52,7 +52,7 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 	// These lines are the only difference between the LightSettleServer and the FullServer
 	wlMap := createWhitelistMap(coinList, whitelist)
 	var setEngines map[*coinparam.Params]match.SettlementEngine
-	if setEngines, err = cxdbmemory.CreatePinkySwearEngineMap(wlMap); err != nil {
+	if setEngines, err = cxdbmemory.CreatePinkySwearEngineMap(wlMap, false); err != nil {
 		err = fmt.Errorf("Error creating pinky swear settlement engine map for createFullServer: %s", err)
 		return
 	}
@@ -147,7 +147,7 @@ func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz
 	// These lines are the only difference between the LightAuctionServer and the FullAuctionServer
 	wlMap := createWhitelistMap(coinList, whitelist)
 	var setEngines map[*coinparam.Params]match.SettlementEngine
-	if setEngines, err = cxdbmemory.CreatePinkySwearEngineMap(wlMap); err != nil {
+	if setEngines, err = cxdbmemory.CreatePinkySwearEngineMap(wlMap, false); err != nil {
 		err = fmt.Errorf("Error creating pinky swear settlement engine map for createLightAuctionServer: %s", err)
 		return
 	}

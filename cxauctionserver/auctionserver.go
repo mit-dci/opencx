@@ -12,8 +12,6 @@ import (
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 	"golang.org/x/text/number"
 )
 
@@ -217,38 +215,6 @@ func (s *OpencxAuctionServer) GetIDTimeFromPair(pair *match.Pair) (id [32]byte, 
 // StopClock stops the server clock
 func (s *OpencxAuctionServer) StopClock() (err error) {
 	s.clockOffButton <- true
-	return
-}
-
-// StopClockDoNotWait stops the clocks and ends, does not wait for active auctions to finish, just marks them as inactive.
-func (s *OpencxAuctionServer) StopClockDoNotWait() (err error) {
-
-	numberPrinter := message.NewPrinter(language.English)
-	logging.Infof("Trying to stop clock...")
-	if err = s.StopClock(); err != nil {
-		err = fmt.Errorf("Error stopping clock for StopClockAndWait: %s", err)
-		return
-	}
-
-	logging.Infof("Killing auctions...")
-	s.dbLock.Lock()
-	howManyBatchers := float64(len(s.OrderBatchers))
-	var activeAuctions map[[32]byte]time.Time
-	num := 0
-	for _, batcher := range s.OrderBatchers {
-		activeAuctions = batcher.ActiveAuctions()
-		for id, _ := range activeAuctions {
-			if _, err = batcher.EndAuction(id); err != nil {
-				err = fmt.Errorf("Error ending auction for StopClockAndWait: %s", err)
-				s.dbLock.Unlock()
-				return
-			}
-		}
-		num++
-		logging.Infoln(numberPrinter.Sprintf("Ending auction results, progress: %v", number.Percent(float64(num)/howManyBatchers)))
-	}
-	s.dbLock.Unlock()
-
 	return
 }
 

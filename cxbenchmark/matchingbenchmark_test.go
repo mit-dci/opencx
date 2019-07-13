@@ -8,6 +8,40 @@ import (
 	"github.com/mit-dci/opencx/benchclient"
 )
 
+// func TestSetupDualClientNoAuth(t *testing.T) {
+// 	var err error
+
+// 	t.Logf("Start noauth server -- time: %s", time.Now())
+
+// 	var offChan chan bool
+// 	if _, _, offChan, err = setupBenchmarkDualClient(false); err != nil {
+// 		offChan <- true
+// 		t.Logf("Could not start noauth server: %s", err)
+// 		return
+// 	}
+
+// 	t.Logf("Server noauth started -- time: %s", time.Now())
+// 	close(offChan)
+// 	return
+// }
+
+// func TestSetupDualClientAuth(t *testing.T) {
+// 	var err error
+
+// 	t.Logf("Start auth server -- time: %s", time.Now())
+
+// 	var offChan chan bool
+// 	if _, _, offChan, err = setupBenchmarkDualClient(true); err != nil {
+// 		offChan <- true
+// 		t.Logf("Could not start auth server: %s", err)
+// 		return
+// 	}
+
+// 	t.Logf("Server auth started -- time: %s", time.Now())
+// 	close(offChan)
+// 	return
+// }
+
 // BenchmarkPlaceOrders places orders on an unauthenticated server with full capabilities (besides auction)
 func BenchmarkPlaceOrders(b *testing.B) {
 	var err error

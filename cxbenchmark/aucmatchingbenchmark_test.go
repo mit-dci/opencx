@@ -9,6 +9,25 @@ import (
 	"github.com/mit-dci/opencx/cxauctionrpc"
 )
 
+func TestSetupDualClientNoAuth(t *testing.T) {
+	var err error
+
+	t.Logf("Start noauth server -- time: %s", time.Now())
+
+	var rpcListener *cxauctionrpc.AuctionRPCCaller
+	if _, _, rpcListener, err = setupEasyAuctionBenchmarkDualClient(false); err != nil {
+		t.Errorf("Could not start noauth server: %s", err)
+		return
+	}
+
+	t.Logf("Server noauth started -- time: %s", time.Now())
+	if err = rpcListener.KillServerNoWait(); err != nil {
+		t.Errorf("Error killing server for TestSetupDualClientNoAuth: %s", err)
+		return
+	}
+	return
+}
+
 // BenchmarkEasyAuctionPlaceOrders places orders on an unauthenticated auction server with "pinky swear" settlement and full matching capabilites.
 func BenchmarkEasyAuctionPlaceOrders(b *testing.B) {
 	var err error
@@ -19,7 +38,7 @@ func BenchmarkEasyAuctionPlaceOrders(b *testing.B) {
 	var client2 *benchclient.BenchClient
 	var rpcListener *cxauctionrpc.AuctionRPCCaller
 	if client1, client2, rpcListener, err = setupEasyAuctionBenchmarkDualClient(false); err != nil {
-		b.Fatalf("Could not start dual client benchmark: \n%s", err)
+		b.Errorf("Could not start dual client benchmark: \n%s", err)
 		return
 	}
 
@@ -36,7 +55,7 @@ func BenchmarkEasyAuctionPlaceOrders(b *testing.B) {
 	}
 	b.Logf("waiting for results - %s", time.Now())
 	if err = rpcListener.KillServerWait(); err != nil {
-		err = fmt.Errorf("Error killing server for BenchmarkEasyAuctionPlaceOrders: %s", err)
+		b.Errorf("Error killing server for BenchmarkEasyAuctionPlaceOrders: %s", err)
 		return
 	}
 
