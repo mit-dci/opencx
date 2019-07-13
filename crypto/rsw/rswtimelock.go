@@ -136,6 +136,7 @@ func (tl *TimelockRSW) ckXOR() (ck *big.Int, err error) {
 		err = fmt.Errorf("Could not find b: %s", err)
 		return
 	}
+
 	// set k to be the bytes of the key
 	k := new(big.Int).SetBytes(tl.key)
 

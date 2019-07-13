@@ -128,7 +128,6 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 // createLightAuctionServer creates a server with "pinky swear settlement" after starting the database with a bunch of parameters for everything else
 func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz.PublicKey, maxBatchSize uint64, auctionTime uint64, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (rpcListener *cxauctionrpc.AuctionRPCCaller, err error) {
 
-	// logging.SetLogLevel(3)
 	logging.Infof("Create light auction server start -- %s", time.Now())
 
 	var pairList []*match.Pair
