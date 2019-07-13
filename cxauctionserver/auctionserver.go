@@ -129,7 +129,6 @@ func InitServerSQLDefault(coinList []*coinparam.Params, orderChanSize uint64, st
 
 // InitServer creates a new server
 func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEngines map[match.Pair]match.AuctionEngine, books map[match.Pair]match.AuctionOrderbook, pzengines map[match.Pair]cxdb.PuzzleStore, batchers map[match.Pair]match.AuctionBatcher, orderChanSize uint64, standardAuctionTime uint64) (server *OpencxAuctionServer, err error) {
-	logging.Infof("Starting an auction with auction time %d", standardAuctionTime)
 	server = &OpencxAuctionServer{
 		SettlementEngines: setEngines,
 		MatchingEngines:   matchEngines,
@@ -143,16 +142,70 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		clockOffButton:    make(chan bool, 1),
 	}
 
-	server.dbLock.Lock()
+	return
+}
 
+// StartAuctionWithID starts an auction for a certain pair with a specific ID
+func (s *OpencxAuctionServer) StartAuctionWithID(pair *match.Pair, auctionID [32]byte) (err error) {
+	logging.Infof("Starting an auction with auction time %d", s.t)
+	// get the batcher
+	s.dbLock.Lock()
+	var currBatcher match.AuctionBatcher
+	var ok bool
+	if currBatcher, ok = s.OrderBatchers[*pair]; !ok {
+		err = fmt.Errorf("Error getting correct batcher for pair %s", pair.String())
+		s.dbLock.Unlock()
+		return
+	}
+	s.dbLock.Unlock()
+
+	if err = currBatcher.RegisterAuction(auctionID); err != nil {
+		err = fmt.Errorf("Error registering auction with id for StartAuctionWithID: %s", err)
+		return
+	}
+
+	return
+}
+
+// EndAuctionWithID ends an auction for a certain pair with a specific ID, waiting for the auction to end.
+// This is blocking, returning the result of the auction.
+func (s *OpencxAuctionServer) EndAuctionWithID(pair *match.Pair, auctionID [32]byte) (result *match.AuctionBatch, err error) {
+	logging.Infof("Ending auction %x", auctionID)
+	// get the batcher
+	s.dbLock.Lock()
+	var currBatcher match.AuctionBatcher
+	var ok bool
+	if currBatcher, ok = s.OrderBatchers[*pair]; !ok {
+		err = fmt.Errorf("Error getting correct batcher for pair %s", pair.String())
+		s.dbLock.Unlock()
+		return
+	}
+	s.dbLock.Unlock()
+
+	var batchResultChan chan *match.AuctionBatch
+	if batchResultChan, err = currBatcher.EndAuction(auctionID); err != nil {
+		err = fmt.Errorf("Error ending auction with id for EndAuctionWithID: %s", err)
+		return
+	}
+
+	result = <-batchResultChan
+	logging.Infof("Results for auction %x retrieved", auctionID)
+	// get the batcher
+
+	return
+}
+
+func (s *OpencxAuctionServer) StartClockRandomAuction() (err error) {
+
+	s.dbLock.Lock()
 	var randID [32]byte
 	var bytesRead int
-	for pair, batcher := range server.OrderBatchers {
+	for pair, batcher := range s.OrderBatchers {
 
 		// Set auctionID to something random for each batcher
 		if bytesRead, err = rand.Read(randID[:]); err != nil {
 			err = fmt.Errorf("Error getting random auction ID for initializing server: %s", err)
-			server.dbLock.Unlock()
+			s.dbLock.Unlock()
 			return
 		}
 
@@ -162,9 +215,9 @@ func InitServer(setEngines map[*coinparam.Params]match.SettlementEngine, matchEn
 		batcher.RegisterAuction(randID)
 
 		// Start the auction clock (also TODO: is this the right place to put this?)
-		go server.AuctionClock(pair, randID)
+		go s.AuctionClock(pair, randID)
 	}
-	server.dbLock.Unlock()
+	s.dbLock.Unlock()
 
 	return
 }

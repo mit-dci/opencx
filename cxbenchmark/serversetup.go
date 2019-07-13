@@ -178,6 +178,11 @@ func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz
 		return
 	}
 
+	if err = ocxServer.StartClockRandomAuction(); err != nil {
+		err = fmt.Errorf("Error starting clock: %s", err)
+		return
+	}
+
 	logging.Infof("Starting RPC Listen process.")
 	key := new([32]byte)
 	copy(key[:], privkey.Serialize())
@@ -318,6 +323,11 @@ func createFullAuctionServer(coinList []*coinparam.Params, maxBatchSize uint64, 
 	var ocxServer *cxauctionserver.OpencxAuctionServer
 	if ocxServer, err = cxauctionserver.InitServerSQLDefault(coinList, 100, auctionTime, maxBatchSize); err != nil {
 		err = fmt.Errorf("Error initializing server for createFullServer: %s", err)
+		return
+	}
+
+	if err = ocxServer.StartClockRandomAuction(); err != nil {
+		err = fmt.Errorf("Error starting clock: %s", err)
 		return
 	}
 
