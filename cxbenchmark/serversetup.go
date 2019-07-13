@@ -33,7 +33,7 @@ func changePort(param *coinparam.Params, port string) (newparam *coinparam.Param
 // createLightSettleServer creates a server with "pinky swear settlement" after starting the database with a bunch of parameters for everything else
 func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.PublicKey, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
 
-	logging.SetLogLevel(3)
+	// logging.SetLogLevel(3)
 	logging.Infof("Create light settle server start -- %s", time.Now())
 
 	var pairList []*match.Pair
@@ -128,7 +128,7 @@ func createLightSettleServer(coinList []*coinparam.Params, whitelist []*koblitz.
 // createLightAuctionServer creates a server with "pinky swear settlement" after starting the database with a bunch of parameters for everything else
 func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz.PublicKey, maxBatchSize uint64, auctionTime uint64, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (rpcListener *cxauctionrpc.AuctionRPCCaller, err error) {
 
-	logging.SetLogLevel(3)
+	// logging.SetLogLevel(3)
 	logging.Infof("Create light auction server start -- %s", time.Now())
 
 	var pairList []*match.Pair
@@ -212,7 +212,7 @@ func createLightAuctionServer(coinList []*coinparam.Params, whitelist []*koblitz
 // createFullServer creates a server after starting the database with a bunch of parameters
 func createFullServer(coinList []*coinparam.Params, serverhost string, serverport uint16, privkey *koblitz.PrivateKey, authrpc bool) (ocxServer *cxserver.OpencxServer, offChan chan bool, err error) {
 
-	logging.SetLogLevel(3)
+	// logging.SetLogLevel(3)
 	logging.Infof("Create full server start -- %s", time.Now())
 
 	var pairList []*match.Pair
