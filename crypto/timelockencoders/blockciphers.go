@@ -307,10 +307,13 @@ func CreatePuzzleAES(t uint64, message []byte, puzzleCreator func(uint64, []byte
 // Generate16ByteKey generates a 16 byte long key to be used for AES, RC5, or RC6 from a reader
 func Generate16ByteKey(rand io.Reader) (key []byte, err error) {
 	key = make([]byte, 16)
-	if _, err = rand.Read(key); err != nil {
+	var newKey []byte = make([]byte, 16)
+	if _, err = rand.Read(newKey); err != nil {
 		err = fmt.Errorf("Error reading from random while generating AES key: %s", err)
 		return
 	}
+	// make sure that the length is 16
+	copy(key, newKey)
 	return
 }
 

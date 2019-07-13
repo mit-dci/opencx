@@ -20,6 +20,9 @@ func TestSetupDualClientNoAuth(t *testing.T) {
 		return
 	}
 
+	// wait a second
+	time.Sleep(time.Second)
+
 	t.Logf("Server noauth started -- time: %s", time.Now())
 	if err = rpcListener.KillServerNoWait(); err != nil {
 		t.Errorf("Error killing server for TestSetupDualClientNoAuth: %s", err)

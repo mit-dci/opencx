@@ -2,12 +2,12 @@ package cxauctionserver
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/cxdb/cxdbmemory"
-	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -25,6 +25,21 @@ var (
 		&coinparam.LiteRegNetParams,
 	}
 )
+
+// initTestServerTime initializes the server. This is mostly setting up the db
+func initTestServerTime(t uint64) (s *OpencxAuctionServer, err error) {
+
+	// get number of cores
+	numcpu := uint64(runtime.NumCPU())
+
+	// Initialize the test server
+	if s, err = createUltraLightAuctionServer(testCoins, testOrderChanSize, t, numcpu); err != nil {
+		err = fmt.Errorf("Error initializing server for tests: %s", err)
+		return
+	}
+
+	return
+}
 
 // initTestServer initializes the server. This is mostly setting up the db
 func initTestServer() (s *OpencxAuctionServer, err error) {
@@ -49,7 +64,7 @@ func createUltraLightAuctionServer(coinList []*coinparam.Params, orderChanSize u
 	}
 
 	var mengines map[match.Pair]match.AuctionEngine
-	if mengines, err = cxdbsql.CreateAuctionEngineMap(pairList); err != nil {
+	if mengines, err = cxdbmemory.CreateAuctionEngineMap(pairList); err != nil {
 		err = fmt.Errorf("Error creating auction engine map with coinlist for createUltraLightAuctionServer: %s", err)
 		return
 	}
@@ -62,13 +77,13 @@ func createUltraLightAuctionServer(coinList []*coinparam.Params, orderChanSize u
 	}
 
 	var aucBooks map[match.Pair]match.AuctionOrderbook
-	if aucBooks, err = cxdbsql.CreateAuctionOrderbookMap(pairList); err != nil {
+	if aucBooks, err = cxdbmemory.CreateAuctionOrderbookMap(pairList); err != nil {
 		err = fmt.Errorf("Error creating auction orderbook map for createUltraLightAuctionServer: %s", err)
 		return
 	}
 
 	var pzEngines map[match.Pair]cxdb.PuzzleStore
-	if pzEngines, err = cxdbsql.CreatePuzzleStoreMap(pairList); err != nil {
+	if pzEngines, err = cxdbmemory.CreatePuzzleStoreMap(pairList); err != nil {
 		err = fmt.Errorf("Error creating puzzle store map for createUltraLightAuctionServer: %s", err)
 		return
 	}
