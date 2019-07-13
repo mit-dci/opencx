@@ -222,6 +222,67 @@ func (s *OpencxAuctionServer) asyncBatchPlacer(batchChan chan *match.AuctionBatc
 	return
 }
 
+func (s *OpencxAuctionServer) PlaceBatch(batch *match.AuctionBatch) (err error) {
+
+	s.dbLock.Lock()
+
+	var auctionEngine match.AuctionEngine
+	var ok bool
+
+	var batchRes *match.BatchResult = s.validateBatch(batch)
+
+	logging.Infof("Got a batch result for %x! \n\tValid orders: %d\n\tInvalid orders: %d", batchRes.OriginalBatch, len(batchRes.AcceptedResults), len(batchRes.RejectedResults))
+
+	var auctionIDList map[match.AuctionID]bool = make(map[match.AuctionID]bool)
+	for _, acceptedOrder := range batchRes.AcceptedResults {
+		if acceptedOrder.Err != nil {
+			err = fmt.Errorf("Accepted order has a non-nil error: %s", acceptedOrder.Err)
+			s.dbLock.Unlock()
+			return
+		}
+
+		if auctionEngine, ok = s.MatchingEngines[acceptedOrder.Auction.TradingPair]; !ok {
+			err = fmt.Errorf("Could not find matching engine for pair %s", acceptedOrder.Auction.TradingPair.String())
+			s.dbLock.Unlock()
+			return
+		}
+
+		var idStruct *match.AuctionID = new(match.AuctionID)
+		if err = idStruct.UnmarshalBinary(acceptedOrder.Auction.AuctionID[:]); err != nil {
+			err = fmt.Errorf("Error unmarshalling auction ID: %s", err)
+			s.dbLock.Unlock()
+			return
+		}
+
+		auctionIDList[*idStruct] = true
+
+		var placeRes *match.AuctionOrderIDPair
+		if placeRes, err = auctionEngine.PlaceAuctionOrder(acceptedOrder.Auction, idStruct); err != nil {
+			err = fmt.Errorf("Error placing auction order with async batch placer: %s", err)
+			s.dbLock.Unlock()
+			return
+		}
+
+		logging.Infof("Placed order %x for auction %x", placeRes.OrderID[:], acceptedOrder.Auction.AuctionID)
+
+	}
+
+	// Now we're going to match it
+	var currIDPtr *match.AuctionID
+	for id, _ := range auctionIDList {
+		// I don't want to reuse the `id` loop var pointer
+		currIDPtr = new(match.AuctionID)
+		*currIDPtr = id
+		// We ignore the Order executions because we're not doing anything about them yet
+		if _, _, err = auctionEngine.MatchAuctionOrders(currIDPtr); err != nil {
+			err = fmt.Errorf("Error matching orders for PlaceBatch: %s", err)
+			s.dbLock.Unlock()
+			return
+		}
+	}
+	return
+}
+
 // validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
 func (s *OpencxAuctionServer) validateEncryptedOrder(order *match.EncryptedAuctionOrder) (err error) {
 

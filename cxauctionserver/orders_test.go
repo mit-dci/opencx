@@ -2,8 +2,8 @@ package cxauctionserver
 
 import (
 	"testing"
+	"time"
 
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -30,22 +30,20 @@ var (
 func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 	var err error
 
-	logging.SetLogLevel(3)
-
-	t.Logf("Starting server...")
+	t.Logf("%s: Starting Server", time.Now())
 	var s *OpencxAuctionServer
 	if s, err = initTestServer(); err != nil {
 		t.Errorf("Error init test server for TestMemPlacePuzzledOrder: %s", err)
 		return
 	}
+	t.Logf("%s: Started Server", time.Now())
 
-	t.Logf("Starting auction")
+	t.Logf("%s: Starting Auction", time.Now())
 	if err = s.StartAuctionWithID(&testEncryptedOrder.IntendedPair, testEncryptedOrder.IntendedAuction); err != nil {
 		t.Errorf("Error starting auction with id for TestUltraLightPlacePuzzledOrder: %s", err)
 		return
 	}
-
-	t.Logf("Order difficulty: %d", testStandardAuctionTime)
+	t.Logf("%s: Started Auction", time.Now())
 
 	var orders []*match.EncryptedAuctionOrder
 	// Add a bunch of orders to the order list
@@ -53,19 +51,30 @@ func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 		orders = append(orders, testEncryptedOrder)
 	}
 
+	t.Logf("%s: Placing all orders", time.Now())
 	// Place a bunch of orders
 	for _, order := range orders {
 		// We can do this in sequence because it's going to start a goroutine anyways
 		s.PlacePuzzledOrder(order)
 		// Okay now we'll wait a little bit to make sure we see this memory issue in action
 	}
+	t.Logf("%s: Placed all orders", time.Now())
 
-	t.Logf("ending auction")
+	t.Logf("%s: Ending auction", time.Now())
 	// Wait for the auction to finish being batched
-	if _, err = s.EndAuctionWithID(&testEncryptedOrder.IntendedPair, testEncryptedOrder.IntendedAuction); err != nil {
+	var batchRes *match.AuctionBatch
+	if batchRes, err = s.EndAuctionWithID(&testEncryptedOrder.IntendedPair, testEncryptedOrder.IntendedAuction); err != nil {
 		t.Errorf("Error ending auction with ID for TestUltraLightPlacePuzzledOrder: %s", err)
 		return
 	}
+	t.Logf("%s: Ended auction", time.Now())
+
+	t.Logf("%s: Matching orders", time.Now())
+	if err = s.PlaceBatch(batchRes); err != nil {
+		t.Errorf("Error placing and matching batch: %s", err)
+		return
+	}
+	t.Logf("%s: Matched orders", time.Now())
 
 	return
 }
