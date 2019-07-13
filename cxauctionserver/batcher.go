@@ -135,12 +135,14 @@ func (ib *intermediateBatch) solveSingleOrder(eOrder *match.EncryptedAuctionOrde
 	result := new(match.OrderPuzzleResult)
 	result.Encrypted = eOrder
 
-	logging.Infof("Start of solve, num orders left: %d", ib.numOrders)
-
 	// send to channel at end of method
 	defer func() {
 		// Make sure we can actually send to this channel
-		logging.Infof("Try send, num orders left: %d", ib.numOrders)
+		// logging.Infof("Try send, num orders left: %d", ib.numOrders)
+
+		// interBatch.orderUpdateMtx.Lock()
+		// logging.Infof("Start of solve, num orders left: %d", ib.numOrders)
+		// interBatch.orderUpdateMtx.Unlock()
 		select {
 		case ib.orderChan <- result:
 			logging.Infof("Sent order to channel")
@@ -191,10 +193,10 @@ func (ab *ABatcher) AddEncrypted(order *match.EncryptedAuctionOrder) (err error)
 	}
 
 	interBatch.numOrders++
+	interBatch.orderUpdateMtx.Unlock()
 
 	go interBatch.solveSingleOrder(order)
 
-	interBatch.orderUpdateMtx.Unlock()
 	return
 }
 
@@ -216,12 +218,17 @@ func (ab *ABatcher) EndAuction(auctionID [32]byte) (batchChan chan *match.Auctio
 
 	ab.batchMapMtx.Unlock()
 
+	interBatch.orderUpdateMtx.Lock()
 	// now we have this other mutex because we are going to be checking and modifying the contents
 	if !interBatch.active {
 		err = fmt.Errorf("Cannot end inactive auction")
+		interBatch.orderUpdateMtx.Unlock()
 		return
 	}
+	interBatch.orderUpdateMtx.Unlock()
+	interBatch.orderUpdateMtx.Lock()
 	interBatch.active = false
+	interBatch.orderUpdateMtx.Unlock()
 	batchChan = interBatch.solvedChan
 	return
 }
