@@ -49,6 +49,16 @@ func (s *OpencxAuctionServer) AuctionClock(pair match.Pair, startID [32]byte) {
 
 		// TODO: configurable time, work out schedule, base it on the AuctionTime option
 		time.AfterFunc(time.Duration(s.t)*time.Microsecond, func() {
+			// Before we commit to anything, let's check that we should turn the clock off
+			select {
+			case <-s.clockOffButton:
+				// this is probably the jankiest code I've written but I don't care because
+				// this will all probably get rewritten and is the least important part
+				// of the system
+				s.clockOffButton <- true
+				return
+			default:
+			}
 			s.auctionTick(pair, currAuctionID, doneChan)
 		})
 

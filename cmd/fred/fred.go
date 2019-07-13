@@ -158,6 +158,10 @@ func main() {
 		logging.Fatalf("Error initializing server: \n%s", err)
 	}
 
+	if err = fredServer.StartClockRandomAuction(); err != nil {
+		logging.Fatalf("Error starting clock: %s", err)
+	}
+
 	// Register RPC Commands and set server
 	var rpcListener *cxauctionrpc.AuctionRPCCaller
 	if rpcListener, err = cxauctionrpc.CreateRPCForServer(fredServer); err != nil {

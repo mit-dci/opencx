@@ -2,8 +2,8 @@ package cxauctionserver
 
 import (
 	"testing"
-	"time"
 
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -27,12 +27,21 @@ var (
 	doneChan              = make(chan bool)
 )
 
-func TestMemPlacePuzzledOrder(t *testing.T) {
+func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 	var err error
 
+	logging.SetLogLevel(3)
+
+	t.Logf("Starting server...")
 	var s *OpencxAuctionServer
 	if s, err = initTestServer(); err != nil {
 		t.Errorf("Error init test server for TestMemPlacePuzzledOrder: %s", err)
+		return
+	}
+
+	t.Logf("Starting auction")
+	if err = s.StartAuctionWithID(&testEncryptedOrder.IntendedPair, testEncryptedOrder.IntendedAuction); err != nil {
+		t.Errorf("Error starting auction with id for TestUltraLightPlacePuzzledOrder: %s", err)
 		return
 	}
 
@@ -50,7 +59,28 @@ func TestMemPlacePuzzledOrder(t *testing.T) {
 		s.PlacePuzzledOrder(order)
 		// Okay now we'll wait a little bit to make sure we see this memory issue in action
 	}
-	time.Sleep(100 * time.Duration(testStandardAuctionTime))
+
+	t.Logf("ending auction")
+	// Wait for the auction to finish being batched
+	if _, err = s.EndAuctionWithID(&testEncryptedOrder.IntendedPair, testEncryptedOrder.IntendedAuction); err != nil {
+		t.Errorf("Error ending auction with ID for TestUltraLightPlacePuzzledOrder: %s", err)
+		return
+	}
+
+	return
+}
+
+func TestPlaceNilOrderUltraLight(t *testing.T) {
+	var err error
+
+	var s *OpencxAuctionServer
+	if s, err = initTestServer(); err != nil {
+		t.Errorf("Error initializing test server for TestCreateServer: %s", err)
+	}
+
+	if err = s.PlacePuzzledOrder(nil); err == nil {
+		t.Errorf("Placing a nil order succeeded! Should not be able to place a nil order!")
+	}
 
 	return
 }

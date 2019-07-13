@@ -21,6 +21,8 @@ var (
 	testCoins = []*coinparam.Params{
 		&coinparam.BitcoinParams,
 		&coinparam.VertcoinTestNetParams,
+		&coinparam.RegressionNetParams,
+		&coinparam.LiteRegNetParams,
 	}
 )
 
@@ -91,21 +93,6 @@ func TestCreateServer(t *testing.T) {
 
 	if _, err = initTestServer(); err != nil {
 		t.Errorf("Error initializing test server for TestCreateServer: %s", err)
-	}
-
-	return
-}
-
-func TestPlaceNilOrderUltraLight(t *testing.T) {
-	var err error
-
-	var s *OpencxAuctionServer
-	if s, err = initTestServer(); err != nil {
-		t.Errorf("Error initializing test server for TestCreateServer: %s", err)
-	}
-
-	if err = s.PlacePuzzledOrder(nil); err == nil {
-		t.Errorf("Placing a nil order succeeded! Should not be able to place a nil order!")
 	}
 
 	return
