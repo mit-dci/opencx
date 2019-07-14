@@ -99,10 +99,17 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 			b.Errorf("Error creating limit engine for pair: %s", err)
 		}
 
+		if engine == nil {
+			b.Errorf("Engine is nil?? this should not happen")
+		}
+
 		// Start it back up again, let's time this
 		b.StartTimer()
 
 		for _, order := range ordersToPlace {
+			if order == nil {
+				b.Errorf("Order is nil?? this should not happen")
+			}
 			if _, err = engine.PlaceLimitOrder(order); err != nil {
 				b.Errorf("Error placing limit order: %s", err)
 			}
@@ -140,7 +147,14 @@ func MatchNLimitOrders(howMany uint64, b *testing.B) {
 			b.Errorf("Error creating limit engine for pair: %s", err)
 		}
 
+		if engine == nil {
+			b.Errorf("Engine is nil? This shouldn't happen")
+		}
+
 		for _, order := range ordersToPlace {
+			if order == nil {
+				b.Errorf("Order is nil? This shouldn't happen")
+			}
 			if _, err = engine.PlaceLimitOrder(order); err != nil {
 				b.Errorf("Error placing limit order: %s", err)
 			}
@@ -186,11 +200,18 @@ func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 			b.Errorf("Error creating limit engine for pair: %s", err)
 		}
 
+		if engine == nil {
+			b.Errorf("Engine is nil? This shouldn't happen")
+		}
+
 		// TODO: handle unhandled, erroring matching case where you have one order in, or there isn't a min / max price for buy/sell
 
 		// Start it back up again, let's time this
 		b.StartTimer()
 		for _, order := range ordersToPlace {
+			if order == nil {
+				b.Errorf("Order is nil? This shouldn't happen")
+			}
 			if _, err = engine.PlaceLimitOrder(order); err != nil {
 				b.Errorf("Error placing limit order: %s", err)
 			}
