@@ -33,7 +33,7 @@ func initTestServerTime(t uint64) (s *OpencxAuctionServer, err error) {
 	numcpu := uint64(runtime.NumCPU())
 
 	// Initialize the test server
-	if s, err = createUltraLightAuctionServer(testCoins, testOrderChanSize, t, numcpu); err != nil {
+	if s, err = createUltraLightAuctionServer(testCoins, testOrderChanSize, t, numcpu*100); err != nil {
 		err = fmt.Errorf("Error initializing server for tests: %s", err)
 		return
 	}

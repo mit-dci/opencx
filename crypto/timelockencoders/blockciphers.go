@@ -65,6 +65,11 @@ func CreatePuzzleRC5(t uint64, message []byte, puzzleCreator func(uint64, []byte
 		return
 	}
 
+	if len(key) != 16 {
+		err = fmt.Errorf("Error with key size")
+		return
+	}
+
 	// Create the cipher
 	var RC5Cipher cipher.Block
 	if RC5Cipher, err = rc5.New(key); err != nil {

@@ -191,7 +191,9 @@ func (tl *TimelockRSW) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answ
 	}
 
 	// if this is xor then the ck, err = blah like needs to be xor as well
-	answer = new(big.Int).Xor(ck, b).Bytes()
+	xorBytes := new(big.Int).Xor(ck, b).Bytes()
+	answer = make([]byte, 16)
+	copy(answer, xorBytes)
 	return
 }
 
