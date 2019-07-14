@@ -364,9 +364,20 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 	maxSellRow = tx.QueryRow(getMaxSellPrice)
 
 	var maxSell float64
-	if err = maxSellRow.Scan(&maxSell); err != nil {
+	var maxSellSqlNullable sql.NullFloat64
+	if err = maxSellRow.Scan(&maxSellSqlNullable); err != nil && err != sql.ErrNoRows {
 		err = fmt.Errorf("Error scanning max sell row: %s", err)
 		return
+	} else if err != nil && err == sql.ErrNoRows {
+		// this should never happen but hey if it does we should exit, and not error because that would mean no max
+		return
+	}
+
+	// if nothing came back (no max) then what are we gonna do
+	if !maxSellSqlNullable.Valid {
+		return
+	} else {
+		maxSell = maxSellSqlNullable.Float64
 	}
 
 	var minBuyRow *sql.Row
@@ -375,10 +386,22 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 	minBuyRow = tx.QueryRow(getminBuyPrice)
 
 	var minBuy float64
-	if err = minBuyRow.Scan(&minBuy); err != nil {
+	var minBuySqlNullable sql.NullFloat64
+	if err = minBuyRow.Scan(&minBuySqlNullable); err != nil && err != sql.ErrNoRows {
 		err = fmt.Errorf("Error scanning min buy row: %s", err)
 		return
+	} else if err != nil && err == sql.ErrNoRows {
+		// this should never happen but hey if it does we should exit, and not error because that would mean no min
+		return
 	}
+
+	// if nothing came back (no min) then what are we gonna do
+	if !minBuySqlNullable.Valid {
+		return
+	} else {
+		minBuy = minBuySqlNullable.Float64
+	}
+
 	// In our prices, if the min buy < max sell, we start to match orders. Otherwise, we can just quit.
 	if minBuy > maxSell {
 		return
