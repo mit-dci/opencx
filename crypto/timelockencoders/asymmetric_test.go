@@ -9,7 +9,7 @@ func TestRSWRSA(t *testing.T) {
 	message := make([]byte, 32)
 	copy(message, []byte("RSW96 Full Scheme but with RSA"))
 	// This should take a couple seconds
-	ciphertext, puzzle, err := CreateRSW2048A2PuzzleRSA(1000000, message)
+	ciphertext, puzzle, err := CreateRSW2048A2PuzzleRSA(1000, message)
 	if err != nil {
 		t.Fatalf("Error creating puzzle: %s", err)
 	}

@@ -136,7 +136,7 @@ func createSolveBench2048A2(time uint64, b *testing.B) {
 
 func createSolveTest2048A2(time uint64, t *testing.T) {
 	key := make([]byte, 32)
-	copy(key[:], []byte(fmt.Sprintf("opencxcreatesolve%d", time)))
+	copy(key, []byte(fmt.Sprintf("opencxcreatesolve%d", time)))
 	rswTimelock, err := New2048A2(key)
 	if err != nil {
 		t.Fatalf("There was an error creating a new timelock puzzle: %s", err)
@@ -157,7 +157,7 @@ func createSolveTest2048A2(time uint64, t *testing.T) {
 
 func createTest2048A2(time uint64, t *testing.T) {
 	key := make([]byte, 32)
-	copy(key[:], []byte(fmt.Sprintf("opencx%d", time)))
+	copy(key, []byte(fmt.Sprintf("opencx%d", time)))
 	rswTimelock, err := New2048A2(key)
 	if err != nil {
 		t.Fatalf("There was an error creating a new timelock puzzle: %s", err)

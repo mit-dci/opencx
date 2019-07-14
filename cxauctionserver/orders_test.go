@@ -69,6 +69,7 @@ func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 
 	baseOrder := *testAuctionOrder
 
+	fmt.Printf("Adding orders...\n")
 	var orders []*match.EncryptedAuctionOrder
 	// Add a bunch of orders to the order list
 	var newEncrypted *match.EncryptedAuctionOrder
@@ -83,6 +84,7 @@ func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 
 	t.Logf("%s: Placing all orders", time.Now())
 
+	fmt.Printf("placing orders...\n")
 	// Place a bunch of orders
 	for _, order := range orders {
 		// We can do this in sequence because it's going to start a goroutine anyways
@@ -127,7 +129,7 @@ func TestPlaceNilOrderUltraLight(t *testing.T) {
 
 func BenchmarkAllThingsAutomated(b *testing.B) {
 
-	for _, n := range []uint64{10, 100, 1000, 10000} {
+	for _, n := range []uint64{10, 100} {
 		for _, m := range []uint64{1, 2, 4, 8, 16} {
 			b.Run(fmt.Sprintf("BenchmarkOrderThroughput%dn%dm", n, m), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
