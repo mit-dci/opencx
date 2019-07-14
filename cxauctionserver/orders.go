@@ -326,6 +326,20 @@ func (s *OpencxAuctionServer) validateBatch(auctionBatch *match.AuctionBatch) (b
 // validateOrder is how the server checks that an order is valid, and checks out with its corresponding encrypted order
 func (s *OpencxAuctionServer) validateOrderResult(claimedAuction [32]byte, result *match.OrderPuzzleResult) (err error) {
 
+	if result == nil {
+		err = fmt.Errorf("Result cannot be nil, please enter valid input")
+		return
+	}
+
+	if result.Auction == nil {
+		err = fmt.Errorf("Auction in result cannot be nil, please enter valid input")
+		return
+	}
+
+	if result.Encrypted == nil {
+		err = fmt.Errorf("Encrypted order in result cannot be nil, please enter valid input")
+		return
+	}
 	logging.Infof("Validating order by pubkey %x", result.Auction.Pubkey)
 
 	if result.Err != nil {

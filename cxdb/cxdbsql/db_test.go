@@ -118,6 +118,61 @@ func killDatabaseFunc(t *testing.T) {
 	return
 }
 
+// takes in a t so we can log things
+func createUserAndDatabaseBench() (killThemBoth func(b *testing.B), err error) {
+
+	var killUserFunc func() (err error)
+
+	// create user first, then return killer
+	if killUserFunc, err = createOpencxUser(); err != nil {
+		err = fmt.Errorf("Error creating opencx user while creating both: %s", err)
+		return
+	}
+
+	killThemBoth = func(b *testing.B) {
+		// kill user first then database
+		if err = killUserFunc(); err != nil {
+			b.Errorf("Error killing user while killing both: %s", err)
+			return
+		}
+		killDatabaseFuncBench(b)
+		return
+	}
+	return
+}
+
+func killDatabaseFuncBench(b *testing.B) {
+	var err error
+
+	var dbAddr net.Addr
+	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
+		b.Errorf("Error resolving conf derived address for killDatabaseFunc: %s", err)
+	}
+
+	// create open string for db
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr.String())
+
+	// this is the root user!
+	var dbHandle *sql.DB
+	if dbHandle, err = sql.Open("mysql", openString); err != nil {
+		b.Errorf("Error opening db to create testing user: %s", err)
+		return
+	}
+
+	// make sure we close the connection at the end
+	defer dbHandle.Close()
+
+	for _, schema := range getSchemasFromConfig(testConfig()) {
+		if schema != "" {
+			if _, err = dbHandle.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", schema)); err != nil {
+				b.Errorf("Error dropping db for testing: %s", err)
+				return
+			}
+		}
+	}
+
+	return
+}
 func getSchemasFromConfig(conf *dbsqlConfig) (schemas []string) {
 	return []string{
 		conf.PuzzleSchemaName,

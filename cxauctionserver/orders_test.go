@@ -2,6 +2,7 @@ package cxauctionserver
 
 import (
 	"encoding/binary"
+	"fmt"
 	"runtime"
 	"testing"
 	"time"
@@ -124,86 +125,75 @@ func TestPlaceNilOrderUltraLight(t *testing.T) {
 	return
 }
 
-func BenchmarkOrderThroughput10(b *testing.B) {
-	throughtputNBench(10, b)
+func BenchmarkAllThingsAutomated(b *testing.B) {
+
+	for _, n := range []uint64{10, 100, 1000, 10000} {
+		for _, m := range []uint64{1, 2, 4, 8, 16} {
+			b.Run(fmt.Sprintf("BenchmarkOrderThroughput%dn%dm", n, m), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					throughputMNBench(n, m, b)
+				}
+
+			})
+		}
+	}
+
 	return
 }
 
-func BenchmarkOrderThroughput100(b *testing.B) {
-	throughtputNBench(100, b)
-	return
-}
-
-func BenchmarkOrderThroughput1000(b *testing.B) {
-	throughtputNBench(1000, b)
-	return
-}
-
-func BenchmarkOrderThroughput10000(b *testing.B) {
-	throughtputNBench(10000, b)
-	return
-}
-
-func BenchmarkOrderThroughput100000(b *testing.B) {
-	throughtputNBench(100000, b)
-	return
-}
-
-func throughtputNBench(n uint64, b *testing.B) {
+func throughputMNBench(n uint64, m uint64, b *testing.B) {
 	var err error
 
 	cpus := runtime.NumCPU()
 
-	for i := 0; i < b.N; i++ {
-		var modEncrypted *match.EncryptedAuctionOrder = new(match.EncryptedAuctionOrder)
-		*modEncrypted = *testEncryptedOrder
+	var modEncrypted *match.EncryptedAuctionOrder = new(match.EncryptedAuctionOrder)
+	*modEncrypted = *testEncryptedOrder
 
-		// First start the server with the correct time
-		var s *OpencxAuctionServer
-		if s, err = initTestServerTime(n); err != nil {
-			b.Errorf("Error init test server for TestMemPlacePuzzledOrder: %s", err)
+	// First start the server with the correct time
+	var s *OpencxAuctionServer
+	if s, err = initTestServerTime(n); err != nil {
+		b.Errorf("Error init test server for TestMemPlacePuzzledOrder: %s", err)
+		return
+	}
+
+	if err = s.StartAuctionWithID(&modEncrypted.IntendedPair, modEncrypted.IntendedAuction); err != nil {
+		b.Errorf("Error starting auction with id for TestUltraLightPlacePuzzledOrder: %s", err)
+		return
+	}
+
+	baseOrder := *testAuctionOrder
+
+	var orders []*match.EncryptedAuctionOrder
+
+	// Add a bunch of orders to the order list -- as many as we can
+	var newEncrypted *match.EncryptedAuctionOrder
+	for a := uint64(0); a < uint64(cpus)*m; a++ {
+		// We increment the nonce so orders are unique
+		baseOrder.Nonce = incrementNonce(baseOrder.Nonce)
+		if newEncrypted, err = (&baseOrder).TurnIntoEncryptedOrder(n); err != nil {
+			b.Logf("Error turning base order into timelock encrypted order, skipping: %s", err)
 			return
 		}
+		orders = append(orders, newEncrypted)
+	}
 
-		if err = s.StartAuctionWithID(&modEncrypted.IntendedPair, modEncrypted.IntendedAuction); err != nil {
-			b.Errorf("Error starting auction with id for TestUltraLightPlacePuzzledOrder: %s", err)
-			return
-		}
+	// Place a bunch of orders
+	for _, order := range orders {
+		// We can do this in sequence because it's going to start a goroutine anyways
+		s.PlacePuzzledOrder(order)
+		// Okay now we'll wait a little bit to make sure we see this memory issue in action
+	}
 
-		baseOrder := *testAuctionOrder
+	// Wait for the auction to finish being batched
+	var batchRes *match.AuctionBatch
+	if batchRes, err = s.EndAuctionWithID(&modEncrypted.IntendedPair, modEncrypted.IntendedAuction); err != nil {
+		b.Errorf("Error ending auction with ID for TestUltraLightPlacePuzzledOrder: %s", err)
+		return
+	}
 
-		var orders []*match.EncryptedAuctionOrder
-
-		// Add a bunch of orders to the order list -- as many as we can
-		var newEncrypted *match.EncryptedAuctionOrder
-		for a := 0; a < cpus; a++ {
-			// We increment the nonce so orders are unique
-			baseOrder.Nonce = incrementNonce(baseOrder.Nonce)
-			if newEncrypted, err = (&baseOrder).TurnIntoEncryptedOrder(n); err != nil {
-				b.Logf("Error turning base order into timelock encrypted order, skipping: %s", err)
-				return
-			}
-			orders = append(orders, newEncrypted)
-		}
-
-		// Place a bunch of orders
-		for _, order := range orders {
-			// We can do this in sequence because it's going to start a goroutine anyways
-			s.PlacePuzzledOrder(order)
-			// Okay now we'll wait a little bit to make sure we see this memory issue in action
-		}
-
-		// Wait for the auction to finish being batched
-		var batchRes *match.AuctionBatch
-		if batchRes, err = s.EndAuctionWithID(&modEncrypted.IntendedPair, modEncrypted.IntendedAuction); err != nil {
-			b.Errorf("Error ending auction with ID for TestUltraLightPlacePuzzledOrder: %s", err)
-			return
-		}
-
-		if err = s.PlaceBatch(batchRes); err != nil {
-			b.Errorf("Error placing and matching batch: %s", err)
-			return
-		}
+	if err = s.PlaceBatch(batchRes); err != nil {
+		b.Errorf("Error placing and matching batch: %s", err)
+		return
 	}
 
 	return

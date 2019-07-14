@@ -1,10 +1,14 @@
 package cxdbsql
 
 import (
+	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/match"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -73,4 +77,164 @@ func TestPlaceSingleAuctionOrder(t *testing.T) {
 	}
 
 	killFunc(t)
+}
+
+func BenchmarkAllAuction(b *testing.B) {
+
+	for _, howMany := range []uint64{1, 10, 100, 1000} {
+		PlaceNAuctionOrders(howMany, b)
+		MatchNAuctionOrders(howMany, b)
+	}
+
+}
+
+func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
+	var err error
+
+	var idStruct *match.AuctionID = new(match.AuctionID)
+	if err = idStruct.UnmarshalBinary(testEncryptedOrder.IntendedAuction[:]); err != nil {
+		b.Errorf("Error unmarshalling auction ID: %s", err)
+	}
+
+	var ordersToPlace []*match.AuctionOrder
+	if ordersToPlace, err = fuzzManyOrders(howMany, testEncryptedOrder.IntendedPair); err != nil {
+		b.Errorf("Error fuzzing many orders: %s", err)
+	}
+
+	b.Run(fmt.Sprintf("Place%dAuctionOrders", howMany), func(b *testing.B) {
+
+		// Stop the timer because we're doing initialization stuff
+		b.StopTimer()
+
+		// We do all of this within the loop because otherwise the database unfortunately persists and we get duplicate key errors
+		var killFunc func(b *testing.B)
+		if killFunc, err = createUserAndDatabaseBench(); err != nil {
+			b.Skipf("Error creating user and database, skipping: %s", err)
+		}
+
+		var engine match.AuctionEngine
+		if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+			b.Errorf("Error creating auction engine for pair: %s", err)
+		}
+
+		// Start it back up again, let's time this
+		b.StartTimer()
+
+		for _, order := range ordersToPlace {
+			if _, err = engine.PlaceAuctionOrder(order, idStruct); err != nil {
+				b.Errorf("Error placing auction order: %s", err)
+			}
+		}
+
+		// We've got all that we need, let's stop it
+		b.StopTimer()
+
+		killFunc(b)
+	})
+
+}
+
+func MatchNAuctionOrders(howMany uint64, b *testing.B) {
+	var err error
+
+	var idStruct *match.AuctionID = new(match.AuctionID)
+	if err = idStruct.UnmarshalBinary(testEncryptedOrder.IntendedAuction[:]); err != nil {
+		b.Errorf("Error unmarshalling auction ID: %s", err)
+	}
+
+	var ordersToPlace []*match.AuctionOrder
+	if ordersToPlace, err = fuzzManyOrders(howMany, testEncryptedOrder.IntendedPair); err != nil {
+		b.Errorf("Error fuzzing many orders: %s", err)
+	}
+
+	b.Run(fmt.Sprintf("Match%dAuctionOrders", howMany), func(b *testing.B) {
+
+		// Stop the timer because we're doing initialization stuff
+		b.StopTimer()
+
+		// We do all of this within the loop because otherwise the database unfortunately persists and we get duplicate key errors
+		var killFunc func(b *testing.B)
+		if killFunc, err = createUserAndDatabaseBench(); err != nil {
+			b.Skipf("Error creating user and database, skipping: %s", err)
+		}
+
+		var engine match.AuctionEngine
+		if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+			b.Errorf("Error creating auction engine for pair: %s", err)
+		}
+
+		for _, order := range ordersToPlace {
+			if _, err = engine.PlaceAuctionOrder(order, idStruct); err != nil {
+				b.Errorf("Error placing auction order: %s", err)
+			}
+		}
+
+		// Start it back up again, let's time this
+		b.StartTimer()
+
+		if _, _, err = engine.MatchAuctionOrders(idStruct); err != nil {
+			b.Errorf("Error matching auction orders: %s", err)
+		}
+
+		// We've got all that we need, let's stop it
+		b.StopTimer()
+
+		killFunc(b)
+	})
+
+}
+
+// fuzzManyOrders creates a bunch of orders that have some random amounts, to make the clearing price super random
+// It creates a new private key for every order, signs it after constructing it, etc.
+func fuzzManyOrders(howMany uint64, pair match.Pair) (orders []*match.AuctionOrder, err error) {
+	// want this to be seeded so it's reproducible
+
+	// 21 million is max amount
+	maxAmount := int64(2100000000000000)
+	r := rand.New(rand.NewSource(1801))
+	orders = make([]*match.AuctionOrder, howMany)
+	for i := uint64(0); i < howMany; i++ {
+		currOrder := new(match.AuctionOrder)
+		var ephemeralPrivKey *koblitz.PrivateKey
+		if ephemeralPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+			err = fmt.Errorf("Error generating new private key: %s", err)
+			return
+		}
+		currOrder.AmountWant = uint64(r.Int63n(maxAmount) + 1)
+		currOrder.AmountHave = uint64(r.Int63n(maxAmount) + 1)
+		if _, err = r.Read(currOrder.Nonce[:]); err != nil {
+			err = fmt.Errorf("Cannot read random order nonce for FuzzManyOrders: %s", err)
+			return
+		}
+		if r.Int63n(2) == 0 {
+			currOrder.Side = "buy"
+		} else {
+			currOrder.Side = "sell"
+		}
+		currOrder.AuctionID = [32]byte{0xde, 0xad, 0xbe, 0xef}
+		currOrder.TradingPair = match.Pair{
+			AssetWant: btcreg,
+			AssetHave: litereg,
+		}
+		pubkeyBytes := ephemeralPrivKey.PubKey().SerializeCompressed()
+		copy(currOrder.Pubkey[:], pubkeyBytes)
+
+		// now we hash the order
+		orderBytes := currOrder.SerializeSignable()
+		hasher := sha3.New256()
+		hasher.Write(orderBytes)
+
+		var sig *koblitz.Signature
+		if sig, err = ephemeralPrivKey.Sign(hasher.Sum(nil)); err != nil {
+			err = fmt.Errorf("Error signing order: %s", err)
+			return
+		}
+		sigBytes := sig.Serialize()
+		currOrder.Signature = make([]byte, len(sigBytes))
+		copy(currOrder.Signature[:], sigBytes)
+		// It's all done!!!! Add it to the list!
+		orders[i] = currOrder
+	}
+
+	return
 }

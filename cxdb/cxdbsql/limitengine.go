@@ -38,6 +38,49 @@ const (
 	sqlTimeFormat     = "2006-01-02 15:04:05"
 )
 
+func CreateLimitEngineWithConf(pair *match.Pair, conf *dbsqlConfig) (engine match.LimitEngine, err error) {
+	// Set the default conf
+	dbConfigSetup(conf)
+
+	// Resolve new address
+	var addr net.Addr
+	if addr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(conf.DBHost, fmt.Sprintf("%d", conf.DBPort))); err != nil {
+		err = fmt.Errorf("Couldn't resolve db address for CreateLimitEngineWithConf: %s", err)
+		return
+	}
+
+	// Set values
+	le := &SQLLimitEngine{
+		dbUsername:  conf.DBUsername,
+		dbPassword:  conf.DBPassword,
+		orderSchema: conf.OrderSchemaName,
+		dbAddr:      addr,
+		pair:        pair,
+	}
+
+	if err = le.setupLimitOrderbookTables(); err != nil {
+		err = fmt.Errorf("Error setting up limit orderbook tables while creating engine: %s", err)
+		return
+	}
+
+	// Now connect to the database and create the schemas / tables
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", le.dbUsername, le.dbPassword, le.dbAddr.Network(), le.dbAddr.String())
+	if le.DBHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening database for CreateLimitEngineWithConf: %s", err)
+		return
+	}
+
+	// Make sure we can actually connect
+	if err = le.DBHandler.Ping(); err != nil {
+		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+
+	// now we actually set the return, all checks have passed
+	engine = le
+	return
+}
+
 // CreateLimitEngine creates a limit matching engine that operates using SQL as a database
 func CreateLimitEngine(pair *match.Pair) (engine match.LimitEngine, err error) {
 
