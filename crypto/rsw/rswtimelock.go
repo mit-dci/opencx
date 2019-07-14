@@ -192,21 +192,38 @@ func (tl *TimelockRSW) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answ
 
 	// if this is xor then the ck, err = blah like needs to be xor as well
 	xorBytes := new(big.Int).Xor(ck, b).Bytes()
-	answer = make([]byte, 16)
+	if len(xorBytes) <= 16 {
+		answer = make([]byte, 16)
+	} else {
+		answer = make([]byte, len(xorBytes))
+	}
 	copy(answer, xorBytes)
 	return
 }
 
 // SolveCkADD solves the puzzle by repeated squarings and subtracting b from ck
 func (pz *PuzzleRSW) SolveCkADD() (answer []byte, err error) {
-	// One liner!
-	return new(big.Int).Sub(pz.CK, new(big.Int).Exp(pz.A, new(big.Int).Exp(big.NewInt(2), pz.T, nil), pz.N)).Bytes(), nil
+	// Make sure that the answer is 16 bytes long, padded
+	ansBytes := new(big.Int).Sub(pz.CK, new(big.Int).Exp(pz.A, new(big.Int).Exp(big.NewInt(2), pz.T, nil), pz.N)).Bytes()
+	if len(ansBytes) <= 16 {
+		answer = make([]byte, 16)
+	} else {
+		answer = make([]byte, len(ansBytes))
+	}
+	copy(answer, ansBytes)
+	return
 }
 
 // SolveCkXOR solves the puzzle by repeated squarings and xor b with ck
 func (pz *PuzzleRSW) SolveCkXOR() (answer []byte, err error) {
-	// One liner!
-	return new(big.Int).Xor(pz.CK, new(big.Int).Exp(pz.A, new(big.Int).Exp(big.NewInt(2), pz.T, nil), pz.N)).Bytes(), nil
+	// Make sure that the answer is 16 bytes long, padded
+	ansBytes := new(big.Int).Xor(pz.CK, new(big.Int).Exp(pz.A, new(big.Int).Exp(big.NewInt(2), pz.T, nil), pz.N)).Bytes()
+	if len(ansBytes) <= 16 {
+		answer = make([]byte, 16)
+	} else {
+		answer = make([]byte, len(ansBytes))
+	}
+	return
 }
 
 // Solve solves the puzzle by repeated squarings
@@ -220,13 +237,16 @@ func (pz *PuzzleRSW) SolveGMPCkXOR() (answer []byte, err error) {
 	// No longer a one liner but many times faster
 	// return new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).Exp(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).Exp(gmpbig.NewInt(2), new(gmpbig.Int).SetBytes(pz.T.Bytes()), nil), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
 	// we're using a fork now!
-	return new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).ExpSquare(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).SetBytes(pz.T.Bytes()), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
+	// make sure it's 16 bytes long padded
+	ansBytes := new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).ExpSquare(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).SetBytes(pz.T.Bytes()), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes()
+	if len(ansBytes) <= 16 {
+		answer = make([]byte, 16)
+	} else {
+		answer = make([]byte, len(ansBytes))
+	}
+	copy(answer, ansBytes)
+	return
 }
-
-// func (pz *PuzzleRSW) SolveDanGMPCkXOR() (answer []byte, err error) {
-// 	// One line and doesn't use all the memory
-// 	return new(danbig.Int).Xor(new(danbig.Int).SetBytes(pz.CK.Bytes()), new(danbig.Int).ExpSquare(new(danbig.Int).SetBytes(pz.A.Bytes()), new(danbig.Int).SetBytes(pz.T.Bytes()), new(danbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
-// }
 
 // SolveGMPCkADD solves the puzzle by repeated squarings and xor b with ck using the GMP library
 func (pz *PuzzleRSW) SolveGMPCkADD() (answer []byte, err error) {
@@ -235,9 +255,15 @@ func (pz *PuzzleRSW) SolveGMPCkADD() (answer []byte, err error) {
 	gmpa := new(gmpbig.Int).SetBytes(pz.A.Bytes())
 	gmpt := new(gmpbig.Int).SetBytes(pz.T.Bytes())
 	gmpn := new(gmpbig.Int).SetBytes(pz.N.Bytes())
-	// return new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).Exp(gmpa, new(gmpbig.Int).Exp(gmpbig.NewInt(2), gmpt, nil), gmpn)).Bytes(), nil
-	// Yay memory
-	return new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).ExpSquare(gmpa, gmpt, gmpn)).Bytes(), nil
+	// The answer is padded when we create it, so it should be padded when we solve
+	ansBytes := new(gmpbig.Int).Sub(gmpck, new(gmpbig.Int).ExpSquare(gmpa, gmpt, gmpn)).Bytes()
+	if len(ansBytes) <= 16 {
+		answer = make([]byte, 16)
+	} else {
+		answer = make([]byte, len(ansBytes))
+	}
+	copy(answer, ansBytes)
+	return
 }
 
 // Serialize turns the RSW puzzle into something that can be sent over the wire
