@@ -187,6 +187,21 @@ func (le *SQLLimitEngine) setupLimitOrderbookTables() (err error) {
 // PlaceLimitOrder places an order in the limit matching engine.
 // This assumes that the order is valid and is for the same pair as the matching engine
 func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match.LimitOrderIDPair, err error) {
+	if order == nil {
+		err = fmt.Errorf("Cannot place nil order, please enter valid input")
+		return
+	}
+
+	if le.pair == nil {
+		err = fmt.Errorf("Cannot place order with nil pair, please enter valid input")
+		return
+	}
+
+	if le.DBHandler == nil {
+		err = fmt.Errorf("Cannot place order with nil DBHandler, please set up limit engine correctly")
+		return
+	}
+
 	// First, get the time.
 	placementTime := time.Now()
 	placementTimeFormatted := placementTime.Format(sqlTimeFormat)
@@ -242,7 +257,11 @@ func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match
 		Price:     price,
 		Timestamp: placementTime,
 	}
-	copy(idRes.OrderID[:], hashedOrder)
+
+	if err = idRes.OrderID.UnmarshalBinary(hashedOrder); err != nil {
+		err = fmt.Errorf("Could not unmarshal orderdi for PlaceLimitOrder: %s", err)
+		return
+	}
 	return
 }
 
