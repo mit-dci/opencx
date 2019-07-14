@@ -81,7 +81,7 @@ func TestPlaceSingleAuctionOrder(t *testing.T) {
 
 func BenchmarkAllAuction(b *testing.B) {
 
-	for _, howMany := range []uint64{1, 10, 100, 1000} {
+	for _, howMany := range []uint64{1, 10, 100, 1000, 10000} {
 		PlaceNAuctionOrders(howMany, b)
 		MatchNAuctionOrders(howMany, b)
 	}

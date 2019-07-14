@@ -67,7 +67,7 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 
 func BenchmarkAllLimit(b *testing.B) {
 
-	for _, howMany := range []uint64{1, 10, 100, 1000} {
+	for _, howMany := range []uint64{1, 10, 100, 1000, 10000, 100000} {
 		PlaceNLimitOrders(howMany, b)
 		MatchNLimitOrders(howMany, b)
 		PlaceMatchNLimitOrders(howMany, b)
