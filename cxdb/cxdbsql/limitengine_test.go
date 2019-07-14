@@ -110,6 +110,9 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 			if order == nil {
 				b.Errorf("Order is nil?? this should not happen")
 			}
+			if engine == nil {
+				b.Errorf("Engine is nil?? this should not happen")
+			}
 			if _, err = engine.PlaceLimitOrder(order); err != nil {
 				b.Errorf("Error placing limit order: %s", err)
 			}
