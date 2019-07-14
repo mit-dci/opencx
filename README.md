@@ -18,7 +18,9 @@ OpenCX hopes to solve this problem by making it trivially easy to run a secure, 
   - *More to come...*
 
 Additionally, all of the components of OpenCX are designed to be swappable, secure, and scalable.
-The goal is to fit those requirements well enough to be competitive with modern cryptocurrency exchanges, while keeping high quality software.
+The goal is to fit those requirements and implement features similar to that of modern cryptocurrency exchanges, while keeping high quality software.
+
+**DO NOT use in a production environment, this project is a work in progress!**
 
 *Pull requests and issues encouraged!*
 
