@@ -26,10 +26,16 @@ var (
 func TestCreateLimitEngineAllParams(t *testing.T) {
 	var err error
 
-	var killFunc func(t *testing.T)
-	if killFunc, err = createUserAndDatabase(); err != nil {
-		t.Skipf("Error creating user and database, skipping: %s", err)
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		t.Errorf("Error creating tester container: %s", err)
 	}
+
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			t.Errorf("Error killing tester container: %s", err)
+		}
+	}()
 
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(constCoinParams()); err != nil {
@@ -42,16 +48,21 @@ func TestCreateLimitEngineAllParams(t *testing.T) {
 		}
 	}
 
-	killFunc(t)
 }
 
 func TestPlaceSingleLimitOrder(t *testing.T) {
 	var err error
 
-	var killFunc func(t *testing.T)
-	if killFunc, err = createUserAndDatabase(); err != nil {
-		t.Skipf("Error creating user and database, skipping: %s", err)
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		t.Errorf("Error creating tester container: %s", err)
 	}
+
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			t.Errorf("Error killing tester container: %s", err)
+		}
+	}()
 
 	var engine match.LimitEngine
 	if engine, err = CreateLimitEngineWithConf(&testLimitOrder.TradingPair, testConfig()); err != nil {
@@ -62,119 +73,184 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 		t.Errorf("Error placing limit order: %s", err)
 	}
 
-	killFunc(t)
 }
 
 func BenchmarkAllLimit(b *testing.B) {
 
-	for _, howMany := range []uint64{1, 10, 100, 1000, 10000, 100000} {
-		PlaceNLimitOrders(howMany, b)
-		MatchNLimitOrders(howMany, b)
-		PlaceMatchNLimitOrders(howMany, b)
+	for _, howMany := range []uint64{1, 10, 100, 1000} {
+		b.Run(fmt.Sprintf("Place%dLimitOrders", howMany), func(b *testing.B) {
+			PlaceNLimitOrders(howMany, b)
+		})
+		b.Run(fmt.Sprintf("Match%dLimitOrders", howMany), func(b *testing.B) {
+			MatchNLimitOrders(howMany, b)
+		})
+		b.Run(fmt.Sprintf("PlaceMatch%dLimitOrders", howMany), func(b *testing.B) {
+			PlaceMatchNLimitOrders(howMany, b)
+		})
 	}
 
 }
 
+func BenchmarkPlaceMatch1LimitOrders(b *testing.B) {
+	PlaceMatchNLimitOrders(1, b)
+	return
+}
+
+func BenchmarkPlaceMatch10LimitOrders(b *testing.B) {
+	PlaceMatchNLimitOrders(10, b)
+	return
+}
+
+func BenchmarkPlaceMatch100LimitOrders(b *testing.B) {
+	PlaceMatchNLimitOrders(100, b)
+	return
+}
+
+func BenchmarkPlaceMatch1000LimitOrders(b *testing.B) {
+	PlaceMatchNLimitOrders(1000, b)
+	return
+}
+
+func BenchmarkMatch1LimitOrders(b *testing.B) {
+	MatchNLimitOrders(1, b)
+	return
+}
+
+func BenchmarkMatch10LimitOrders(b *testing.B) {
+	MatchNLimitOrders(10, b)
+	return
+}
+
+func BenchmarkMatch100LimitOrders(b *testing.B) {
+	MatchNLimitOrders(100, b)
+	return
+}
+
+func BenchmarkMatch1000LimitOrders(b *testing.B) {
+	MatchNLimitOrders(1000, b)
+	return
+}
+
+func BenchmarkPlace1LimitOrders(b *testing.B) {
+	PlaceNLimitOrders(1, b)
+	return
+}
+
+func BenchmarkPlace10LimitOrders(b *testing.B) {
+	PlaceNLimitOrders(10, b)
+	return
+}
+
+func BenchmarkPlace100LimitOrders(b *testing.B) {
+	PlaceNLimitOrders(100, b)
+	return
+}
+
+func BenchmarkPlace1000LimitOrders(b *testing.B) {
+	PlaceNLimitOrders(1000, b)
+	return
+}
+
 func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 	var err error
+
+	// Stop the timer because we're doing initialization stuff
+	b.StopTimer()
 
 	var ordersToPlace []*match.LimitOrder
 	if ordersToPlace, err = fuzzManyLimitOrders(howMany, testLimitOrder.TradingPair); err != nil {
 		b.Errorf("Error fuzzing many orders: %s", err)
 	}
 
-	b.Run(fmt.Sprintf("Place%dLimitOrders", howMany), func(b *testing.B) {
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		b.Errorf("Error creating tester container: %s", err)
+	}
 
-		// Stop the timer because we're doing initialization stuff
-		b.StopTimer()
-
-		// We do all of this within the loop because otherwise the database unfortunately persists and we get duplicate key errors
-		var killFunc func(b *testing.B)
-		if killFunc, err = createUserAndDatabaseBench(); err != nil {
-			b.Skipf("Error creating user and database, skipping: %s", err)
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			b.Errorf("Error killing tester container: %s", err)
 		}
+	}()
 
-		var engine match.LimitEngine
-		if engine, err = CreateLimitEngineWithConf(&testLimitOrder.TradingPair, testConfig()); err != nil {
-			b.Errorf("Error creating limit engine for pair: %s", err)
+	var engine match.LimitEngine
+	if engine, err = CreateLimitEngineWithConf(&testLimitOrder.TradingPair, testConfig()); err != nil {
+		b.Errorf("Error creating limit engine for pair: %s", err)
+	}
+
+	if engine == nil {
+		b.Errorf("Engine is nil?? this should not happen")
+	}
+
+	// Start it back up again, let's time this
+	b.StartTimer()
+
+	for _, order := range ordersToPlace {
+		if order == nil {
+			b.Errorf("Order is nil?? this should not happen")
 		}
-
 		if engine == nil {
 			b.Errorf("Engine is nil?? this should not happen")
 		}
-
-		// Start it back up again, let's time this
-		b.StartTimer()
-
-		for _, order := range ordersToPlace {
-			if order == nil {
-				b.Errorf("Order is nil?? this should not happen")
-			}
-			if engine == nil {
-				b.Errorf("Engine is nil?? this should not happen")
-			}
-			if _, err = engine.PlaceLimitOrder(order); err != nil {
-				b.Errorf("Error placing limit order: %s", err)
-			}
+		if _, err = engine.PlaceLimitOrder(order); err != nil {
+			b.Errorf("Error placing limit order: %s", err)
 		}
+	}
 
-		// We've got all that we need, let's stop it
-		b.StopTimer()
-
-		killFunc(b)
-	})
+	// We've got all that we need, let's stop it
+	b.StopTimer()
 
 }
 
 func MatchNLimitOrders(howMany uint64, b *testing.B) {
 	var err error
 
+	// Stop the timer because we're doing initialization stuff
+	b.StopTimer()
+
 	var ordersToPlace []*match.LimitOrder
 	if ordersToPlace, err = fuzzManyLimitOrders(howMany, testLimitOrder.TradingPair); err != nil {
 		b.Errorf("Error fuzzing many orders: %s", err)
 	}
 
-	b.Run(fmt.Sprintf("Match%dLimitOrders", howMany), func(b *testing.B) {
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		b.Errorf("Error creating tester container: %s", err)
+	}
 
-		// Stop the timer because we're doing initialization stuff
-		b.StopTimer()
-
-		// We do all of this within the loop because otherwise the database unfortunately persists and we get duplicate key errors
-		var killFunc func(b *testing.B)
-		if killFunc, err = createUserAndDatabaseBench(); err != nil {
-			b.Skipf("Error creating user and database, skipping: %s", err)
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			b.Errorf("Error killing tester container: %s", err)
 		}
+	}()
 
-		var engine match.LimitEngine
-		if engine, err = CreateLimitEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
-			b.Errorf("Error creating limit engine for pair: %s", err)
+	var engine match.LimitEngine
+	if engine, err = CreateLimitEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+		b.Errorf("Error creating limit engine for pair: %s", err)
+	}
+
+	if engine == nil {
+		b.Errorf("Engine is nil? This shouldn't happen")
+	}
+
+	for _, order := range ordersToPlace {
+		if order == nil {
+			b.Errorf("Order is nil? This shouldn't happen")
 		}
-
-		if engine == nil {
-			b.Errorf("Engine is nil? This shouldn't happen")
+		if _, err = engine.PlaceLimitOrder(order); err != nil {
+			b.Errorf("Error placing limit order: %s", err)
 		}
+	}
 
-		for _, order := range ordersToPlace {
-			if order == nil {
-				b.Errorf("Order is nil? This shouldn't happen")
-			}
-			if _, err = engine.PlaceLimitOrder(order); err != nil {
-				b.Errorf("Error placing limit order: %s", err)
-			}
-		}
+	// Start it back up again, let's time this
+	b.StartTimer()
 
-		// Start it back up again, let's time this
-		b.StartTimer()
+	if _, _, err = engine.MatchLimitOrders(); err != nil {
+		b.Errorf("Error matching limit orders: %s", err)
+	}
 
-		if _, _, err = engine.MatchLimitOrders(); err != nil {
-			b.Errorf("Error matching limit orders: %s", err)
-		}
-
-		// We've got all that we need, let's stop it
-		b.StopTimer()
-
-		killFunc(b)
-	})
+	// We've got all that we need, let's stop it
+	b.StopTimer()
 
 }
 
@@ -182,51 +258,55 @@ func MatchNLimitOrders(howMany uint64, b *testing.B) {
 func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 	var err error
 
+	// Stop the timer because we're doing initialization stuff
+	b.StopTimer()
+
 	var ordersToPlace []*match.LimitOrder
 	if ordersToPlace, err = fuzzManyLimitOrders(howMany, testLimitOrder.TradingPair); err != nil {
 		b.Errorf("Error fuzzing many orders: %s", err)
 	}
 
-	b.Run(fmt.Sprintf("PlaceMatch%dLimitOrders", howMany), func(b *testing.B) {
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		b.Errorf("Error creating tester container: %s", err)
+	}
 
-		// Stop the timer because we're doing initialization stuff
-		b.StopTimer()
-
-		// We do all of this within the loop because otherwise the database unfortunately persists and we get duplicate key errors
-		var killFunc func(b *testing.B)
-		if killFunc, err = createUserAndDatabaseBench(); err != nil {
-			b.Skipf("Error creating user and database, skipping: %s", err)
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			b.Errorf("Error killing tester container: %s", err)
 		}
+	}()
 
-		var engine match.LimitEngine
-		if engine, err = CreateLimitEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
-			b.Errorf("Error creating limit engine for pair: %s", err)
-		}
+	var engine match.LimitEngine
+	if engine, err = CreateLimitEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+		b.Errorf("Error creating limit engine for pair: %s", err)
+	}
 
+	if engine == nil {
+		b.Errorf("Engine is nil? This shouldn't happen")
+	}
+
+	// TODO: handle unhandled, erroring matching case where you have one order in, or there isn't a min / max price for buy/sell
+
+	// Start it back up again, let's time this
+	b.StartTimer()
+	for _, order := range ordersToPlace {
 		if engine == nil {
 			b.Errorf("Engine is nil? This shouldn't happen")
 		}
-
-		// TODO: handle unhandled, erroring matching case where you have one order in, or there isn't a min / max price for buy/sell
-
-		// Start it back up again, let's time this
-		b.StartTimer()
-		for _, order := range ordersToPlace {
-			if order == nil {
-				b.Errorf("Order is nil? This shouldn't happen")
-			}
-			if _, err = engine.PlaceLimitOrder(order); err != nil {
-				b.Errorf("Error placing limit order: %s", err)
-			}
-			if _, _, err = engine.MatchLimitOrders(); err != nil {
-				b.Errorf("Error matching limit orders: %s", err)
-			}
+		if order == nil {
+			b.Errorf("Order is nil? This shouldn't happen")
 		}
-		// We've got all that we need, let's stop it
-		b.StopTimer()
+		if _, err = engine.PlaceLimitOrder(order); err != nil {
+			b.Errorf("Error placing limit order: %s", err)
+		}
+		if _, _, err = engine.MatchLimitOrders(); err != nil {
+			b.Errorf("Error matching limit orders: %s", err)
+		}
+	}
 
-		killFunc(b)
-	})
+	// We've got all that we need, let's stop it
+	b.StopTimer()
 
 }
 
