@@ -51,9 +51,13 @@ func TestCreateEngineAllParams(t *testing.T) {
 		t.Errorf("Error creating asset pairs from coin list: %s", err)
 	}
 
+	var ae *SQLAuctionEngine
 	for _, pair := range pairList {
-		if _, err = CreateAuctionEngineWithConf(pair, testConfig()); err != nil {
+		if ae, err = CreateAucEngineStructWithConf(pair, testConfig()); err != nil {
 			t.Errorf("Error creating auction engine for pair: %s", err)
+		}
+		if err = ae.DestroyHandler(); err != nil {
+			t.Errorf("Error destroying handler for auction engine: %s", err)
 		}
 	}
 
@@ -73,10 +77,20 @@ func TestPlaceSingleAuctionOrder(t *testing.T) {
 		}
 	}()
 
-	var engine match.AuctionEngine
-	if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+	var ae *SQLAuctionEngine
+	if ae, err = CreateAucEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		t.Errorf("Error creating auction engine for pair: %s", err)
 	}
+
+	defer func() {
+
+		if err = ae.DestroyHandler(); err != nil {
+			t.Errorf("Error destroying handler for auction engine: %s", err)
+		}
+
+	}()
+
+	var engine match.AuctionEngine = ae
 
 	var idStruct *match.AuctionID = new(match.AuctionID)
 	if err = idStruct.UnmarshalBinary(testEncryptedOrder.IntendedAuction[:]); err != nil {
@@ -117,6 +131,9 @@ func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
 	}
 
 	defer func() {
+		if err = tc.KillUser(); err != nil {
+			b.Errorf("Error killing tester container user: %s", err)
+		}
 		if err = tc.CloseHandler(); err != nil {
 			b.Errorf("Error killing tester container user: %s", err)
 		}
@@ -127,10 +144,29 @@ func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
 		// Stop the timer because we're doing initialization stuff
 		b.StopTimer()
 
-		var engine match.AuctionEngine
-		if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+		defer func() {
+			// drop here because we need to make sure the next run has a clean DB
+			// the user persists because we designed the testerContainer to allow for that
+			if err = tc.DropDBs(); err != nil {
+				b.Errorf("Error killing tester container dbs: %s", err)
+			}
+
+		}()
+
+		var ae *SQLAuctionEngine
+		if ae, err = CreateAucEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 			b.Errorf("Error creating auction engine for pair: %s", err)
 		}
+
+		defer func() {
+
+			if err = ae.DestroyHandler(); err != nil {
+				b.Errorf("Error destroying handler for auction engine: %s", err)
+			}
+
+		}()
+
+		var engine match.AuctionEngine = ae
 
 		// Start it back up again, let's time this
 		b.StartTimer()
@@ -181,11 +217,29 @@ func MatchNAuctionOrders(howMany uint64, b *testing.B) {
 
 		// Stop the timer because we're doing initialization stuff
 		b.StopTimer()
+		defer func() {
+			// drop here because we need to make sure the next run has a clean DB
+			// the user persists because we designed the testerContainer to allow for that
+			if err = tc.DropDBs(); err != nil {
+				b.Errorf("Error killing tester container dbs: %s", err)
+			}
 
-		var engine match.AuctionEngine
-		if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+		}()
+
+		var ae *SQLAuctionEngine
+		if ae, err = CreateAucEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 			b.Errorf("Error creating auction engine for pair: %s", err)
 		}
+
+		defer func() {
+
+			if err = ae.DestroyHandler(); err != nil {
+				b.Errorf("Error destroying handler for auction engine: %s", err)
+			}
+
+		}()
+
+		var engine match.AuctionEngine = ae
 
 		for _, order := range ordersToPlace {
 			if _, err = engine.PlaceAuctionOrder(order, idStruct); err != nil {

@@ -24,6 +24,7 @@ type testerContainer struct {
 	rootHandler *sql.DB
 }
 
+// CreateTesterContainer creates a struct that contains a SQL *DB, which should be an active SQL database connection that is meant for dropping databases created by the auction engine, creating a test user, and maintains a root connection.
 func CreateTesterContainer() (tc *testerContainer, err error) {
 	tc = new(testerContainer)
 	var dbAddr net.Addr
@@ -54,6 +55,7 @@ func CreateTesterContainer() (tc *testerContainer, err error) {
 	return
 }
 
+// DropDBs drops the databases that would have been created by the test config if they exist
 func (tc *testerContainer) DropDBs() (err error) {
 	if tc.rootHandler == nil {
 		err = fmt.Errorf("Error, cannot use nil handler, construct container correctly")
@@ -70,12 +72,12 @@ func (tc *testerContainer) DropDBs() (err error) {
 	return
 }
 
+// Kill runs KillUser, then DropDBs, then closes the handler
 func (tc *testerContainer) Kill() (err error) {
 	if tc.rootHandler == nil {
 		err = fmt.Errorf("Error, cannot kill nil handler, construct container correctly")
 		return
 	}
-	defer tc.rootHandler.Close()
 	if err = tc.KillUser(); err != nil {
 		err = fmt.Errorf("Error killing user for Kill: %s", err)
 		return
@@ -84,9 +86,14 @@ func (tc *testerContainer) Kill() (err error) {
 		err = fmt.Errorf("Error dropping DBs for Kill: %s", err)
 		return
 	}
+	if err = tc.rootHandler.Close(); err != nil {
+		err = fmt.Errorf("Error closing tc handler for Kill: %s", err)
+		return
+	}
 	return
 }
 
+// KillUser drops the user that should have been created when the testerContainer was created.
 func (tc *testerContainer) KillUser() (err error) {
 	if tc.rootHandler == nil {
 		err = fmt.Errorf("Error killing user, cannot have nil handler, construct container correctly")
@@ -100,12 +107,17 @@ func (tc *testerContainer) KillUser() (err error) {
 	return
 }
 
+// CloseHandler closes the handler for the test container, checking first if it's nil, and if it is, returning an error.
+// CloseHandler also will pass along handler errors when closing.
 func (tc *testerContainer) CloseHandler() (err error) {
 	if tc.rootHandler == nil {
 		err = fmt.Errorf("Error, cannot close nil handler, construct container correctly")
 		return
 	}
-	tc.rootHandler.Close()
+	if err = tc.rootHandler.Close(); err != nil {
+		err = fmt.Errorf("Error closing tc handler for CloseHandler: %s", err)
+		return
+	}
 	return
 }
 
