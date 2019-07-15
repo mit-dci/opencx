@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
-	"testing"
 
 	"github.com/mit-dci/lit/coinparam"
 )
@@ -20,6 +19,95 @@ var (
 	// test string to put before test schemas
 	testString = "testopencxdb_"
 )
+
+type testerContainer struct {
+	rootHandler *sql.DB
+}
+
+func CreateTesterContainer() (tc *testerContainer, err error) {
+	tc = new(testerContainer)
+	var dbAddr net.Addr
+	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
+		err = fmt.Errorf("Error resolving conf derived address for killDatabaseFunc: %s", err)
+		return
+	}
+
+	// create open string for db
+	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr)
+
+	// this is the root user!
+	if tc.rootHandler, err = sql.Open("mysql", openString); err != nil {
+		err = fmt.Errorf("Error opening db to create testing user: %s", err)
+		return
+	}
+
+	// Make sure we can actually connect
+	if err = tc.rootHandler.Ping(); err != nil {
+		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		return
+	}
+
+	if _, err = tc.rootHandler.Exec(fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DROP, DELETE ON *.* TO '%s'@'%s' IDENTIFIED BY '%s';", testConfig().DBUsername, testConfig().DBHost, testConfig().DBPassword)); err != nil {
+		err = fmt.Errorf("Error creating user for testing: %s", err)
+		return
+	}
+	return
+}
+
+func (tc *testerContainer) DropDBs() (err error) {
+	if tc.rootHandler == nil {
+		err = fmt.Errorf("Error, cannot use nil handler, construct container correctly")
+		return
+	}
+	for _, schema := range getSchemasFromConfig(testConfig()) {
+		if schema != "" {
+			if _, err = tc.rootHandler.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", schema)); err != nil {
+				err = fmt.Errorf("Error dropping db for testing: %s", err)
+				return
+			}
+		}
+	}
+	return
+}
+
+func (tc *testerContainer) Kill() (err error) {
+	if tc.rootHandler == nil {
+		err = fmt.Errorf("Error, cannot kill nil handler, construct container correctly")
+		return
+	}
+	defer tc.rootHandler.Close()
+	if err = tc.KillUser(); err != nil {
+		err = fmt.Errorf("Error killing user for Kill: %s", err)
+		return
+	}
+	if err = tc.DropDBs(); err != nil {
+		err = fmt.Errorf("Error dropping DBs for Kill: %s", err)
+		return
+	}
+	return
+}
+
+func (tc *testerContainer) KillUser() (err error) {
+	if tc.rootHandler == nil {
+		err = fmt.Errorf("Error killing user, cannot have nil handler, construct container correctly")
+		return
+	}
+	if _, err = tc.rootHandler.Exec(fmt.Sprintf("DROP USER '%s'@'%s';", testingUser, testConfig().DBHost)); err != nil {
+		err = fmt.Errorf("Error dropping user for testing: %s", err)
+		return
+	}
+
+	return
+}
+
+func (tc *testerContainer) CloseHandler() (err error) {
+	if tc.rootHandler == nil {
+		err = fmt.Errorf("Error, cannot close nil handler, construct container correctly")
+		return
+	}
+	tc.rootHandler.Close()
+	return
+}
 
 func testConfig() (conf *dbsqlConfig) {
 	conf = &dbsqlConfig{
@@ -62,117 +150,6 @@ func constCoinParams() (params []*coinparam.Params) {
 	return
 }
 
-// takes in a t so we can log things
-func createUserAndDatabase() (killThemBoth func(t *testing.T), err error) {
-
-	var killUserFunc func() (err error)
-
-	// create user first, then return killer
-	if killUserFunc, err = createOpencxUser(); err != nil {
-		err = fmt.Errorf("Error creating opencx user while creating both: %s", err)
-		return
-	}
-
-	killThemBoth = func(t *testing.T) {
-		// kill user first then database
-		if err = killUserFunc(); err != nil {
-			t.Errorf("Error killing user while killing both: %s", err)
-			return
-		}
-		killDatabaseFunc(t)
-		return
-	}
-	return
-}
-
-func killDatabaseFunc(t *testing.T) {
-	var err error
-
-	var dbAddr net.Addr
-	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
-		t.Errorf("Error resolving conf derived address for killDatabaseFunc: %s", err)
-	}
-
-	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr.String())
-
-	// this is the root user!
-	var dbHandle *sql.DB
-	if dbHandle, err = sql.Open("mysql", openString); err != nil {
-		t.Errorf("Error opening db to create testing user: %s", err)
-		return
-	}
-
-	// make sure we close the connection at the end
-	defer dbHandle.Close()
-
-	for _, schema := range getSchemasFromConfig(testConfig()) {
-		if schema != "" {
-			if _, err = dbHandle.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", schema)); err != nil {
-				t.Errorf("Error dropping db for testing: %s", err)
-				return
-			}
-		}
-	}
-
-	return
-}
-
-// takes in a t so we can log things
-func createUserAndDatabaseBench() (killThemBoth func(b *testing.B), err error) {
-
-	var killUserFunc func() (err error)
-
-	// create user first, then return killer
-	if killUserFunc, err = createOpencxUser(); err != nil {
-		err = fmt.Errorf("Error creating opencx user while creating both: %s", err)
-		return
-	}
-
-	killThemBoth = func(b *testing.B) {
-		// kill user first then database
-		if err = killUserFunc(); err != nil {
-			b.Errorf("Error killing user while killing both: %s", err)
-			return
-		}
-		killDatabaseFuncBench(b)
-		return
-	}
-	return
-}
-
-func killDatabaseFuncBench(b *testing.B) {
-	var err error
-
-	var dbAddr net.Addr
-	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
-		b.Errorf("Error resolving conf derived address for killDatabaseFunc: %s", err)
-	}
-
-	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr.String())
-
-	// this is the root user!
-	var dbHandle *sql.DB
-	if dbHandle, err = sql.Open("mysql", openString); err != nil {
-		b.Errorf("Error opening db to create testing user: %s", err)
-		return
-	}
-
-	// make sure we close the connection at the end
-	defer dbHandle.Close()
-
-	for _, schema := range getSchemasFromConfig(testConfig()) {
-		if schema != "" {
-			if _, err = dbHandle.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", schema)); err != nil {
-				b.Errorf("Error dropping db for testing: %s", err)
-				return
-			}
-		}
-	}
-
-	return
-}
 func getSchemasFromConfig(conf *dbsqlConfig) (schemas []string) {
 	return []string{
 		conf.PuzzleSchemaName,
@@ -187,64 +164,4 @@ func getSchemasFromConfig(conf *dbsqlConfig) (schemas []string) {
 		conf.OrderSchemaName,
 		conf.PeerSchemaName,
 	}
-}
-
-// createOpencxUser creates a user with the root user. If it can't do that then we need to be able to skip the test.
-func createOpencxUser() (killUserFunc func() (err error), err error) {
-
-	var dbAddr net.Addr
-	if dbAddr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(testConfig().DBHost, fmt.Sprintf("%d", testConfig().DBPort))); err != nil {
-		err = fmt.Errorf("Error resolving conf derived address for killDatabaseFunc: %s", err)
-		return
-	}
-
-	// create open string for db
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr)
-
-	// this is the root user!
-	var dbHandle *sql.DB
-	if dbHandle, err = sql.Open("mysql", openString); err != nil {
-		err = fmt.Errorf("Error opening db to create testing user: %s", err)
-		return
-	}
-
-	// Make sure we can actually connect
-	if err = dbHandle.Ping(); err != nil {
-		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
-		return
-	}
-
-	// make sure we close the connection at the end
-	defer dbHandle.Close()
-
-	if _, err = dbHandle.Exec(fmt.Sprintf("GRANT SELECT, INSERT, UPDATE, CREATE, DROP, DELETE ON *.* TO '%s'@'%s' IDENTIFIED BY '%s';", testConfig().DBUsername, testConfig().DBHost, testConfig().DBPassword)); err != nil {
-		err = fmt.Errorf("Error creating user for testing: %s", err)
-		return
-	}
-
-	// we pass them the function to kill the user
-	killUserFunc = func() (err error) {
-
-		// create open string for db
-		openString := fmt.Sprintf("%s:%s@%s(%s)/", rootUser, rootPass, dbAddr.Network(), dbAddr)
-
-		// this is the root user!
-		var dbHandle *sql.DB
-		if dbHandle, err = sql.Open("mysql", openString); err != nil {
-			err = fmt.Errorf("Error opening db to create testing user: %s", err)
-			return
-		}
-
-		// make sure we close the connection at the end
-		defer dbHandle.Close()
-
-		if _, err = dbHandle.Exec(fmt.Sprintf("DROP USER '%s'@'%s';", testingUser, testConfig().DBHost)); err != nil {
-			err = fmt.Errorf("Error dropping user for testing: %s", err)
-			return
-		}
-
-		return
-	}
-
-	return
 }

@@ -35,10 +35,16 @@ var (
 func TestCreateEngineAllParams(t *testing.T) {
 	var err error
 
-	var killFunc func(t *testing.T)
-	if killFunc, err = createUserAndDatabase(); err != nil {
-		t.Skipf("Error creating user and database, skipping: %s", err)
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		t.Errorf("Error creating tester container: %s", err)
 	}
+
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			t.Errorf("Error killing tester container: %s", err)
+		}
+	}()
 
 	var pairList []*match.Pair
 	if pairList, err = match.GenerateAssetPairs(constCoinParams()); err != nil {
@@ -51,16 +57,21 @@ func TestCreateEngineAllParams(t *testing.T) {
 		}
 	}
 
-	killFunc(t)
 }
 
 func TestPlaceSingleAuctionOrder(t *testing.T) {
 	var err error
 
-	var killFunc func(t *testing.T)
-	if killFunc, err = createUserAndDatabase(); err != nil {
-		t.Skipf("Error creating user and database, skipping: %s", err)
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		t.Errorf("Error creating tester container: %s", err)
 	}
+
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			t.Errorf("Error killing tester container: %s", err)
+		}
+	}()
 
 	var engine match.AuctionEngine
 	if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
@@ -76,12 +87,11 @@ func TestPlaceSingleAuctionOrder(t *testing.T) {
 		t.Errorf("Error placing auction order: %s", err)
 	}
 
-	killFunc(t)
 }
 
 func BenchmarkAllAuction(b *testing.B) {
 
-	for _, howMany := range []uint64{1, 10, 100, 1000, 10000} {
+	for _, howMany := range []uint64{1, 10, 100, 1000} {
 		PlaceNAuctionOrders(howMany, b)
 		MatchNAuctionOrders(howMany, b)
 	}
@@ -101,16 +111,21 @@ func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
 		b.Errorf("Error fuzzing many orders: %s", err)
 	}
 
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		b.Errorf("Error creating tester container: %s", err)
+	}
+
+	defer func() {
+		if err = tc.CloseHandler(); err != nil {
+			b.Errorf("Error killing tester container user: %s", err)
+		}
+	}()
+
 	b.Run(fmt.Sprintf("Place%dAuctionOrders", howMany), func(b *testing.B) {
 
 		// Stop the timer because we're doing initialization stuff
 		b.StopTimer()
-
-		// We do all of this within the loop because otherwise the database unfortunately persists and we get duplicate key errors
-		var killFunc func(b *testing.B)
-		if killFunc, err = createUserAndDatabaseBench(); err != nil {
-			b.Skipf("Error creating user and database, skipping: %s", err)
-		}
 
 		var engine match.AuctionEngine
 		if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
@@ -126,10 +141,11 @@ func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
 			}
 		}
 
+		// TODO: figure out how to kill connections for the engine
+
 		// We've got all that we need, let's stop it
 		b.StopTimer()
 
-		killFunc(b)
 	})
 
 }
@@ -147,16 +163,24 @@ func MatchNAuctionOrders(howMany uint64, b *testing.B) {
 		b.Errorf("Error fuzzing many orders: %s", err)
 	}
 
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		b.Errorf("Error creating tester container: %s", err)
+	}
+
+	defer func() {
+		if err = tc.KillUser(); err != nil {
+			b.Errorf("Error killing tester container user: %s", err)
+		}
+		if err = tc.CloseHandler(); err != nil {
+			b.Errorf("Error killing tester container user: %s", err)
+		}
+	}()
+
 	b.Run(fmt.Sprintf("Match%dAuctionOrders", howMany), func(b *testing.B) {
 
 		// Stop the timer because we're doing initialization stuff
 		b.StopTimer()
-
-		// We do all of this within the loop because otherwise the database unfortunately persists and we get duplicate key errors
-		var killFunc func(b *testing.B)
-		if killFunc, err = createUserAndDatabaseBench(); err != nil {
-			b.Skipf("Error creating user and database, skipping: %s", err)
-		}
 
 		var engine match.AuctionEngine
 		if engine, err = CreateAuctionEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
@@ -179,7 +203,10 @@ func MatchNAuctionOrders(howMany uint64, b *testing.B) {
 		// We've got all that we need, let's stop it
 		b.StopTimer()
 
-		killFunc(b)
+		if err = tc.DropDBs(); err != nil {
+			b.Errorf("Error killing tester container dbs: %s", err)
+		}
+
 	})
 
 }
