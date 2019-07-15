@@ -4,6 +4,10 @@ language: go
 services:
   - mysql
 
+# This creates the opencx test user
+before_install:
+  - mysql -u root -e "GRANT SELECT, INSERT, UPDATE, CREATE, DROP, DELETE ON *.* TO 'opencx'@'localhost' IDENTIFIED BY 'testpass';"
+
 # Force-enable Go modules.
 # This will be unnecessary when Go 1.13 lands.
 env:

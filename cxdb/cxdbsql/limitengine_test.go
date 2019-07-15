@@ -42,9 +42,14 @@ func TestCreateLimitEngineAllParams(t *testing.T) {
 		t.Errorf("Error creating asset pairs from coin list: %s", err)
 	}
 
+	var le *SQLLimitEngine
 	for _, pair := range pairList {
-		if _, err = CreateLimitEngineWithConf(pair, testConfig()); err != nil {
-			t.Errorf("Error creating auction engine for pair: %s", err)
+		if le, err = CreateLimEngineStructWithConf(pair, testConfig()); err != nil {
+			t.Errorf("Error creating limit engine for pair: %s", err)
+		}
+
+		if err = le.DestroyHandler(); err != nil {
+			t.Errorf("Error destroying handler for limit engine: %s", err)
 		}
 	}
 
@@ -64,10 +69,17 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 		}
 	}()
 
-	var engine match.LimitEngine
-	if engine, err = CreateLimitEngineWithConf(&testLimitOrder.TradingPair, testConfig()); err != nil {
+	var le *SQLLimitEngine
+	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		t.Errorf("Error creating limit engine for pair: %s", err)
 	}
+
+	defer func() {
+		if err = le.DestroyHandler(); err != nil {
+			t.Errorf("Error destroying handler for limit engine: %s", err)
+		}
+	}()
+	var engine match.LimitEngine = le
 
 	if _, err = engine.PlaceLimitOrder(testLimitOrder); err != nil {
 		t.Errorf("Error placing limit order: %s", err)
@@ -173,14 +185,18 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 		}
 	}()
 
-	var engine match.LimitEngine
-	if engine, err = CreateLimitEngineWithConf(&testLimitOrder.TradingPair, testConfig()); err != nil {
+	var le *SQLLimitEngine
+	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		b.Errorf("Error creating limit engine for pair: %s", err)
 	}
 
-	if engine == nil {
-		b.Errorf("Engine is nil?? this should not happen")
-	}
+	defer func() {
+		if err = le.DestroyHandler(); err != nil {
+			b.Errorf("Error destroying handler for limit engine: %s", err)
+		}
+	}()
+
+	var engine match.LimitEngine = le
 
 	// Start it back up again, let's time this
 	b.StartTimer()
@@ -224,19 +240,19 @@ func MatchNLimitOrders(howMany uint64, b *testing.B) {
 		}
 	}()
 
-	var engine match.LimitEngine
-	if engine, err = CreateLimitEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+	var le *SQLLimitEngine
+	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		b.Errorf("Error creating limit engine for pair: %s", err)
 	}
 
-	if engine == nil {
-		b.Errorf("Engine is nil? This shouldn't happen")
-	}
+	defer func() {
+		if err = le.DestroyHandler(); err != nil {
+			b.Errorf("Error destroying handler for limit engine: %s", err)
+		}
+	}()
+	var engine match.LimitEngine = le
 
 	for _, order := range ordersToPlace {
-		if order == nil {
-			b.Errorf("Order is nil? This shouldn't happen")
-		}
 		if _, err = engine.PlaceLimitOrder(order); err != nil {
 			b.Errorf("Error placing limit order: %s", err)
 		}
@@ -277,16 +293,17 @@ func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 		}
 	}()
 
-	var engine match.LimitEngine
-	if engine, err = CreateLimitEngineWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+	var le *SQLLimitEngine
+	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		b.Errorf("Error creating limit engine for pair: %s", err)
 	}
 
-	if engine == nil {
-		b.Errorf("Engine is nil? This shouldn't happen")
-	}
-
-	// TODO: handle unhandled, erroring matching case where you have one order in, or there isn't a min / max price for buy/sell
+	defer func() {
+		if err = le.DestroyHandler(); err != nil {
+			b.Errorf("Error destroying handler for limit engine: %s", err)
+		}
+	}()
+	var engine match.LimitEngine = le
 
 	// Start it back up again, let's time this
 	b.StartTimer()

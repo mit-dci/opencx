@@ -35,7 +35,22 @@ const (
 	auctionEngineSchema = "pubkey VARBINARY(66), side TEXT, price DOUBLE(30, 2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), auctionID VARBINARY(64), nonce VARBINARY(4), sig BLOB, hashedOrder VARBINARY(64), PRIMARY KEY (hashedOrder)"
 )
 
+// CreateAuctionEngineWithConf creates an auction engine, sets up the connection and tables, and returns the auctionengine interface.
 func CreateAuctionEngineWithConf(pair *match.Pair, conf *dbsqlConfig) (engine match.AuctionEngine, err error) {
+
+	var ae *SQLAuctionEngine
+	if ae, err = CreateAucEngineStructWithConf(pair, conf); err != nil {
+		err = fmt.Errorf("Error creating auction engine struct w/ conf for CreateAuctionEngineWithConf: %s", err)
+		return
+	}
+
+	// now we actually set the return, all checks have passed
+	engine = ae
+	return
+}
+
+// CreateAucEngineStructWithConf creates an auction engine but instead of returning an interface, it returns a struct.
+func CreateAucEngineStructWithConf(pair *match.Pair, conf *dbsqlConfig) (engine *SQLAuctionEngine, err error) {
 	// Set the default conf
 	dbConfigSetup(conf)
 
@@ -148,9 +163,26 @@ func (ae *SQLAuctionEngine) setupAuctionOrderbookTables() (err error) {
 	return
 }
 
+// DestroyHandler closes the DB handler that we created, and makes it nil
+func (ae *SQLAuctionEngine) DestroyHandler() (err error) {
+	if ae.DBHandler == nil {
+		err = fmt.Errorf("Error, cannot destroy nil handler, please create new engine")
+		return
+	}
+	if err = ae.DBHandler.Close(); err != nil {
+		err = fmt.Errorf("Error closing engine handler for DestroyHandler: %s", err)
+		return
+	}
+	ae.DBHandler = nil
+	return
+}
+
 // PlaceAuctionOrder places an order in the unencrypted datastore. This assumes that the order is valid.
 func (ae *SQLAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auctionID *match.AuctionID) (idRes *match.AuctionOrderIDPair, err error) {
-
+	if ae.DBHandler == nil {
+		err = fmt.Errorf("Error, cannot place order for nil handler, please create new engine")
+		return
+	}
 	// Do these two things beforehand so we don't have to rollback any tx's
 
 	// calculate price
@@ -209,6 +241,10 @@ func (ae *SQLAuctionEngine) PlaceAuctionOrder(order *match.AuctionOrder, auction
 
 // CancelAuctionOrder cancels an auction order, this assumes that the auction order actually exists
 func (ae *SQLAuctionEngine) CancelAuctionOrder(orderID *match.OrderID) (cancelled *match.CancelledOrder, cancelSettlement *match.SettlementExecution, err error) {
+	if ae.DBHandler == nil {
+		err = fmt.Errorf("Error, cannot cancel order with nil handler, please create new engine")
+		return
+	}
 
 	var tx *sql.Tx
 	if tx, err = ae.DBHandler.Begin(); err != nil {
@@ -291,6 +327,10 @@ func (ae *SQLAuctionEngine) CancelAuctionOrder(orderID *match.OrderID) (cancelle
 
 // MatchAuction calculates a single clearing price to execute orders at, and executes at that price.
 func (ae *SQLAuctionEngine) MatchAuctionOrders(auctionID *match.AuctionID) (orderExecs []*match.OrderExecution, settlementExecs []*match.SettlementExecution, err error) {
+	if ae.DBHandler == nil {
+		err = fmt.Errorf("Error, cannot match orders for nil handler, please create new engine")
+		return
+	}
 
 	var tx *sql.Tx
 	if tx, err = ae.DBHandler.Begin(); err != nil {

@@ -38,7 +38,7 @@ const (
 	sqlTimeFormat     = "2006-01-02 15:04:05"
 )
 
-func CreateLimitEngineWithConf(pair *match.Pair, conf *dbsqlConfig) (engine match.LimitEngine, err error) {
+func CreateLimEngineStructWithConf(pair *match.Pair, conf *dbsqlConfig) (engine *SQLLimitEngine, err error) {
 	// Set the default conf
 	dbConfigSetup(conf)
 
@@ -81,51 +81,26 @@ func CreateLimitEngineWithConf(pair *match.Pair, conf *dbsqlConfig) (engine matc
 	return
 }
 
+func CreateLimitEngineWithConf(pair *match.Pair, conf *dbsqlConfig) (engine match.LimitEngine, err error) {
+	var le *SQLLimitEngine
+	if le, err = CreateLimEngineStructWithConf(pair, conf); err != nil {
+		err = fmt.Errorf("Error creating limit engine struct with conf for CreateLimitEngineWithConf: %s", err)
+		return
+	}
+	engine = le
+	return
+}
+
 // CreateLimitEngine creates a limit matching engine that operates using SQL as a database
 func CreateLimitEngine(pair *match.Pair) (engine match.LimitEngine, err error) {
 
 	conf := new(dbsqlConfig)
 	*conf = *defaultConf
 
-	// set the default conf
-	dbConfigSetup(conf)
-
-	// Resolve new address
-	var addr net.Addr
-	if addr, err = net.ResolveTCPAddr("tcp", net.JoinHostPort(conf.DBHost, fmt.Sprintf("%d", conf.DBPort))); err != nil {
-		err = fmt.Errorf("Couldn't resolve db address for CreateLimitEngine: %s", err)
+	if engine, err = CreateLimitEngineWithConf(pair, conf); err != nil {
+		err = fmt.Errorf("Error creating limit engine with conf for CreateLimitEngine: %s", err)
 		return
 	}
-
-	// Set values for limit engine
-	le := &SQLLimitEngine{
-		dbUsername:  conf.DBUsername,
-		dbPassword:  conf.DBPassword,
-		orderSchema: conf.OrderSchemaName,
-		dbAddr:      addr,
-		pair:        pair,
-	}
-
-	if err = le.setupLimitOrderbookTables(); err != nil {
-		err = fmt.Errorf("Error setting up limit orderbook tables while creating engine: %s", err)
-		return
-	}
-
-	// Now connect to the database and create the schemas / tables
-	openString := fmt.Sprintf("%s:%s@%s(%s)/", le.dbUsername, le.dbPassword, le.dbAddr.Network(), le.dbAddr.String())
-	if le.DBHandler, err = sql.Open("mysql", openString); err != nil {
-		err = fmt.Errorf("Error opening database for CreateLimitEngine: %s", err)
-		return
-	}
-
-	// Make sure we can actually connect
-	if err = le.DBHandler.Ping(); err != nil {
-		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
-		return
-	}
-
-	// Now we actually set what we want
-	engine = le
 	return
 }
 
@@ -181,6 +156,20 @@ func (le *SQLLimitEngine) setupLimitOrderbookTables() (err error) {
 		err = fmt.Errorf("Error creating limit orderbook table: %s", err)
 		return
 	}
+	return
+}
+
+// DestroyHandler closes the DB handler that we created, and makes it nil
+func (le *SQLLimitEngine) DestroyHandler() (err error) {
+	if le.DBHandler == nil {
+		err = fmt.Errorf("Error, cannot destroy nil handler, please create new engine")
+		return
+	}
+	if err = le.DBHandler.Close(); err != nil {
+		err = fmt.Errorf("Error closing engine handler for DestroyHandler: %s", err)
+		return
+	}
+	le.DBHandler = nil
 	return
 }
 
