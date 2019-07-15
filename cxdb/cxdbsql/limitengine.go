@@ -285,7 +285,7 @@ func (le *SQLLimitEngine) CancelLimitOrder(orderID *match.OrderID) (cancelled *m
 		return
 	}
 
-	var actualSide *match.Side
+	actualSide := new(match.Side)
 
 	var pkBytes []byte
 	var orderSide string
@@ -303,7 +303,6 @@ func (le *SQLLimitEngine) CancelLimitOrder(orderID *match.OrderID) (cancelled *m
 			return
 		}
 
-		actualSide = new(match.Side)
 		if err = actualSide.FromString(orderSide); err != nil {
 			err = fmt.Errorf("Error getting side from string for CancelLimitOrder: %s", err)
 			return
@@ -338,6 +337,10 @@ func (le *SQLLimitEngine) CancelLimitOrder(orderID *match.OrderID) (cancelled *m
 
 // MatchLimitOrders matches limit orders based on price/time priority
 func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution, settlementExecs []*match.SettlementExecution, err error) {
+	if le.DBHandler == nil {
+		err = fmt.Errorf("Cannot match orders for nil handler, please recreate engine")
+		return
+	}
 
 	var tx *sql.Tx
 	if tx, err = le.DBHandler.Begin(); err != nil {

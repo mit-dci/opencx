@@ -49,7 +49,16 @@ func incrementNonce(currNonce [2]byte) (nextNonce [2]byte) {
 	return
 }
 
-func TestUltraLightPlacePuzzledOrder(t *testing.T) {
+func TestPlacePuzzledN(t *testing.T) {
+	listLen32 := make([]bool, 32)
+	for i := range listLen32 {
+		t.Run(fmt.Sprintf("TestPlacePuzzled%d", uint64(i)+1), func(t *testing.T) {
+			ultraLightPlacePuzzledOrders(uint64(i)+1, t)
+		})
+	}
+}
+
+func ultraLightPlacePuzzledOrders(numOrders uint64, t *testing.T) {
 	var err error
 
 	t.Logf("%s: Starting Server", time.Now())
@@ -69,11 +78,10 @@ func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 
 	baseOrder := *testAuctionOrder
 
-	fmt.Printf("Adding orders...\n")
 	var orders []*match.EncryptedAuctionOrder
 	// Add a bunch of orders to the order list
 	var newEncrypted *match.EncryptedAuctionOrder
-	for i := 0; i < testNumOrders; i++ {
+	for i := uint64(0); i < numOrders; i++ {
 		// We increment the nonce so orders are unique
 		baseOrder.Nonce = incrementNonce(baseOrder.Nonce)
 		if newEncrypted, err = (&baseOrder).TurnIntoEncryptedOrder(testStandardAuctionTime); err != nil {
@@ -84,12 +92,18 @@ func TestUltraLightPlacePuzzledOrder(t *testing.T) {
 
 	t.Logf("%s: Placing all orders", time.Now())
 
-	fmt.Printf("placing orders...\n")
+	errChan := make(chan error, len(orders))
 	// Place a bunch of orders
 	for _, order := range orders {
-		// We can do this in sequence because it's going to start a goroutine anyways
-		s.PlacePuzzledOrder(order)
+		go s.PlacePuzzledOrderAsync(order, errChan)
 		// Okay now we'll wait a little bit to make sure we see this memory issue in action
+	}
+
+	for i := 0; i < len(orders); i++ {
+		// get the error from the channel
+		if err = <-errChan; err != nil {
+			t.Errorf("Error placing puzzled order async: %s", err)
+		}
 	}
 	t.Logf("%s: Placed all orders", time.Now())
 

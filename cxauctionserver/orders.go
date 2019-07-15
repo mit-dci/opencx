@@ -15,7 +15,11 @@ import (
 )
 
 // PlacePuzzledOrder places a timelock encrypted order. It also starts to decrypt the order in a goroutine.
-func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrder) (err error) {
+func (s *OpencxAuctionServer) PlacePuzzledOrderAsync(order *match.EncryptedAuctionOrder, errChan chan error) {
+	var err error
+	defer func() {
+		errChan <- err
+	}()
 	if order == nil {
 		err = fmt.Errorf("Cannot place nil order, invalid")
 		return
@@ -61,6 +65,14 @@ func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrd
 
 	s.dbLock.Unlock()
 
+	return
+}
+
+func (s *OpencxAuctionServer) PlacePuzzledOrder(order *match.EncryptedAuctionOrder) (err error) {
+	errChan := make(chan error, 1)
+	go s.PlacePuzzledOrderAsync(order, errChan)
+	err = <-errChan
+	close(errChan)
 	return
 }
 

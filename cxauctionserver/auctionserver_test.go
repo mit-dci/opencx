@@ -13,8 +13,8 @@ import (
 
 const (
 	testOrderChanSize       = uint64(100)
-	testStandardAuctionTime = uint64(100000)
-	testMaxBatchSize        = uint64(10)
+	testStandardAuctionTime = uint64(10000)
+	testMaxBatchSize        = uint64(100)
 )
 
 var (
