@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -32,9 +33,9 @@ type SQLLimitEngine struct {
 	pair *match.Pair
 }
 
-// The schema for the limit orderbook
+// The schema for the limit orderbook -- TODO: THE PRICE SCHEMA SHOULD BE CONFIGURED BASED ON DESIRED PRECISION, WHICH SHOULD BE ENFORCED BY OUR TYPES AS WELL
 const (
-	limitEngineSchema = "pubkey VARBINARY(66), orderID VARBINARY(64), side TEXT, price DOUBLE(30,2) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP"
+	limitEngineSchema = "pubkey VARBINARY(66), orderID VARBINARY(64), side TEXT, price DOUBLE(32,16) UNSIGNED, amountHave BIGINT(64), amountWant BIGINT(64), time TIMESTAMP"
 	sqlTimeFormat     = "2006-01-02 15:04:05"
 )
 
@@ -213,6 +214,33 @@ func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match
 		return
 	}
 
+	// Finally, set the auction order / id pair
+	loid := &match.LimitOrderIDPair{
+		OrderID:   new(match.OrderID),
+		Order:     order,
+		Price:     price,
+		Timestamp: placementTime,
+	}
+
+	if err = loid.OrderID.UnmarshalBinary(hashedOrder); err != nil {
+		err = fmt.Errorf("Could not unmarshal orderdi for PlaceLimitOrder: %s", err)
+		return
+	}
+
+	// TODO: JANK ALERT, converting to string and back because that's how we insert our prices,
+	// by doing a janky sprintf. This is our janky way of making sure our janky insert is never broken.
+	var zeroCheckFloat float64
+	if zeroCheckFloat, err = strconv.ParseFloat(fmt.Sprintf("%.16f", price), 64); err != nil {
+		err = fmt.Errorf("Error parsing float: %s", err)
+		return
+	}
+
+	// if the price is less than a certain amount, auto-cancel the order
+	if zeroCheckFloat == float64(0) {
+		err = fmt.Errorf("Placing 0-valued order is not allowed")
+		return
+	}
+
 	var tx *sql.Tx
 	if tx, err = le.DBHandler.Begin(); err != nil {
 		err = fmt.Errorf("Error beginning transaction while placing order: \n%s", err)
@@ -239,18 +267,7 @@ func (le *SQLLimitEngine) PlaceLimitOrder(order *match.LimitOrder) (idRes *match
 		return
 	}
 
-	// Finally, set the auction order / id pair
-	idRes = &match.LimitOrderIDPair{
-		OrderID:   new(match.OrderID),
-		Order:     order,
-		Price:     price,
-		Timestamp: placementTime,
-	}
-
-	if err = idRes.OrderID.UnmarshalBinary(hashedOrder); err != nil {
-		err = fmt.Errorf("Could not unmarshal orderdi for PlaceLimitOrder: %s", err)
-		return
-	}
+	idRes = loid
 	return
 }
 

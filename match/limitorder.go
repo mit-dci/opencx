@@ -150,11 +150,33 @@ func (l *LimitOrder) GenerateExecutionFromPrice(orderID *OrderID, execPrice floa
 			Filled:        false,
 		}
 
+		// this might be useful in the future but 99% chance it won't be
+		// var newpr float64
+		// newOrderForCalcPrice := &LimitOrder{
+		// 	Side:       l.Side,
+		// 	AmountWant: orderExec.NewAmountWant,
+		// 	AmountHave: orderExec.NewAmountHave,
+		// }
+		// if newpr, err = newOrderForCalcPrice.Price(); err != nil {
+		// 	err = fmt.Errorf("Error getting price from new order: %s", err)
+		// 	return
+		// }
+		// if newpr <= float64(1)/float64(1000000) {
+		// 	priceTooLowExec := SettlementExecution{
+		// 		Amount: newOrderForCalcPrice.AmountHave,
+		// 		Asset:  creditAsset,
+		// 		Type:   Debit,
+		// 	}
+		// 	orderExec.Filled = true
+		// 	setExecs = append(setExecs, &priceTooLowExec)
+		// }
+
 		debitSetExec := SettlementExecution{
 			Amount: amountToFill,
 			Asset:  debitAsset,
 			Type:   Debit,
 		}
+
 		creditSetExec := SettlementExecution{
 			Amount: amountWantToFill,
 			Asset:  creditAsset,

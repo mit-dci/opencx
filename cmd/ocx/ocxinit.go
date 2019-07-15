@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -56,10 +55,8 @@ func ocxSetup(conf *ocxConfig) (help bool) {
 	if os.IsNotExist(err) {
 		os.MkdirAll(conf.OcxHomeDir, 0700)
 		logging.Infof("Creating a new config file")
-		err := createDefaultConfigFile(conf.OcxHomeDir)
-		if err != nil {
-			fmt.Printf("Error creating a default config file: %v", conf.OcxHomeDir)
-			logging.Fatal(err)
+		if err := createDefaultConfigFile(conf.OcxHomeDir); err != nil {
+			logging.Fatalf("Error creating a default config file in %v: %s", conf.OcxHomeDir, err)
 		}
 	}
 

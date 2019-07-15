@@ -28,7 +28,8 @@ func (s *OpencxAuctionServer) PlacePuzzledOrderAsync(order *match.EncryptedAucti
 	logging.Infof("Got a new puzzle for auction %x", order.IntendedAuction)
 
 	if err = s.validateEncryptedOrder(order); err != nil {
-		logging.Errorf("Error validating order: %s", err)
+		err = fmt.Errorf("Error validating order: %s", err)
+		return
 	}
 
 	// Placing an auction puzzle is how the exchange will then recall and commit to a set of puzzles.
@@ -324,6 +325,18 @@ func (s *OpencxAuctionServer) validateBatch(auctionBatch *match.AuctionBatch) (b
 	}
 
 	for _, orderPzRes := range auctionBatch.Batch {
+
+		var pr float64
+		if pr, err = orderPzRes.Auction.Price(); err != nil {
+			orderPzRes.Err = fmt.Errorf("Error getting price from order: %s", err)
+		}
+		// TODO: this is to protect the database, this is why switching to a better price system would be a good idea
+		if pr > float64(10000000000000000000000) {
+			orderPzRes.Err = fmt.Errorf("Price too high, complain online if you want the maximum price increased, or lower your price")
+		}
+		if pr < float64(1)/float64(1000000) {
+			orderPzRes.Err = fmt.Errorf("Price too low, complain online if you want the minimum price decreased, or increase your price")
+		}
 		if err = s.validateOrderResult(auctionBatch.AuctionID, orderPzRes); err != nil {
 			orderPzRes.Err = fmt.Errorf("Order invalid: %s", err)
 			batchResult.RejectedResults = append(batchResult.RejectedResults, orderPzRes)

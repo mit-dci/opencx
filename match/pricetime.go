@@ -59,6 +59,7 @@ func MatchPrioritizedOrders(buyOrders []*LimitOrderIDPair, sellOrders []*LimitOr
 		var prelimSettlementExecs []*SettlementExecution
 		if prBuyExec, prSellExec, prelimSettlementExecs, err = MatchTwoOpposite(buyOrders[0], sellOrders[0]); err != nil {
 			err = fmt.Errorf("Error matching orders")
+			return
 		}
 
 		// Set new amounts because we either want final amounts (when loop conds won't satisfy)
