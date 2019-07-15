@@ -371,7 +371,7 @@ func fuzzManyLimitOrders(howMany uint64, pair match.Pair) (orders []*match.Limit
 	// want this to be seeded so it's reproducible
 
 	// 21 million is max amount
-	maxAmount := int64(2100000000000000)
+	maxAmount := int64(2100000000)
 	r := rand.New(rand.NewSource(1801))
 	orders = make([]*match.LimitOrder, howMany)
 	for i := uint64(0); i < howMany; i++ {

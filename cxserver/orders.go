@@ -52,6 +52,23 @@ func (server *OpencxServer) PlaceOrder(order *match.LimitOrder) (orderID match.O
 		return
 	}
 
+	// make sure that putting it in the db will be an accurate and good idea because calculating prices is frustrating
+	var pr float64
+	if pr, err = order.Price(); err != nil {
+		err = fmt.Errorf("Error calculating price while Placing: %s", err)
+		return
+	}
+
+	// TODO: this is to protect the database, this is why switching to a better price system would be a good idea
+	if pr > float64(10000000000000000000000) {
+		err = fmt.Errorf("Price too high, complain online if you want the maximum price increased, or lower your price")
+		return
+	}
+	if pr < float64(1)/float64(1000000) {
+		err = fmt.Errorf("Price too low, complain online if you want the minimum price decreased, or increase your price")
+		return
+	}
+
 	server.dbLock.Lock()
 
 	// first we need to get the settlement engine, limit engine, orderbook, and settlement store

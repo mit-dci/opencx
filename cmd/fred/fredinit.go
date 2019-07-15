@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -69,10 +68,8 @@ func opencxSetup(conf *fredConfig) *[32]byte {
 	if os.IsNotExist(err) {
 		os.MkdirAll(conf.FredHomeDir, 0700)
 		logging.Infof("Creating a new config file")
-		err := createDefaultConfigFile(conf.FredHomeDir)
-		if err != nil {
-			fmt.Printf("Error creating a default config file: %v", conf.FredHomeDir)
-			logging.Fatal(err)
+		if err := createDefaultConfigFile(conf.FredHomeDir); err != nil {
+			logging.Fatalf("Error creating a default config file in %v: %s", conf.FredHomeDir, err)
 		}
 	}
 
