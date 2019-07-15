@@ -104,13 +104,13 @@ func TestPlaceSingleAuctionOrder(t *testing.T) {
 
 }
 
-func TestPlace1KAuctionOrders(t *testing.T) {
+func TestPlaceMatch1KAuctionOrders(t *testing.T) {
 	PlaceMatchNAuctionOrdersTest(1000, t)
 	return
 }
 
-func TestPlace10KAuctionOrders(t *testing.T) {
-	PlaceMatchNAuctionOrdersTest(10000, t)
+func TestPlaceMatch2KAuctionOrders(t *testing.T) {
+	PlaceMatchNAuctionOrdersTest(2000, t)
 	return
 }
 

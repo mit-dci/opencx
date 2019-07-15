@@ -88,13 +88,13 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 
 }
 
-func TestPlace1KLimitOrders(t *testing.T) {
+func TestPlaceMatch1KLimitOrders(t *testing.T) {
 	PlaceMatchNLimitOrdersTest(1000, t)
 	return
 }
 
-func TestPlace10KLimitOrders(t *testing.T) {
-	PlaceMatchNLimitOrdersTest(10000, t)
+func TestPlaceMatch2KLimitOrders(t *testing.T) {
+	PlaceMatchNLimitOrdersTest(2000, t)
 	return
 }
 
@@ -327,6 +327,11 @@ func PlaceMatchNLimitOrdersTest(howMany uint64, t *testing.T) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		t.Errorf("Error creating tester container: %s", err)
+	}
+
+	// Clean out database
+	if err = tc.DropDBs(); err != nil {
+		t.Errorf("Error making db clean for tester container: %s", err)
 	}
 
 	defer func() {

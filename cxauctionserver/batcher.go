@@ -108,7 +108,9 @@ func (ib *intermediateBatch) OrderSolver() {
 			// Lock things. minus numOrders.
 			// Check if it's 0 and active is false.
 			// If so, add to the solved channel.
+			logging.Infof("entering lock because received")
 			ib.orderUpdateMtx.Lock()
+			logging.Infof("in lock, num orders we have: %s", ib.numOrders)
 			// invariant: if numOrders is already 0 and we try to minus it. I think we've covered this
 			// case with everything already but just noting it down here.
 			ib.numOrders--
