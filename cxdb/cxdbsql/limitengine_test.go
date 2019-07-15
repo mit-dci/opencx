@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/match"
@@ -87,6 +88,16 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 
 }
 
+func TestPlace1KLimitOrders(t *testing.T) {
+	PlaceMatchNLimitOrdersTest(1000, t)
+	return
+}
+
+func TestPlace10KLimitOrders(t *testing.T) {
+	PlaceMatchNLimitOrdersTest(10000, t)
+	return
+}
+
 func BenchmarkAllLimit(b *testing.B) {
 
 	for _, howMany := range []uint64{1, 10, 100, 1000} {
@@ -166,9 +177,6 @@ func BenchmarkPlace1000LimitOrders(b *testing.B) {
 func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 	var err error
 
-	// Stop the timer because we're doing initialization stuff
-	b.StopTimer()
-
 	var ordersToPlace []*match.LimitOrder
 	if ordersToPlace, err = fuzzManyLimitOrders(howMany, testLimitOrder.TradingPair); err != nil {
 		b.Errorf("Error fuzzing many orders: %s", err)
@@ -199,7 +207,7 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 	var engine match.LimitEngine = le
 
 	// Start it back up again, let's time this
-	b.StartTimer()
+	b.ResetTimer()
 
 	for _, order := range ordersToPlace {
 		if order == nil {
@@ -213,16 +221,10 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 		}
 	}
 
-	// We've got all that we need, let's stop it
-	b.StopTimer()
-
 }
 
 func MatchNLimitOrders(howMany uint64, b *testing.B) {
 	var err error
-
-	// Stop the timer because we're doing initialization stuff
-	b.StopTimer()
 
 	var ordersToPlace []*match.LimitOrder
 	if ordersToPlace, err = fuzzManyLimitOrders(howMany, testLimitOrder.TradingPair); err != nil {
@@ -259,23 +261,17 @@ func MatchNLimitOrders(howMany uint64, b *testing.B) {
 	}
 
 	// Start it back up again, let's time this
-	b.StartTimer()
+	b.ResetTimer()
 
 	if _, _, err = engine.MatchLimitOrders(); err != nil {
 		b.Errorf("Error matching limit orders: %s", err)
 	}
-
-	// We've got all that we need, let's stop it
-	b.StopTimer()
 
 }
 
 // PlaceMatchNLimitOrders is a bit different but more real, it places an order then runs matching. This should get an idea of overall throughput, maybe cause some errors
 func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 	var err error
-
-	// Stop the timer because we're doing initialization stuff
-	b.StopTimer()
 
 	var ordersToPlace []*match.LimitOrder
 	if ordersToPlace, err = fuzzManyLimitOrders(howMany, testLimitOrder.TradingPair); err != nil {
@@ -306,14 +302,8 @@ func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 	var engine match.LimitEngine = le
 
 	// Start it back up again, let's time this
-	b.StartTimer()
+	b.ResetTimer()
 	for _, order := range ordersToPlace {
-		if engine == nil {
-			b.Errorf("Engine is nil? This shouldn't happen")
-		}
-		if order == nil {
-			b.Errorf("Order is nil? This shouldn't happen")
-		}
 		if _, err = engine.PlaceLimitOrder(order); err != nil {
 			b.Errorf("Error placing limit order: %s", err)
 		}
@@ -322,8 +312,51 @@ func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 		}
 	}
 
-	// We've got all that we need, let's stop it
-	b.StopTimer()
+}
+
+// PlaceMatchNLimitOrdersTest is a bit different but more real, it places an order then runs matching. This should get an idea of overall throughput, maybe cause some errors
+func PlaceMatchNLimitOrdersTest(howMany uint64, t *testing.T) {
+	var err error
+
+	t.Logf("%s: Starting test setup", time.Now())
+	var ordersToPlace []*match.LimitOrder
+	if ordersToPlace, err = fuzzManyLimitOrders(howMany, testLimitOrder.TradingPair); err != nil {
+		t.Errorf("Error fuzzing many orders: %s", err)
+	}
+
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		t.Errorf("Error creating tester container: %s", err)
+	}
+
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			t.Errorf("Error killing tester container: %s", err)
+		}
+	}()
+
+	var le *SQLLimitEngine
+	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+		t.Errorf("Error creating limit engine for pair: %s", err)
+	}
+
+	defer func() {
+		if err = le.DestroyHandler(); err != nil {
+			t.Errorf("Error destroying handler for limit engine: %s", err)
+		}
+	}()
+	var engine match.LimitEngine = le
+
+	t.Logf("%s: Starting to place and match orders", time.Now())
+	for _, order := range ordersToPlace {
+		if _, err = engine.PlaceLimitOrder(order); err != nil {
+			t.Errorf("Error placing limit order: %s", err)
+		}
+		if _, _, err = engine.MatchLimitOrders(); err != nil {
+			t.Errorf("Error matching limit orders: %s", err)
+		}
+	}
+	t.Logf("%s: Done placing and matching orders", time.Now())
 
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/mit-dci/lit/coinparam"
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -103,6 +104,16 @@ func TestPlaceSingleAuctionOrder(t *testing.T) {
 
 }
 
+func TestPlace1KAuctionOrders(t *testing.T) {
+	PlaceMatchNAuctionOrdersTest(1000, t)
+	return
+}
+
+func TestPlace10KAuctionOrders(t *testing.T) {
+	PlaceMatchNAuctionOrdersTest(10000, t)
+	return
+}
+
 func BenchmarkAllAuction(b *testing.B) {
 
 	for _, howMany := range []uint64{1, 10, 100, 1000} {
@@ -141,9 +152,6 @@ func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
 
 	b.Run(fmt.Sprintf("Place%dAuctionOrders", howMany), func(b *testing.B) {
 
-		// Stop the timer because we're doing initialization stuff
-		b.StopTimer()
-
 		defer func() {
 			// drop here because we need to make sure the next run has a clean DB
 			// the user persists because we designed the testerContainer to allow for that
@@ -169,18 +177,13 @@ func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
 		var engine match.AuctionEngine = ae
 
 		// Start it back up again, let's time this
-		b.StartTimer()
+		b.ResetTimer()
 
 		for _, order := range ordersToPlace {
 			if _, err = engine.PlaceAuctionOrder(order, idStruct); err != nil {
 				b.Errorf("Error placing auction order: %s", err)
 			}
 		}
-
-		// TODO: figure out how to kill connections for the engine
-
-		// We've got all that we need, let's stop it
-		b.StopTimer()
 
 	})
 
@@ -215,8 +218,6 @@ func MatchNAuctionOrders(howMany uint64, b *testing.B) {
 
 	b.Run(fmt.Sprintf("Match%dAuctionOrders", howMany), func(b *testing.B) {
 
-		// Stop the timer because we're doing initialization stuff
-		b.StopTimer()
 		defer func() {
 			// drop here because we need to make sure the next run has a clean DB
 			// the user persists because we designed the testerContainer to allow for that
@@ -248,20 +249,76 @@ func MatchNAuctionOrders(howMany uint64, b *testing.B) {
 		}
 
 		// Start it back up again, let's time this
-		b.StartTimer()
+		b.ResetTimer()
 
 		if _, _, err = engine.MatchAuctionOrders(idStruct); err != nil {
 			b.Errorf("Error matching auction orders: %s", err)
 		}
-
-		// We've got all that we need, let's stop it
-		b.StopTimer()
 
 		if err = tc.DropDBs(); err != nil {
 			b.Errorf("Error killing tester container dbs: %s", err)
 		}
 
 	})
+
+}
+
+func PlaceMatchNAuctionOrdersTest(howMany uint64, t *testing.T) {
+	var err error
+
+	t.Logf("%s: Starting test setup", time.Now())
+	var idStruct *match.AuctionID = new(match.AuctionID)
+	if err = idStruct.UnmarshalBinary(testEncryptedOrder.IntendedAuction[:]); err != nil {
+		t.Errorf("Error unmarshalling auction ID: %s", err)
+	}
+
+	var ordersToPlace []*match.AuctionOrder
+	if ordersToPlace, err = fuzzManyOrders(howMany, testEncryptedOrder.IntendedPair); err != nil {
+		t.Errorf("Error fuzzing many orders: %s", err)
+	}
+
+	var tc *testerContainer
+	if tc, err = CreateTesterContainer(); err != nil {
+		t.Errorf("Error creating tester container: %s", err)
+	}
+
+	defer func() {
+		if err = tc.Kill(); err != nil {
+			t.Errorf("Error killing tester container: %s", err)
+		}
+	}()
+
+	var ae *SQLAuctionEngine
+	if ae, err = CreateAucEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
+		t.Errorf("Error creating auction engine for pair: %s", err)
+	}
+
+	defer func() {
+
+		if err = ae.DestroyHandler(); err != nil {
+			t.Errorf("Error destroying handler for auction engine: %s", err)
+		}
+
+	}()
+
+	var engine match.AuctionEngine = ae
+
+	t.Logf("%s: Starting to place orders", time.Now())
+	for _, order := range ordersToPlace {
+		if _, err = engine.PlaceAuctionOrder(order, idStruct); err != nil {
+			t.Errorf("Error placing auction order: %s", err)
+		}
+	}
+
+	t.Logf("%s: Starting to match orders", time.Now())
+	if _, _, err = engine.MatchAuctionOrders(idStruct); err != nil {
+		t.Errorf("Error matching auction orders: %s", err)
+	}
+	t.Logf("%s: Done matching orders", time.Now())
+
+	if err = tc.DropDBs(); err != nil {
+		t.Errorf("Error killing tester container dbs: %s", err)
+	}
 
 }
 
