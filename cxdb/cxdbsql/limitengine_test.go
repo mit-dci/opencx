@@ -35,6 +35,7 @@ func TestCreateLimitEngineAllParams(t *testing.T) {
 	defer func() {
 		if err = tc.Kill(); err != nil {
 			t.Errorf("Error killing tester container: %s", err)
+			return
 		}
 	}()
 
@@ -67,6 +68,7 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 	defer func() {
 		if err = tc.Kill(); err != nil {
 			t.Errorf("Error killing tester container: %s", err)
+			return
 		}
 	}()
 
@@ -78,6 +80,7 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 	defer func() {
 		if err = le.DestroyHandler(); err != nil {
 			t.Errorf("Error destroying handler for limit engine: %s", err)
+			return
 		}
 	}()
 	var engine match.LimitEngine = le
@@ -190,6 +193,7 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 	defer func() {
 		if err = tc.Kill(); err != nil {
 			b.Errorf("Error killing tester container: %s", err)
+			return
 		}
 	}()
 
@@ -201,6 +205,7 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 	defer func() {
 		if err = le.DestroyHandler(); err != nil {
 			b.Errorf("Error destroying handler for limit engine: %s", err)
+			return
 		}
 	}()
 
@@ -210,12 +215,6 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 	b.ResetTimer()
 
 	for _, order := range ordersToPlace {
-		if order == nil {
-			b.Errorf("Order is nil?? this should not happen")
-		}
-		if engine == nil {
-			b.Errorf("Engine is nil?? this should not happen")
-		}
 		if _, err = engine.PlaceLimitOrder(order); err != nil {
 			b.Errorf("Error placing limit order: %s", err)
 		}
@@ -239,6 +238,7 @@ func MatchNLimitOrders(howMany uint64, b *testing.B) {
 	defer func() {
 		if err = tc.Kill(); err != nil {
 			b.Errorf("Error killing tester container: %s", err)
+			return
 		}
 	}()
 
@@ -250,6 +250,7 @@ func MatchNLimitOrders(howMany uint64, b *testing.B) {
 	defer func() {
 		if err = le.DestroyHandler(); err != nil {
 			b.Errorf("Error destroying handler for limit engine: %s", err)
+			return
 		}
 	}()
 	var engine match.LimitEngine = le
@@ -286,6 +287,7 @@ func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 	defer func() {
 		if err = tc.Kill(); err != nil {
 			b.Errorf("Error killing tester container: %s", err)
+			return
 		}
 	}()
 
@@ -297,6 +299,7 @@ func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 	defer func() {
 		if err = le.DestroyHandler(); err != nil {
 			b.Errorf("Error destroying handler for limit engine: %s", err)
+			return
 		}
 	}()
 	var engine match.LimitEngine = le
@@ -332,11 +335,13 @@ func PlaceMatchNLimitOrdersTest(howMany uint64, t *testing.T) {
 	// Clean out database
 	if err = tc.DropDBs(); err != nil {
 		t.Errorf("Error making db clean for tester container: %s", err)
+		return
 	}
 
 	defer func() {
 		if err = tc.Kill(); err != nil {
 			t.Errorf("Error killing tester container: %s", err)
+			return
 		}
 	}()
 
@@ -348,6 +353,7 @@ func PlaceMatchNLimitOrdersTest(howMany uint64, t *testing.T) {
 	defer func() {
 		if err = le.DestroyHandler(); err != nil {
 			t.Errorf("Error destroying handler for limit engine: %s", err)
+			return
 		}
 	}()
 	var engine match.LimitEngine = le
@@ -372,32 +378,51 @@ func fuzzManyLimitOrders(howMany uint64, pair match.Pair) (orders []*match.Limit
 
 	// 21 million is max amount
 	maxAmount := int64(2100000000)
-	r := rand.New(rand.NewSource(1801))
 	orders = make([]*match.LimitOrder, howMany)
+	errChan := make(chan error, howMany)
+	orderChan := make(chan *match.LimitOrder, howMany)
 	for i := uint64(0); i < howMany; i++ {
-		currOrder := new(match.LimitOrder)
-		var ephemeralPrivKey *koblitz.PrivateKey
-		if ephemeralPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
-			err = fmt.Errorf("Error generating new private key: %s", err)
+		go asyncCreateOrder(maxAmount, errChan, orderChan)
+	}
+	var currOrder *match.LimitOrder
+	for i := uint64(0); i < howMany; i++ {
+		if err = <-errChan; err != nil {
+			err = fmt.Errorf("Error creating fuzzed order: %s", err)
 			return
 		}
-		currOrder.AmountWant = uint64(r.Int63n(maxAmount) + 1)
-		currOrder.AmountHave = uint64(r.Int63n(maxAmount) + 1)
-		if r.Int63n(2) == 0 {
-			currOrder.Side = match.Buy
-		} else {
-			currOrder.Side = match.Sell
-		}
-		currOrder.TradingPair = match.Pair{
-			AssetWant: btcreg,
-			AssetHave: litereg,
-		}
-		pubkeyBytes := ephemeralPrivKey.PubKey().SerializeCompressed()
-		copy(currOrder.Pubkey[:], pubkeyBytes)
+		currOrder = <-orderChan
 
 		// It's all done!!!! Add it to the list!
 		orders[i] = currOrder
 	}
 
 	return
+}
+
+func asyncCreateOrder(maxAmount int64, errChan chan error, orderChan chan *match.LimitOrder) {
+	var err error
+	defer func() {
+		errChan <- err
+	}()
+	r := rand.New(rand.NewSource(1801))
+	currOrder := new(match.LimitOrder)
+	var ephemeralPrivKey *koblitz.PrivateKey
+	if ephemeralPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		err = fmt.Errorf("Error generating new private key: %s", err)
+		return
+	}
+	currOrder.AmountWant = uint64(r.Int63n(maxAmount) + 1)
+	currOrder.AmountHave = uint64(r.Int63n(maxAmount) + 1)
+	if r.Int63n(2) == 0 {
+		currOrder.Side = match.Buy
+	} else {
+		currOrder.Side = match.Sell
+	}
+	currOrder.TradingPair = match.Pair{
+		AssetWant: btcreg,
+		AssetHave: litereg,
+	}
+	pubkeyBytes := ephemeralPrivKey.PubKey().SerializeCompressed()
+	copy(currOrder.Pubkey[:], pubkeyBytes)
+	orderChan <- currOrder
 }

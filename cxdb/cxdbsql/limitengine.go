@@ -296,7 +296,7 @@ func (le *SQLLimitEngine) CancelLimitOrder(orderID *match.OrderID) (cancelled *m
 	}
 
 	var rows *sql.Rows
-	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, amountHave FROM %s WHERE orderID = '%x';", le.pair, orderID)
+	selectOrderQuery := fmt.Sprintf("SELECT pubkey, side, amountHave FROM %s WHERE orderID = '%x' FOR UPDATE;", le.pair, orderID)
 	if rows, err = tx.Query(selectOrderQuery); err != nil {
 		err = fmt.Errorf("Error getting order from db for CancelLimitOrder: %s", err)
 		return
@@ -386,7 +386,7 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 	*buySide = match.Buy
 	// First get the max buy price and max sell price
 	var maxSellRow *sql.Row
-	getMaxSellPrice := fmt.Sprintf("SELECT MAX(price) FROM %s WHERE side='%s';", le.pair.String(), sellSide.String())
+	getMaxSellPrice := fmt.Sprintf("SELECT MAX(price) FROM %s WHERE side='%s' FOR UPDATE;", le.pair.String(), sellSide.String())
 	// errors for queryrow are deferred until scan -- this is important, that's why we don't err != nil here
 	logging.Infof("maxsell: %s", sellSide.String())
 	maxSellRow = tx.QueryRow(getMaxSellPrice)
@@ -409,7 +409,7 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 	}
 
 	var minBuyRow *sql.Row
-	getminBuyPrice := fmt.Sprintf("SELECT MIN(price) FROM %s WHERE side='%s';", le.pair.String(), buySide.String())
+	getminBuyPrice := fmt.Sprintf("SELECT MIN(price) FROM %s WHERE side='%s' FOR UPDATE;", le.pair.String(), buySide.String())
 	// errors for queryrow are deferred until scan -- this is important, that's why we don't err != nil here
 	minBuyRow = tx.QueryRow(getminBuyPrice)
 
@@ -441,7 +441,7 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 	// this means that the sell orders will be sorted by price first, so the best prices will match first,
 	// and within the best price the earliest prices will match first.
 	var sellRows *sql.Rows
-	getSellSideQuery := fmt.Sprintf("SELECT pubkey, price, orderID, amountHave, amountWant, time FROM %s WHERE price>=%f AND side='%s' ORDER BY price DESC, time ASC;", le.pair.String(), minBuy, sellSide.String())
+	getSellSideQuery := fmt.Sprintf("SELECT pubkey, price, orderID, amountHave, amountWant, time FROM %s WHERE price>=%f AND side='%s' ORDER BY price DESC, time ASC FOR UPDATE;", le.pair.String(), minBuy, sellSide.String())
 	if sellRows, err = tx.Query(getSellSideQuery); err != nil {
 		err = fmt.Errorf("Error querying for sell orders for MatchLimitOrders: %s", err)
 		return
@@ -494,7 +494,7 @@ func (le *SQLLimitEngine) MatchLimitOrders() (orderExecs []*match.OrderExecution
 	// this means that the buy orders will be sorted by price first, so the best prices will match first,
 	// and within the best price the earliest prices will match first.
 	var buyRows *sql.Rows
-	getBuySideQuery := fmt.Sprintf("SELECT pubkey, price, orderID, amountHave, amountWant, time FROM %s WHERE price<=%f AND side='%s' ORDER BY price ASC, time ASC;", le.pair.String(), maxSell, buySide.String())
+	getBuySideQuery := fmt.Sprintf("SELECT pubkey, price, orderID, amountHave, amountWant, time FROM %s WHERE price<=%f AND side='%s' ORDER BY price ASC, time ASC FOR UPDATE;", le.pair.String(), maxSell, buySide.String())
 	if buyRows, err = tx.Query(getBuySideQuery); err != nil {
 		err = fmt.Errorf("Error querying for buy orders for MatchLimitOrders: %s", err)
 		return

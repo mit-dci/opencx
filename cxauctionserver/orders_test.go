@@ -61,6 +61,10 @@ func TestPlacePuzzledN(t *testing.T) {
 func ultraLightPlacePuzzledOrders(numOrders uint64, t *testing.T) {
 	var err error
 
+	// set the max procs to the number of orders, could do a numCPU check here
+	// but that's probably not necessary
+	runtime.GOMAXPROCS(int(numOrders))
+
 	t.Logf("%s: Starting Server", time.Now())
 	var s *OpencxAuctionServer
 	if s, err = initTestServer(); err != nil {
@@ -78,6 +82,7 @@ func ultraLightPlacePuzzledOrders(numOrders uint64, t *testing.T) {
 
 	baseOrder := *testAuctionOrder
 
+	t.Logf("%s: Creating all orders", time.Now())
 	var orders []*match.EncryptedAuctionOrder
 	// Add a bunch of orders to the order list
 	var newEncrypted *match.EncryptedAuctionOrder
