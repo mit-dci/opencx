@@ -1,7 +1,7 @@
 # cxdb
 [![Build Status](https://travis-ci.org/mit-dci/opencx.svg?branch=master)](https://travis-ci.org/mit-dci/opencx)
 [![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://github.com/mit-dci/opencx/blob/master/LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx)
+> [![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx)
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx/cxdb?status.svg)](https://godoc.org/github.com/mit-dci/opencx/cxdb)
 
 The code which manages exchange datastore interactions is split into a set of useful interfaces:
