@@ -1,8 +1,8 @@
 # opencx
 [![Build Status](https://travis-ci.org/mit-dci/opencx.svg?branch=master)](https://travis-ci.org/mit-dci/opencx)
 [![License](http://img.shields.io/badge/License-MIT-brightgreen.svg)](./LICENSE)
-<!-- [![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx) -->
 [![GoDoc](https://godoc.org/github.com/mit-dci/opencx?status.svg)](https://godoc.org/github.com/mit-dci/opencx)
+<!-- [![Go Report Card](https://goreportcard.com/badge/github.com/mit-dci/opencx)](https://goreportcard.com/report/github.com/mit-dci/opencx) -->
 
 Cryptocurrency exchanges are some of the largest businesses in the cryptocurrency space, and their reserves are often viewed as "honeypots" of cryptocurrencies.
 Because of this, cryptocurrency exchanges have been a hotbed of crime in the form of hacks, front-running, wash trading, fake orderbooks, and much more.
