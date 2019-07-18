@@ -154,6 +154,7 @@ func (cl *ocxClient) UnlockKey() (err error) {
 	} else {
 		logging.Infof("Using already unlocked key")
 	}
+	// logging.Infof("Public Key (compressed): %x", cl.RPCClient.PrivKey.PubKey().SerializeCompressed())
 
 	return
 }

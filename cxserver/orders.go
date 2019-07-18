@@ -32,7 +32,7 @@ func (server *OpencxServer) GetOrder(orderID *match.OrderID) (order *match.Limit
 
 // PlaceOrder places an order by first checking if we can credit the user, then calling the appropriate
 // database calls
-func (server *OpencxServer) PlaceOrder(order *match.LimitOrder) (orderID match.OrderID, err error) {
+func (server *OpencxServer) PlaceOrder(order *match.LimitOrder) (orderID *match.OrderID, err error) {
 
 	var assetToCredit match.Asset
 	// If we are buy then we want to credit assethave
@@ -119,7 +119,7 @@ func (server *OpencxServer) PlaceOrder(order *match.LimitOrder) (orderID match.O
 	}
 
 	if !valid {
-		err = fmt.Errorf("Error placing order, not enough balance")
+		err = fmt.Errorf("Error placing order, not enough balance or you are not allowed to place orders")
 		server.dbLock.Unlock()
 		return
 	}
@@ -164,8 +164,22 @@ func (server *OpencxServer) PlaceOrder(order *match.LimitOrder) (orderID match.O
 
 	for _, setExec := range settlementExecs {
 
+		var thisCoin *coinparam.Params
+		if thisCoin, err = setExec.Asset.CoinParamFromAsset(); err != nil {
+			err = fmt.Errorf("Error getting coin param from asset to find correct engine: %s", err)
+			server.dbLock.Unlock()
+			return
+		}
+
+		var thisAssetEngine match.SettlementEngine
+		if thisAssetEngine, ok = server.SettlementEngines[thisCoin]; !ok {
+			err = fmt.Errorf("Could not find correct settlement engine for PlaceOrder")
+			server.dbLock.Unlock()
+			return
+		}
+
 		// We reuse valid.
-		if valid, err = currSetEng.CheckValid(setExec); err != nil {
+		if valid, err = thisAssetEngine.CheckValid(setExec); err != nil {
 			err = fmt.Errorf("Error checking valid settlement exec after match for PlaceOrder: %s", err)
 			server.dbLock.Unlock()
 			return
@@ -178,7 +192,7 @@ func (server *OpencxServer) PlaceOrder(order *match.LimitOrder) (orderID match.O
 		}
 
 		// We reuse setRes.
-		if setRes, err = currSetEng.ApplySettlementExecution(setExec); err != nil {
+		if setRes, err = thisAssetEngine.ApplySettlementExecution(setExec); err != nil {
 			err = fmt.Errorf("Error applying settlement execution after match for PlaceOrder: %s", err)
 			server.dbLock.Unlock()
 			return
@@ -214,7 +228,7 @@ func (server *OpencxServer) PlaceOrder(order *match.LimitOrder) (orderID match.O
 	server.dbLock.Unlock()
 
 	// Now we return thing
-	orderID = *idRes.OrderID
+	orderID = idRes.OrderID
 	return
 }
 

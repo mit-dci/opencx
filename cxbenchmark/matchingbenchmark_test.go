@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mit-dci/opencx/benchclient"
+	"github.com/mit-dci/opencx/cxrpc"
 )
 
 // func TestSetupDualClientNoAuth(t *testing.T) {
@@ -50,11 +51,9 @@ func BenchmarkPlaceOrders(b *testing.B) {
 
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
-	var offChan chan bool
-	if client1, client2, offChan, err = setupBenchmarkDualClient(false); err != nil {
-		b.Errorf("Something is wrong with test, stopping benchmark")
-		offChan <- true
-		b.Fatalf("Could not start dual client benchmark: \n%s", err)
+	var rpcListener *cxrpc.OpencxRPCCaller
+	if client1, client2, rpcListener, err = setupBenchmarkDualClient(false); err != nil {
+		b.Fatalf("Something is wrong with test, stopping benchmark")
 	}
 
 	b.Logf("Test started client")
@@ -78,7 +77,10 @@ func BenchmarkPlaceOrders(b *testing.B) {
 	}
 
 	b.Logf("stop benchmark rpc")
-	offChan <- true
+	if err = rpcListener.Stop(); err != nil {
+		err = fmt.Errorf("Error stopping rpc listener: %s", err)
+		return
+	}
 
 	return
 }
@@ -91,10 +93,8 @@ func BenchmarkNoisePlaceOrders(b *testing.B) {
 
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
-	var offChan chan bool
-	if client1, client2, offChan, err = setupBenchmarkDualClient(true); err != nil {
-		b.Errorf("Something is wrong with test, stopping benchmark")
-		offChan <- true
+	var rpcListener *cxrpc.OpencxRPCCaller
+	if client1, client2, rpcListener, err = setupBenchmarkDualClient(true); err != nil {
 		b.Fatalf("Could not start dual client benchmark: \n%s", err)
 	}
 
@@ -117,7 +117,10 @@ func BenchmarkNoisePlaceOrders(b *testing.B) {
 	}
 
 	b.Logf("stop benchmark rpc")
-	offChan <- true
+	if err = rpcListener.Stop(); err != nil {
+		err = fmt.Errorf("Error stopping rpc listener: %s", err)
+		return
+	}
 
 	return
 }
@@ -131,11 +134,9 @@ func BenchmarkEasyPlaceOrders(b *testing.B) {
 
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
-	var offChan chan bool
-	if client1, client2, offChan, err = setupEasyBenchmarkDualClient(false); err != nil {
-		b.Errorf("Something is wrong with test, stopping benchmark")
-		offChan <- true
-		b.Fatalf("Could not start dual client benchmark: \n%s", err)
+	var rpcListener *cxrpc.OpencxRPCCaller
+	if client1, client2, rpcListener, err = setupEasyBenchmarkDualClient(false); err != nil {
+		b.Fatalf("Something is wrong with test, stopping benchmark: %s", err)
 	}
 
 	b.Logf("Test started client")
@@ -159,7 +160,9 @@ func BenchmarkEasyPlaceOrders(b *testing.B) {
 	}
 
 	b.Logf("stop benchmark rpc")
-	offChan <- true
+	if err = rpcListener.Stop(); err != nil {
+		b.Errorf("Error stopping rpc listener for benchmark: %s", err)
+	}
 
 	return
 }
@@ -173,10 +176,8 @@ func BenchmarkEasyNoisePlaceOrders(b *testing.B) {
 
 	var client1 *benchclient.BenchClient
 	var client2 *benchclient.BenchClient
-	var offChan chan bool
-	if client1, client2, offChan, err = setupEasyBenchmarkDualClient(true); err != nil {
-		b.Errorf("Something is wrong with test, stopping benchmark")
-		offChan <- true
+	var rpcListener *cxrpc.OpencxRPCCaller
+	if client1, client2, rpcListener, err = setupEasyBenchmarkDualClient(true); err != nil {
 		b.Fatalf("Could not start dual client benchmark: \n%s", err)
 	}
 
@@ -199,7 +200,10 @@ func BenchmarkEasyNoisePlaceOrders(b *testing.B) {
 	}
 
 	b.Logf("stop benchmark rpc")
-	offChan <- true
+	if err = rpcListener.Stop(); err != nil {
+		err = fmt.Errorf("Error stopping rpc listener: %s", err)
+		return
+	}
 
 	return
 }

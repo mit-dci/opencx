@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -61,6 +62,7 @@ func (pe *PinkySwearEngine) CheckValid(setExec *match.SettlementExecution) (vali
 		return
 	}
 
+	logging.Infof("Exec: \n%+v\nExecAsset: %s", setExec, execAsset.String())
 	if execAsset != setExec.Asset {
 		valid = false
 		return
@@ -76,6 +78,7 @@ func (pe *PinkySwearEngine) CheckValid(setExec *match.SettlementExecution) (vali
 	if valid, ok = pe.whitelist[setExec.Pubkey]; !ok {
 		// just being really explicit here, all this does is check if you're in the whitelist and your value
 		// is true. There's no reason for it to be false.
+		logging.Infof("invalid pubkey")
 		valid = false
 		pe.whitelistMtx.Unlock()
 		return

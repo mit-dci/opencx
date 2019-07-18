@@ -470,7 +470,7 @@ func (ae *SQLAuctionEngine) processExecutionsTx(execs []*match.OrderExecution, t
 				return
 			}
 			if rowsAffected != 1 {
-				logging.Errorf("Error: Order delete should only have affected one row. Instead, it affected %d", rowsAffected)
+				err = fmt.Errorf("Error: Order delete should only have affected one row. Instead, it affected %d", rowsAffected)
 			}
 		} else {
 			// If the order was not filled, just update the amounts

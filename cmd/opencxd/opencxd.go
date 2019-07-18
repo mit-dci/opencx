@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +12,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 	util "github.com/mit-dci/opencx/chainutils"
 	"github.com/mit-dci/opencx/cxdb"
+	"github.com/mit-dci/opencx/cxdb/cxdbmemory"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/cxserver"
@@ -50,10 +52,11 @@ type opencxConfig struct {
 	Rtvtchost   string `long:"rtvtc" description:"Connect to Vertcoin regtest node. Specify a socket address."`
 
 	// configuration for concurrent RPC users.
-	MaxPeers    uint16 `long:"numpeers" description:"Maximum number of peers that you'd like to support"`
-	MinPeerPort uint16 `long:"minpeerport" description:"Port to start creating ports for peers at"`
-	Lithost     string `long:"lithost" description:"Host for the lightning node on the exchange to run"`
-	Litport     uint16 `long:"litport" description:"Port for the lightning node on the exchange to run"`
+	MaxPeers    uint16   `long:"numpeers" description:"Maximum number of peers that you'd like to support"`
+	MinPeerPort uint16   `long:"minpeerport" description:"Port to start creating ports for peers at"`
+	Lithost     string   `long:"lithost" description:"Host for the lightning node on the exchange to run"`
+	Litport     uint16   `long:"litport" description:"Port for the lightning node on the exchange to run"`
+	Whitelist   []string `long:"whitelist" description:"If using pinky swear settlement, this is the default whitelist"`
 
 	// filename for key
 	KeyFileName string `long:"keyfilename" short:"k" description:"Filename for private key within root opencx directory used to send transactions"`
@@ -122,8 +125,33 @@ func main() {
 	}
 
 	var setEngines map[*coinparam.Params]match.SettlementEngine
-	if setEngines, err = cxdbsql.CreateSettlementEngineMap(coinList); err != nil {
-		logging.Fatalf("Error creating settlement engine map for opencxd: %s", err)
+	if len(conf.Whitelist) != 0 {
+		whitelist := make([][33]byte, len(conf.Whitelist))
+		var pkBytes []byte
+		for i, str := range conf.Whitelist {
+			if pkBytes, err = hex.DecodeString(str); err != nil {
+				logging.Fatalf("Error decoding string for whitelist: %s", err)
+			}
+			if len(pkBytes) != 33 {
+				logging.Fatalf("One pubkey not 33 bytes")
+			}
+			logging.Infof("Adding %x to the whitelist", pkBytes)
+			copy(whitelist[i][:], pkBytes)
+		}
+		whitelistMap := make(map[*coinparam.Params][][33]byte)
+		for _, coin := range coinList {
+			whitelistMap[coin] = whitelist
+		}
+		if setEngines, err = cxdbmemory.CreatePinkySwearEngineMap(whitelistMap, true); err != nil {
+			logging.Fatalf("Error creating pinky swear settlement engine map for opencxd: %s", err)
+		}
+	} else {
+		if setEngines, err = cxdbsql.CreateSettlementEngineMap(coinList); err != nil {
+			logging.Fatalf("Error creating settlement engine map for opencxd: %s", err)
+		}
+	}
+	if setEngines == nil {
+		logging.Fatalf("Error, nil setEngines map, this should not ever happen")
 	}
 
 	var limBooks map[match.Pair]match.LimitOrderbook
@@ -207,10 +235,10 @@ func main() {
 
 	}
 
-	// Register RPC Commands and set server
-	rpc1 := new(cxrpc.OpencxRPC)
-	rpc1.OffButton = make(chan bool, 1)
-	rpc1.Server = ocxServer
+	var rpcListener *cxrpc.OpencxRPCCaller
+	if rpcListener, err = cxrpc.CreateRPCForServer(ocxServer); err != nil {
+		logging.Fatalf("Error creating rpc caller for server: %s", err)
+	}
 
 	// SIGINT and SIGTERM and SIGQUIT handler for CTRL-c, KILL, CTRL-/, etc.
 	go func() {
@@ -223,8 +251,10 @@ func main() {
 			signal := <-sigs
 			logging.Infof("Received %s signal, Stopping server gracefully...", signal.String())
 
-			// send off button to off button
-			rpc1.OffButton <- true
+			// stop rpc listener
+			if err = rpcListener.Stop(); err != nil {
+				logging.Fatalf("Error killing server: %s", err)
+			}
 
 			return
 		}
@@ -232,22 +262,23 @@ func main() {
 
 	if !conf.AuthenticatedRPC {
 		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on rpc ===")
-		go cxrpc.RPCListenAsync(doneChan, rpc1, conf.Rpchost, conf.Rpcport)
-		// block until rpclisten is done
-		<-doneChan
+		if err = rpcListener.RPCListen(conf.Rpchost, conf.Rpcport); err != nil {
+			logging.Fatalf("Error listening for rpc for server: %s", err)
+		}
 	} else {
 
 		privkey, _ := koblitz.PrivKeyFromBytes(koblitz.S256(), key[:])
 		// this tells us when the rpclisten is done
-		doneChan := make(chan bool, 1)
 		logging.Infof(" === will start to listen on noise-rpc ===")
-		go cxrpc.NoiseListenAsync(doneChan, privkey, rpc1, conf.Rpchost, conf.Rpcport)
-		// block until noiselisten is done
-		<-doneChan
+		if err = rpcListener.NoiseListen(privkey, conf.Rpchost, conf.Rpcport); err != nil {
+			logging.Fatalf("Error listening for noise rpc for server: %s", err)
+		}
 
 	}
+
+	// wait until the listener dies - this does not return anything
+	rpcListener.WaitUntilDead()
 
 	return
 }

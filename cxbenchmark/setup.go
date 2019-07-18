@@ -8,7 +8,6 @@ import (
 	"github.com/mit-dci/opencx/benchclient"
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxrpc"
-	"github.com/mit-dci/opencx/cxserver"
 )
 
 // Let these be turned into config things at some point
@@ -91,7 +90,7 @@ func registerClient(client *benchclient.BenchClient) (err error) {
 }
 
 // setupBenchmarkDualClient sets up an environment where we can test two very well funded clients client1 and client2 with configurable authrpc
-func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, offChan chan bool, err error) {
+func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, rpcListener *cxrpc.OpencxRPCCaller, err error) {
 	var serverKey *koblitz.PrivateKey
 	if serverKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
 		err = fmt.Errorf("Could not get new private key: \n%s", err)
@@ -99,8 +98,7 @@ func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, c
 	}
 
 	// set the closing function here as well
-	var server *cxserver.OpencxServer
-	if server, offChan, err = createDefaultParamServerWithKey(serverKey, authrpc); err != nil {
+	if rpcListener, err = createDefaultParamServerWithKey(serverKey, authrpc); err != nil {
 		err = fmt.Errorf("Could not create default server with key: \n%s", err)
 		return
 	}
@@ -124,13 +122,8 @@ func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, c
 		return
 	}
 
-	if err = prepareBalances(client1, server); err != nil {
-		err = fmt.Errorf("Could not add balances to client1: \n%s", err)
-		return
-	}
-
-	if err = prepareBalances(client2, server); err != nil {
-		err = fmt.Errorf("Could not add balances to client2: \n%s", err)
+	if err = rpcListener.Stop(); err != nil {
+		err = fmt.Errorf("Could not stop listener: %s", err)
 		return
 	}
 
@@ -138,7 +131,7 @@ func setupBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, c
 }
 
 // setupEasyBenchmarkDualClient sets up an environment where we can test two infinitely funded clients
-func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, offChan chan bool, err error) {
+func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClient, client2 *benchclient.BenchClient, rpcListener *cxrpc.OpencxRPCCaller, err error) {
 	var serverKey *koblitz.PrivateKey
 	if serverKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
 		err = fmt.Errorf("Could not get new private key: \n%s", err)
@@ -162,9 +155,8 @@ func setupEasyBenchmarkDualClient(authrpc bool) (client1 *benchclient.BenchClien
 		clientKeyTwo.PubKey(),
 	}
 
-	// set the closing function here as well
 	// We don't really care about the actual server object if it's running and we know it's running
-	if _, offChan, err = createDefaultLightServerWithKey(serverKey, whitelist, authrpc); err != nil {
+	if rpcListener, err = createDefaultLightServerWithKey(serverKey, whitelist, authrpc); err != nil {
 		err = fmt.Errorf("Could not create default server with key: \n%s", err)
 		return
 	}

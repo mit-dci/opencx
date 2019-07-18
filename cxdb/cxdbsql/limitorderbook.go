@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )
 
@@ -166,38 +165,39 @@ func (lo *SQLLimitOrderbook) UpdateBookExec(orderExec *match.OrderExecution) (er
 	if orderExec.Filled {
 		// If the order was filled, delete it from the orderbook
 		deleteOrderQuery := fmt.Sprintf("DELETE FROM %s WHERE orderID='%x';", lo.pair.String(), orderExec.OrderID)
-		var res sql.Result
-		if res, err = tx.Exec(deleteOrderQuery); err != nil {
+		// var res sql.Result
+		if _, err = tx.Exec(deleteOrderQuery); err != nil {
 			err = fmt.Errorf("Error deleting order within tx for UpdateBookExec: %s", err)
 			return
 		}
 		// Now we check that there was only one row deleted. If there were more then we log it and move on. Shouldn't have put those orders there in the first place.
-		var rowsAffected int64
-		if rowsAffected, err = res.RowsAffected(); err != nil {
-			err = fmt.Errorf("Error while getting rows affected for UpdateBookExec: %s", err)
-			return
-		}
-		if rowsAffected != 1 {
-			logging.Errorf("Error: Order delete should only have affected one row. Instead, it affected %d", rowsAffected)
-		}
+		// var rowsAffected int64
+		// if rowsAffected, err = res.RowsAffected(); err != nil {
+		// 	err = fmt.Errorf("Error while getting rows affected for UpdateBookExec: %s", err)
+		// 	return
+		// }
+		// if rowsAffected != 1 {
+		// 	err = fmt.Errorf("Error: Order delete should only have affected one row. Instead, it affected %d", rowsAffected)
+		// 	return
+		// }
 	} else {
 		// If the order was not filled, just update the amounts
 		updateOrderQuery := fmt.Sprintf("UPDATE %s SET amountHave=%d, amountWant=%d WHERE orderID='%x';", lo.pair.String(), orderExec.NewAmountHave, orderExec.NewAmountWant, orderExec.OrderID)
-		var res sql.Result
-		if res, err = tx.Exec(updateOrderQuery); err != nil {
+		// var res sql.Result
+		if _, err = tx.Exec(updateOrderQuery); err != nil {
 			err = fmt.Errorf("Error updating order within tx for UpdateBookExec: %s", err)
 			return
 		}
 
 		// Now we check that there was only one row updated. If there were more then we log it and move on. Shouldn't have put those orders there in the first place.
-		var rowsAffected int64
-		if rowsAffected, err = res.RowsAffected(); err != nil {
-			err = fmt.Errorf("Error while getting rows affected for UpdateBookExec: %s", err)
-			return
-		}
-		if rowsAffected != 1 {
-			logging.Errorf("Error: Order update should only have affected one row. Instead, it affected %d", rowsAffected)
-		}
+		// var rowsAffected int64
+		// if rowsAffected, err = res.RowsAffected(); err != nil {
+		// 	err = fmt.Errorf("Error while getting rows affected for UpdateBookExec: %s", err)
+		// 	return
+		// }
+		// if rowsAffected != 1 {
+		// 	logging.Errorf("Error: Order update should only have affected one row. Instead, it affected %d", rowsAffected)
+		// }
 	}
 	return
 }
@@ -275,6 +275,7 @@ func (lo *SQLLimitOrderbook) UpdateBookPlace(limitIDPair *match.LimitOrderIDPair
 		err = fmt.Errorf("Error placing order into db for UpdateBookPlace: %s", err)
 		return
 	}
+
 	// It's just a simple insert so we're done
 	return
 }

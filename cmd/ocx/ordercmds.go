@@ -59,7 +59,13 @@ func (cl *ocxClient) OrderCommand(args []string) (err error) {
 		return
 	}
 
-	logging.Infof("Submitted order successfully, orderID: %s", reply.OrderID)
+	var text []byte
+	if text, err = reply.OrderID.MarshalText(); err != nil {
+		err = fmt.Errorf("Could not marshal to text for some reason: %s", err)
+		return
+	}
+
+	logging.Infof("Submitted order successfully, orderID: %s", text)
 	return nil
 }
 

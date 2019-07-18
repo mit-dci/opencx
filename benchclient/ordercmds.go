@@ -42,10 +42,11 @@ func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side match.Side, pa
 
 	errChan <- func() (err error) {
 		// TODO: this can be refactored to look more like the rest of the code, it's just using channels and works really well so I don't want to mess with it rn
+
 		orderArgs := new(cxrpc.SubmitOrderArgs)
 		orderReply := new(cxrpc.SubmitOrderReply)
-
 		var newOrder match.LimitOrder
+
 		copy(newOrder.Pubkey[:], pubkey.SerializeCompressed())
 		newOrder.Side = side
 
@@ -82,8 +83,6 @@ func (cl *BenchClient) OrderAsync(pubkey *koblitz.PublicKey, side match.Side, pa
 			err = fmt.Errorf("Error calling 'SubmitOrder' service method:\n%s", err)
 			return
 		}
-
-		logging.Infof("The reply needed one thing and one thing only: \n%s", *orderReply)
 
 		replyChan <- orderReply
 

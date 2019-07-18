@@ -18,7 +18,7 @@ type SubmitOrderArgs struct {
 
 // SubmitOrderReply holds the reply for the submitorder command
 type SubmitOrderReply struct {
-	OrderID match.OrderID
+	OrderID *match.OrderID
 }
 
 // SubmitOrder submits an order to the order book or throws an error
@@ -62,7 +62,13 @@ func (cl *OpencxRPC) SubmitOrder(args SubmitOrderArgs, reply *SubmitOrderReply) 
 		return
 	}
 
-	logging.Infof("User %x submitted OrderID %x", sigPubKey.SerializeCompressed(), reply.OrderID)
+	var text []byte
+	if text, err = reply.OrderID.MarshalText(); err != nil {
+		err = fmt.Errorf("Could not marshal text for some reason: %s", err)
+		return
+	}
+
+	logging.Infof("User %x submitted OrderID %s", sigPubKey.SerializeCompressed(), text)
 
 	return
 }

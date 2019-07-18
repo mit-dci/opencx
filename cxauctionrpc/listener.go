@@ -30,8 +30,6 @@ func (rpc1 *AuctionRPCCaller) NoiseListen(privkey *koblitz.PrivateKey, host stri
 	case err = <-errChan:
 	case <-doneChan:
 	}
-	close(doneChan)
-	close(errChan)
 
 	return
 }
@@ -39,6 +37,11 @@ func (rpc1 *AuctionRPCCaller) NoiseListen(privkey *koblitz.PrivateKey, host stri
 // NoiseListenAsync listens on socket host and port
 func (rpc1 *AuctionRPCCaller) NoiseListenAsync(doneChan chan bool, errChan chan error, privkey *koblitz.PrivateKey, host string, port uint16) {
 	var err error
+	if rpc1.caller == nil {
+		errChan <- fmt.Errorf("Error, rpc caller cannot be nil, please create caller correctly")
+		close(errChan)
+		return
+	}
 
 	// Start noise rpc server (need to do this since the client is a rpc newclient)
 	noiseRPCServer := rpc.NewServer()
@@ -47,6 +50,7 @@ func (rpc1 *AuctionRPCCaller) NoiseListenAsync(doneChan chan bool, errChan chan 
 	// Register rpc
 	if err = noiseRPCServer.Register(rpc1.caller); err != nil {
 		errChan <- fmt.Errorf("Error registering RPC Interface:\n%s", err)
+		close(errChan)
 		return
 	}
 
@@ -54,6 +58,7 @@ func (rpc1 *AuctionRPCCaller) NoiseListenAsync(doneChan chan bool, errChan chan 
 	// Start RPC Server
 	if rpc1.listener, err = cxnoise.NewListener(privkey, int(port)); err != nil {
 		errChan <- fmt.Errorf("Error creating noise listener for NoiseListenAsync: %s", err)
+		close(errChan)
 		return
 	}
 	logging.Infof("Running RPC-Noise server on %s\n", rpc1.listener.Addr().String())
@@ -62,6 +67,7 @@ func (rpc1 *AuctionRPCCaller) NoiseListenAsync(doneChan chan bool, errChan chan 
 	// is built in to the listener as well.
 	go noiseRPCServer.Accept(rpc1.listener)
 	doneChan <- true
+	close(doneChan)
 	return
 }
 
@@ -75,8 +81,6 @@ func (rpc1 *AuctionRPCCaller) RPCListen(host string, port uint16) (err error) {
 	case err = <-errChan:
 	case <-doneChan:
 	}
-	close(doneChan)
-	close(errChan)
 
 	return
 }
@@ -110,11 +114,17 @@ func (rpc1 *AuctionRPCCaller) KillServerWait() (err error) {
 // RPCListenAsync listens on socket host and port
 func (rpc1 *AuctionRPCCaller) RPCListenAsync(doneChan chan bool, errChan chan error, host string, port uint16) {
 	var err error
+	if rpc1.caller == nil {
+		errChan <- fmt.Errorf("Error, rpc caller cannot be nil, please create caller correctly")
+		close(errChan)
+		return
+	}
 
 	logging.Infof("Registering RPC API...")
 	// Register rpc
 	if err = rpc.Register(rpc1.caller); err != nil {
 		errChan <- fmt.Errorf("Error registering RPC Interface:\n%s", err)
+		close(errChan)
 		return
 	}
 
@@ -123,12 +133,14 @@ func (rpc1 *AuctionRPCCaller) RPCListenAsync(doneChan chan bool, errChan chan er
 	serverAddr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 	if rpc1.listener, err = net.Listen("tcp", serverAddr); err != nil {
 		errChan <- fmt.Errorf("Error listening for RPCListenAsync: %s", err)
+		close(errChan)
 		return
 	}
 	logging.Infof("Running RPC server on %s\n", rpc1.listener.Addr().String())
 
 	go rpc.Accept(rpc1.listener)
 	doneChan <- true
+	close(doneChan)
 	return
 }
 
