@@ -22,3 +22,6 @@ opencxd
 ocx
 frred
 
+!opencxd/
+!ocx/
+!frred/
