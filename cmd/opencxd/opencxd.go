@@ -119,6 +119,7 @@ func main() {
 		logging.Fatalf("Could not generate asset pairs from coin list: %s", err)
 	}
 
+	logging.Infof("Creating limit engines...")
 	var mengines map[match.Pair]match.LimitEngine
 	if mengines, err = cxdbsql.CreateLimitEngineMap(pairList); err != nil {
 		logging.Fatalf("Error creating limit engine map with coinlist for opencxd: %s", err)
@@ -142,10 +143,12 @@ func main() {
 		for _, coin := range coinList {
 			whitelistMap[coin] = whitelist
 		}
+		logging.Infof("Creating pinky swear engines...")
 		if setEngines, err = cxdbmemory.CreatePinkySwearEngineMap(whitelistMap, true); err != nil {
 			logging.Fatalf("Error creating pinky swear settlement engine map for opencxd: %s", err)
 		}
 	} else {
+		logging.Infof("Creating settlement engines...")
 		if setEngines, err = cxdbsql.CreateSettlementEngineMap(coinList); err != nil {
 			logging.Fatalf("Error creating settlement engine map for opencxd: %s", err)
 		}
@@ -154,16 +157,19 @@ func main() {
 		logging.Fatalf("Error, nil setEngines map, this should not ever happen")
 	}
 
+	logging.Infof("Creating limit orderbooks...")
 	var limBooks map[match.Pair]match.LimitOrderbook
 	if limBooks, err = cxdbsql.CreateLimitOrderbookMap(pairList); err != nil {
 		logging.Fatalf("Error creating limit orderbook map for opencxd: %s", err)
 	}
 
+	logging.Infof("Creating deposit stores...")
 	var depositStores map[*coinparam.Params]cxdb.DepositStore
 	if depositStores, err = cxdbsql.CreateDepositStoreMap(coinList); err != nil {
 		logging.Fatalf("Error creating deposit store map for opencxd: %s", err)
 	}
 
+	logging.Infof("Creating settlement stores...")
 	var setStores map[*coinparam.Params]cxdb.SettlementStore
 	if setStores, err = cxdbsql.CreateSettlementStoreMap(coinList); err != nil {
 		logging.Fatalf("Error creating settlement store map for opencxd: %s", err)

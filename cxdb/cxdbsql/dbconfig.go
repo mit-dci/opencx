@@ -118,7 +118,7 @@ func createDefaultConfigFile(destinationPath string) error {
 	defer dest.Close()
 
 	writer := bufio.NewWriter(dest)
-	defaultArgs := []byte("\n")
+	defaultArgs := []byte("dbuser=opencx\ndbpassword=testpass\n")
 	_, err = writer.Write(defaultArgs)
 	if err != nil {
 		return err

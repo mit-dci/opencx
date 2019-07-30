@@ -35,14 +35,11 @@ type SQLDepositStore struct {
 
 // The schema for the deposit store
 const (
-	depositAddrStoreSchema    = "pubkey VARBINARY(66), address VARCHAR(34), CONSTRAINT unique_pubkeys UNIQUE (pubkeys, address)"
+	depositAddrStoreSchema    = "pubkey VARBINARY(66), address VARCHAR(34), CONSTRAINT unique_pubkeys UNIQUE (pubkey, address)"
 	pendingDepositStoreSchema = "pubkey VARBINARY(66), expectedConfirmHeight INT(32) UNSIGNED, depositHeight INT(32) UNSIGNED, amount BIGINT(64), txid TEXT"
 )
 
-func CreateDepositStore(coin *coinparam.Params) (store cxdb.DepositStore, err error) {
-
-	conf := new(dbsqlConfig)
-	*conf = *defaultConf
+func CreateDepositStoreStructWithConf(coin *coinparam.Params, conf *dbsqlConfig) (ds *SQLDepositStore, err error) {
 
 	// set the default conf
 	dbConfigSetup(conf)
@@ -55,7 +52,7 @@ func CreateDepositStore(coin *coinparam.Params) (store cxdb.DepositStore, err er
 	}
 
 	// Set values for limit engine
-	ds := &SQLDepositStore{
+	ds = &SQLDepositStore{
 		dbUsername:               conf.DBUsername,
 		dbPassword:               conf.DBPassword,
 		depositAddrSchemaName:    conf.DepositSchemaName,
@@ -66,7 +63,7 @@ func CreateDepositStore(coin *coinparam.Params) (store cxdb.DepositStore, err er
 	}
 
 	if err = ds.setupDepositTables(); err != nil {
-		err = fmt.Errorf("Error setting up deposit tables while creating engine: %s", err)
+		err = fmt.Errorf("Error setting up deposit tables for CreateDepositStore: %s", err)
 		return
 	}
 
@@ -79,12 +76,22 @@ func CreateDepositStore(coin *coinparam.Params) (store cxdb.DepositStore, err er
 
 	// Make sure we can actually connect
 	if err = ds.DBHandler.Ping(); err != nil {
-		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		err = fmt.Errorf("Could not ping the database, is it running? Did you set the correct username and password in sqldb.conf: %s", err)
 		return
 	}
 
-	// Now we actually set what we want
-	store = ds
+	return
+}
+
+func CreateDepositStore(coin *coinparam.Params) (store cxdb.DepositStore, err error) {
+
+	conf := new(dbsqlConfig)
+	*conf = *defaultConf
+
+	if store, err = CreateDepositStoreStructWithConf(coin, conf); err != nil {
+		err = fmt.Errorf("Error creating deposit store struct for CreateDepositStore: %s", err)
+		return
+	}
 	return
 }
 
@@ -158,6 +165,20 @@ func (ds *SQLDepositStore) setupDepositTables() (err error) {
 		err = fmt.Errorf("Error creating deposit addr table: %s", err)
 		return
 	}
+	return
+}
+
+// DestroyHandler closes the DB handler that we created, and makes it nil
+func (ds *SQLDepositStore) DestroyHandler() (err error) {
+	if ds.DBHandler == nil {
+		err = fmt.Errorf("Error, cannot destroy nil handler, please create new deposit store")
+		return
+	}
+	if err = ds.DBHandler.Close(); err != nil {
+		err = fmt.Errorf("Error closing engine handler for DestroyHandler: %s", err)
+		return
+	}
+	ds.DBHandler = nil
 	return
 }
 
@@ -385,7 +406,7 @@ func CreateDepositStoreMap(coinList []*coinparam.Params) (depositMap map[*coinpa
 	var curDepositMap cxdb.DepositStore
 	for _, coin := range coinList {
 		if curDepositMap, err = CreateDepositStore(coin); err != nil {
-			err = fmt.Errorf("Error creating single limit engine while creating limit engine map: %s", err)
+			err = fmt.Errorf("Error creating single deposit store while creating deposit store map: %s", err)
 			return
 		}
 		depositMap[coin] = curDepositMap
