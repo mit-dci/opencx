@@ -73,7 +73,7 @@ func CreateLimEngineStructWithConf(pair *match.Pair, conf *dbsqlConfig) (engine 
 
 	// Make sure we can actually connect
 	if err = le.DBHandler.Ping(); err != nil {
-		err = fmt.Errorf("Could not ping the database, is it running: %s", err)
+		err = fmt.Errorf("Could not ping the database, is it running? Did you set the username and password in sqldb.conf: %s", err)
 		return
 	}
 
