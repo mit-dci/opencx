@@ -376,6 +376,10 @@ func (ae *SQLAuctionEngine) MatchAuctionOrders(auctionID *match.AuctionID) (orde
 
 // getOrdersTx gets all of the orders for the auction ID
 func (ae *SQLAuctionEngine) getOrdersTx(auctionID *match.AuctionID, tx *sql.Tx) (orderbook map[float64][]*match.AuctionOrderIDPair, err error) {
+	if ae.DBHandler == nil {
+		err = fmt.Errorf("Error, cannot get orders for nil dbhandler, please set up auction engine correctly")
+		return
+	}
 
 	orderbook = make(map[float64][]*match.AuctionOrderIDPair)
 	if _, err = tx.Exec("USE " + ae.auctionOrderSchema + ";"); err != nil {
@@ -447,6 +451,11 @@ func (ae *SQLAuctionEngine) getOrdersTx(auctionID *match.AuctionID, tx *sql.Tx) 
 
 // processExecutionTx processes a batch of order executions
 func (ae *SQLAuctionEngine) processExecutionsTx(execs []*match.OrderExecution, tx *sql.Tx) (err error) {
+	if ae.DBHandler == nil {
+		err = fmt.Errorf("Error, cannot process executions for nil dbhandler, please set up auction engine correctly")
+		return
+	}
+
 	// First use the auction schema
 	if _, err = tx.Exec("USE " + ae.auctionOrderSchema + ";"); err != nil {
 		err = fmt.Errorf("Error using auction schema to process order execution: %s", err)

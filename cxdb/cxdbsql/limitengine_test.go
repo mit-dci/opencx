@@ -30,6 +30,7 @@ func TestCreateLimitEngineAllParams(t *testing.T) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		t.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -48,6 +49,7 @@ func TestCreateLimitEngineAllParams(t *testing.T) {
 	for _, pair := range pairList {
 		if le, err = CreateLimEngineStructWithConf(pair, testConfig()); err != nil {
 			t.Errorf("Error creating limit engine for pair: %s", err)
+			return
 		}
 
 		if err = le.DestroyHandler(); err != nil {
@@ -63,6 +65,7 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		t.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -75,6 +78,7 @@ func TestPlaceSingleLimitOrder(t *testing.T) {
 	var le *SQLLimitEngine
 	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		t.Errorf("Error creating limit engine for pair: %s", err)
+		return
 	}
 
 	defer func() {
@@ -188,6 +192,7 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		b.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -200,6 +205,7 @@ func PlaceNLimitOrders(howMany uint64, b *testing.B) {
 	var le *SQLLimitEngine
 	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		b.Errorf("Error creating limit engine for pair: %s", err)
+		return
 	}
 
 	defer func() {
@@ -233,6 +239,7 @@ func MatchNLimitOrders(howMany uint64, b *testing.B) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		b.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -245,6 +252,7 @@ func MatchNLimitOrders(howMany uint64, b *testing.B) {
 	var le *SQLLimitEngine
 	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		b.Errorf("Error creating limit engine for pair: %s", err)
+		return
 	}
 
 	defer func() {
@@ -282,6 +290,7 @@ func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		b.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -294,6 +303,7 @@ func PlaceMatchNLimitOrders(howMany uint64, b *testing.B) {
 	var le *SQLLimitEngine
 	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		b.Errorf("Error creating limit engine for pair: %s", err)
+		return
 	}
 
 	defer func() {
@@ -330,6 +340,7 @@ func PlaceMatchNLimitOrdersTest(howMany uint64, t *testing.T) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		t.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	// Clean out database
@@ -348,6 +359,7 @@ func PlaceMatchNLimitOrdersTest(howMany uint64, t *testing.T) {
 	var le *SQLLimitEngine
 	if le, err = CreateLimEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		t.Errorf("Error creating limit engine for pair: %s", err)
+		return
 	}
 
 	defer func() {

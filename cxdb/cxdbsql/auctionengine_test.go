@@ -39,6 +39,7 @@ func TestCreateEngineAllParams(t *testing.T) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		t.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -56,6 +57,7 @@ func TestCreateEngineAllParams(t *testing.T) {
 	for _, pair := range pairList {
 		if ae, err = CreateAucEngineStructWithConf(pair, testConfig()); err != nil {
 			t.Errorf("Error creating auction engine for pair: %s", err)
+			return
 		}
 		if err = ae.DestroyHandler(); err != nil {
 			t.Errorf("Error destroying handler for auction engine: %s", err)
@@ -70,6 +72,7 @@ func TestPlaceSingleAuctionOrder(t *testing.T) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		t.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -81,14 +84,13 @@ func TestPlaceSingleAuctionOrder(t *testing.T) {
 	var ae *SQLAuctionEngine
 	if ae, err = CreateAucEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		t.Errorf("Error creating auction engine for pair: %s", err)
+		return
 	}
 
 	defer func() {
-
 		if err = ae.DestroyHandler(); err != nil {
 			t.Errorf("Error destroying handler for auction engine: %s", err)
 		}
-
 	}()
 
 	var engine match.AuctionEngine = ae
@@ -139,6 +141,7 @@ func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		b.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -164,14 +167,13 @@ func PlaceNAuctionOrders(howMany uint64, b *testing.B) {
 		var ae *SQLAuctionEngine
 		if ae, err = CreateAucEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 			b.Errorf("Error creating auction engine for pair: %s", err)
+			return
 		}
 
 		defer func() {
-
 			if err = ae.DestroyHandler(); err != nil {
 				b.Errorf("Error destroying handler for auction engine: %s", err)
 			}
-
 		}()
 
 		var engine match.AuctionEngine = ae
@@ -205,6 +207,7 @@ func MatchNAuctionOrders(howMany uint64, b *testing.B) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		b.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -224,20 +227,18 @@ func MatchNAuctionOrders(howMany uint64, b *testing.B) {
 			if err = tc.DropDBs(); err != nil {
 				b.Errorf("Error killing tester container dbs: %s", err)
 			}
-
 		}()
 
 		var ae *SQLAuctionEngine
 		if ae, err = CreateAucEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 			b.Errorf("Error creating auction engine for pair: %s", err)
+			return
 		}
 
 		defer func() {
-
 			if err = ae.DestroyHandler(); err != nil {
 				b.Errorf("Error destroying handler for auction engine: %s", err)
 			}
-
 		}()
 
 		var engine match.AuctionEngine = ae
@@ -280,6 +281,7 @@ func PlaceMatchNAuctionOrdersTest(howMany uint64, t *testing.T) {
 	var tc *testerContainer
 	if tc, err = CreateTesterContainer(); err != nil {
 		t.Errorf("Error creating tester container: %s", err)
+		return
 	}
 
 	defer func() {
@@ -291,6 +293,7 @@ func PlaceMatchNAuctionOrdersTest(howMany uint64, t *testing.T) {
 	var ae *SQLAuctionEngine
 	if ae, err = CreateAucEngineStructWithConf(&testEncryptedOrder.IntendedPair, testConfig()); err != nil {
 		t.Errorf("Error creating auction engine for pair: %s", err)
+		return
 	}
 
 	defer func() {
