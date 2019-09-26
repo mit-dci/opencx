@@ -82,34 +82,34 @@ func (tl *TimelockRSW) n() (n *big.Int, err error) {
 	return
 }
 
-// ϕ() = phi(n) = (p-1)(q-1)
-func (tl *TimelockRSW) ϕ() (ϕ *big.Int, err error) {
+// phi() = phi(n) = (p-1)(q-1)
+func (tl *TimelockRSW) phi() (phi *big.Int, err error) {
 	if tl.p == nil || tl.q == nil {
-		err = fmt.Errorf("Must set up p and q to get the ϕ")
+		err = fmt.Errorf("Must set up p and q to get the phi")
 		return
 	}
-	// ϕ(n) = (p-1)(q-1). We assume p and q are prime, and n = pq.
-	ϕ = new(big.Int).Mul(new(big.Int).Sub(tl.p, big.NewInt(int64(1))), new(big.Int).Sub(tl.q, big.NewInt(1)))
+	// phi(n) = (p-1)(q-1). We assume p and q are prime, and n = pq.
+	phi = new(big.Int).Mul(new(big.Int).Sub(tl.p, big.NewInt(int64(1))), new(big.Int).Sub(tl.q, big.NewInt(1)))
 	return
 }
 
-// e = 2^t (mod ϕ()) = 2^t (mod phi(n))
+// e = 2^t (mod phi()) = 2^t (mod phi(n))
 func (tl *TimelockRSW) e() (e *big.Int, err error) {
 	if tl.t == nil {
 		err = fmt.Errorf("Must set up t in order to get e")
 		return
 	}
-	var ϕ *big.Int
-	if ϕ, err = tl.ϕ(); err != nil {
-		err = fmt.Errorf("Could not find ϕ: %s", err)
+	var phi *big.Int
+	if phi, err = tl.phi(); err != nil {
+		err = fmt.Errorf("Could not find phi: %s", err)
 		return
 	}
-	// e = 2^t mod ϕ()
-	e = new(big.Int).Exp(big.NewInt(int64(2)), tl.t, ϕ)
+	// e = 2^t mod phi()
+	e = new(big.Int).Exp(big.NewInt(int64(2)), tl.t, phi)
 	return
 }
 
-// b = a^(e()) (mod n()) = a^e (mod n) = a^(2^t (mod ϕ())) (mod n) = a^(2^t) (mod n)
+// b = a^(e()) (mod n()) = a^e (mod n) = a^(2^t (mod phi())) (mod n) = a^(2^t) (mod n)
 func (tl *TimelockRSW) b() (b *big.Int, err error) {
 	if tl.a == nil {
 		err = fmt.Errorf("Must set up a and n in order to get b")
