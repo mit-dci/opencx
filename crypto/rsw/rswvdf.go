@@ -1,6 +1,7 @@
 package rsw
 
 import (
+	"encoding/binary"
 	"math/big"
 
 	"github.com/mit-dci/opencx/crypto"
@@ -33,9 +34,17 @@ func (pz *PuzzleRSW) Verify(proof, x, y []byte) (valid bool) {
 	return
 }
 
+// The hash function in the paper is H_G(x) = int(H("residue"||x)) mod N (where H is a secure cryptographic hash function)
+
 func HashOntoPrimes(twoPower uint64) (prime *big.Int, err error) {
 	// TODO
 	panic("HashOntoPrimes(twoPower uint64) is TODO")
+
+	// Just put the number into a byte buffer
+	finalBuf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(finalBuf, twoPower)
+
+	// hasher := sha3.New256()
 
 	return
 }
