@@ -32,7 +32,7 @@ type PuzzleRSW struct {
 	N *big.Int
 	A *big.Int
 	T *big.Int
-	// We use C_k = b ⊕ k, I have add functionality but I don't know what's "better"
+	// We use C_k = b xor k
 	CK *big.Int
 }
 
@@ -124,7 +124,7 @@ func (tl *TimelockRSW) phi() (phi *big.Int, err error) {
 		return
 	}
 	// phi(n) = (p-1)(q-1). We assume p and q are prime, and n = pq.
-	phi = new(big.Int).Mul(new(big.Int).Sub(tl.p, big.NewInt(int64(1))), new(big.Int).Sub(tl.q, big.NewInt(1)))
+	phi = new(big.Int).Mul(new(big.Int).Sub(tl.p, big.NewInt(1)), new(big.Int).Sub(tl.q, big.NewInt(1)))
 	return
 }
 
@@ -140,7 +140,7 @@ func (tl *TimelockRSW) e() (e *big.Int, err error) {
 		return
 	}
 	// e = 2^t mod phi()
-	e = new(big.Int).Exp(big.NewInt(int64(2)), tl.t, phi)
+	e = new(big.Int).Exp(big.NewInt(2), tl.t, phi)
 	return
 }
 
@@ -228,7 +228,8 @@ func (tl *TimelockRSW) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answ
 	// if this is xor then the ck, err = blah like needs to be xor as well
 	xorBytes := new(big.Int).Xor(ck, b).Bytes()
 	if len(xorBytes) <= 16 {
-		answer = make([]byte, 16)
+		answerBacking := [16]byte{}
+		answer = answerBacking[:]
 	} else {
 		answer = make([]byte, len(xorBytes))
 	}
@@ -273,7 +274,11 @@ func (pz *PuzzleRSW) SolveGMPCkXOR() (answer []byte, err error) {
 	// return new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).Exp(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).Exp(gmpbig.NewInt(2), new(gmpbig.Int).SetBytes(pz.T.Bytes()), nil), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes(), nil
 	// we're using a fork now!
 	// make sure it's 16 bytes long padded
-	ansBytes := new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()), new(gmpbig.Int).ExpSquare(new(gmpbig.Int).SetBytes(pz.A.Bytes()), new(gmpbig.Int).SetBytes(pz.T.Bytes()), new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes()
+	ansBytes :=
+		new(gmpbig.Int).Xor(new(gmpbig.Int).SetBytes(pz.CK.Bytes()),
+			new(gmpbig.Int).ExpSquare(new(gmpbig.Int).SetBytes(pz.A.Bytes()),
+				new(gmpbig.Int).SetBytes(pz.T.Bytes()),
+				new(gmpbig.Int).SetBytes(pz.N.Bytes()))).Bytes()
 	if len(ansBytes) <= 16 {
 		answer = make([]byte, 16)
 	} else {
