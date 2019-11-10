@@ -67,9 +67,44 @@ func New2048(key []byte, a int64) (tl crypto.Timelock, err error) {
 	return New(key, a, 2048)
 }
 
-//New2048A2 is the same as New2048 but we use a base of 2. It's called A2 because A=2 I guess
+// New2048A2 is the same as New2048 but we use a base of 2. It's called A2 because A=2 I guess
 func New2048A2(key []byte) (tl crypto.Timelock, err error) {
 	return New(key, 2, 2048)
+}
+
+// NewTimelockWithPrimes creates a new timelock puzzle with primes p
+// and q.
+func NewTimelockWithPrimes(key []byte, a int64, p *big.Int, q *big.Int) (timelock crypto.Timelock, err error) {
+	if p == nil {
+		err = fmt.Errorf("p pointer cannot be nil, please investigate")
+		return
+	}
+	if q == nil {
+		err = fmt.Errorf("q pointer cannot be nil, please investigate")
+		return
+	}
+	tl := new(TimelockRSW)
+
+	// Create a temporary N = p * q and set the bit length
+	tempN := new(big.Int)
+	tempN.Mul(p, q)
+	tl.rsaKeyBits = tempN.BitLen()
+
+	// now set the p and q values
+	tl.p = new(big.Int)
+	tl.q = new(big.Int)
+	tl.p.Set(p)
+	tl.q.Set(q)
+
+	// Set the a value
+	tl.a = big.NewInt(a)
+
+	// copy over the key
+	tl.key = make([]byte, len(key))
+	copy(tl.key, key)
+
+	timelock = tl
+	return
 }
 
 func (tl *TimelockRSW) n() (n *big.Int, err error) {
