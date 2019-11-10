@@ -74,7 +74,7 @@ func New2048A2(key []byte) (tl crypto.Timelock, err error) {
 
 // NewTimelockWithPrimes creates a new timelock puzzle with primes p
 // and q.
-func NewTimelockWithPrimes(key []byte, a int64, p *big.Int, q *big.Int) (timelock crypto.Timelock, err error) {
+func NewTimelockWithPrimes(key []byte, a uint64, p *big.Int, q *big.Int) (timelock crypto.Timelock, err error) {
 	if p == nil {
 		err = fmt.Errorf("p pointer cannot be nil, please investigate")
 		return
@@ -84,6 +84,7 @@ func NewTimelockWithPrimes(key []byte, a int64, p *big.Int, q *big.Int) (timeloc
 		return
 	}
 	tl := new(TimelockRSW)
+	aInt := int64(a)
 
 	// Create a temporary N = p * q and set the bit length
 	tempN := new(big.Int)
@@ -97,7 +98,7 @@ func NewTimelockWithPrimes(key []byte, a int64, p *big.Int, q *big.Int) (timeloc
 	tl.q.Set(q)
 
 	// Set the a value
-	tl.a = big.NewInt(a)
+	tl.a = big.NewInt(aInt)
 
 	// copy over the key
 	tl.key = make([]byte, len(key))
