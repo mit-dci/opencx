@@ -7,7 +7,19 @@ import (
 	"encoding/gob"
 	"fmt"
 	"math/big"
+
+	"github.com/mit-dci/opencx/crypto"
+	"github.com/mit-dci/opencx/crypto/timelockencoders"
 )
+
+// EncryptedSolutionOrder represents an encrypted Solution Order, so a
+// ciphertext and a puzzle solution that is a key, and an intended auction.
+type EncryptedSolutionOrder struct {
+	OrderCiphertext []byte        `json:"orderciphertext"`
+	OrderPuzzle     crypto.Puzzle `json:"orderpuzzle"`
+	IntendedAuction AuctionID     `json:"intendedauction"`
+	IntendedPair    Pair          `json:"intendedpair"`
+}
 
 // SolutionOrder is an order and modulus that are together.
 // This includes an order, and the puzzle modulus factors.
@@ -46,7 +58,26 @@ func NewSolutionOrderFromOrder(aucOrder *AuctionOrder, rsaKeyBits uint64) (solOr
 	return
 }
 
-// TODO: allow for solution order to be turned into puzzle order
+// EncryptSolutionOrder encrypts a solution order and creates a puzzle
+// along with the encrypted order
+func (so *SolutionOrder) EncryptSolutionOrder(t uint64) (encSolOrder EncryptedSolutionOrder, err error) {
+	// Try serializing the solution order
+	var rawSolOrder []byte
+	if rawSolOrder, err = so.Serialize(); err != nil {
+		err = fmt.Errorf("Error serializing solution order for encryption: %s", err)
+		return
+	}
+
+	if encSolOrder.OrderCiphertext, encSolOrder.OrderPuzzle, err = timelockencoders.CreateRC5RSWPuzzleWithPrimes(uint64(2), t, rawSolOrder, so.p, so.q); err != nil {
+		err = fmt.Errorf("Error creating puzzle from auction order: %s", err)
+		return
+	}
+
+	// make sure they match
+	encSolOrder.IntendedAuction = so.userOrder.AuctionID
+	encSolOrder.IntendedPair = so.userOrder.TradingPair
+	return
+}
 
 // Serialize uses gob encoding to turn the solution order into bytes.
 func (so *SolutionOrder) Serialize() (raw []byte, err error) {

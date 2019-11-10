@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"math/big"
 
 	"github.com/dgryski/go-rc5"
 	"github.com/dgryski/go-rc6"
@@ -43,6 +44,79 @@ func createRSWPuzzle(t uint64, key []byte) (puzzle crypto.Puzzle, anskey []byte,
 		return
 	}
 
+	return
+}
+
+// createRSWPuzzleWithPrimes creates a RSW puzzle with user-defined
+// primes p and q to use as the modulus factors.
+func createRSWPuzzleWithPrimes(a uint64, t uint64, key []byte, p *big.Int, q *big.Int) (puzzle crypto.Puzzle, anskey []byte, err error) {
+	// Set up what the puzzle will encrypt
+	var timelock crypto.Timelock
+	if timelock, err = rsw.NewTimelockWithPrimes(key, a, p, q); err != nil {
+		err = fmt.Errorf("Error creating new rsw timelock for rsw puzzle: %s", err)
+		return
+	}
+
+	// Set up the puzzle to send
+	if puzzle, anskey, err = timelock.SetupTimelockPuzzle(t); err != nil {
+		err = fmt.Errorf("Error setting up timelock while creating rsw puzzle: %s", err)
+		return
+	}
+
+	return
+}
+
+// CreateRC5RSWPuzzleWithPrimes creates a RSW timelock puzzle with
+// time t and encrypts the message using RC5, given some user-defined
+// primes.
+func CreateRC5RSWPuzzleWithPrimes(a uint64, t uint64, message []byte, p *big.Int, q *big.Int) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
+	// Generate private key
+	var key []byte
+	if key, err = Generate16ByteKey(rand.Reader); err != nil {
+		err = fmt.Errorf("Could not generate rc5 key for puzzle: %s", err)
+		return
+	}
+
+	if puzzle, key, err = createRSWPuzzleWithPrimes(a, t, key, p, q); err != nil {
+		err = fmt.Errorf("Error creating rsw puzzle with primes before encrypting: %s", err)
+		return
+	}
+
+	if len(key) != 16 {
+		err = fmt.Errorf("Error with key size")
+		return
+	}
+
+	// Create the cipher
+	var RC5Cipher cipher.Block
+	if RC5Cipher, err = rc5.New(key); err != nil {
+		err = fmt.Errorf("Error creating cipher for encryption in rc5 puzzle: %s", err)
+		return
+	}
+
+	// check to make sure we're going to succeed when encrypting
+	if len(message) < RC5Cipher.BlockSize() {
+		err = fmt.Errorf("ciphertext less than blocksize, make a bigger ciphertext")
+		return
+	}
+
+	// Generate random initialization vector
+	var iv []byte
+	ciphertext = make([]byte, RC5Cipher.BlockSize()+len(message))
+
+	// The IV needs to be unique, but not secure. Therefore it's common to
+	// include it at the beginning of the ciphertext.
+	iv = ciphertext[:RC5Cipher.BlockSize()]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		err = fmt.Errorf("Error reading random reader for iv: %s", err)
+	}
+
+	// Create encrypter
+	var cfbEncrypter cipher.Stream
+	cfbEncrypter = cipher.NewCFBEncrypter(RC5Cipher, iv)
+
+	// Actually encrypt
+	cfbEncrypter.XORKeyStream(ciphertext[RC5Cipher.BlockSize():], message)
 	return
 }
 
@@ -102,7 +176,6 @@ func CreatePuzzleRC5(t uint64, message []byte, puzzleCreator func(uint64, []byte
 	cfbEncrypter.XORKeyStream(ciphertext[RC5Cipher.BlockSize():], message)
 
 	// We've sent out the puzzle (which is n, a, t, ck). We've also sent out cm. This is now consistent with RSW96.
-
 	return
 }
 
