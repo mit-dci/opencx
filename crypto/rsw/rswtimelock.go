@@ -323,7 +323,7 @@ func (pz *PuzzleRSW) Serialize() (raw []byte, err error) {
 	return
 }
 
-// Deserialize turns the RSW puzzle into something that can be sent over the wire
+// Deserialize turns a gob-encoded puzzle into a go struct we can use.
 func (pz *PuzzleRSW) Deserialize(raw []byte) (err error) {
 	var b *bytes.Buffer
 	b = bytes.NewBuffer(raw)

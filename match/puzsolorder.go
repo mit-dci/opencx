@@ -1,8 +1,10 @@
 package match
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/gob"
 	"fmt"
 	"math/big"
 )
@@ -42,7 +44,45 @@ func NewSolutionOrderFromOrder(aucOrder *AuctionOrder, rsaKeyBits uint64) (solOr
 }
 
 // TODO: allow for solution order to be turned into puzzle order
-func (so *SolutionOrder) Serialize() (buf []byte) {
-	buf = append(buf, so.userOrder.Serialize()...)
+
+// Serialize uses gob encoding to turn the solution order into bytes.
+func (so *SolutionOrder) Serialize() (raw []byte, err error) {
+	var b bytes.Buffer
+
+	// register SolutionOrder interface
+	gob.Register(SolutionOrder{})
+
+	// create a new encoder writing to the buffer
+	enc := gob.NewEncoder(&b)
+
+	// encode the puzzle in the buffer
+	if err = enc.Encode(so); err != nil {
+		err = fmt.Errorf("Error encoding solutionorder: %s", err)
+		return
+	}
+
+	// Get the bytes from the buffer
+	raw = b.Bytes()
+	return
+}
+
+// Deserialize turns the solution order from bytes into a usable
+// struct.
+func (so *SolutionOrder) Deserialize(raw []byte) (err error) {
+	var b *bytes.Buffer
+	b = bytes.NewBuffer(raw)
+
+	// register SolutionOrder
+	gob.Register(SolutionOrder{})
+
+	// create a new decoder writing to the buffer
+	dec := gob.NewDecoder(b)
+
+	// decode the solutionorder in the buffer
+	if err = dec.Decode(so); err != nil {
+		err = fmt.Errorf("Error decoding solutionorder: %s", err)
+		return
+	}
+
 	return
 }
