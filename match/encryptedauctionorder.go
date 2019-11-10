@@ -15,7 +15,7 @@ import (
 type EncryptedAuctionOrder struct {
 	OrderCiphertext []byte
 	OrderPuzzle     crypto.Puzzle
-	IntendedAuction [32]byte
+	IntendedAuction AuctionID
 	IntendedPair    Pair
 }
 
