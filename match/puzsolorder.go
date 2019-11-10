@@ -17,6 +17,9 @@ type SolutionOrder struct {
 	q         *big.Int     `json:"q"`
 }
 
+// NewSolutionOrderFromOrder creates a new SolutionOrder from an
+// already existing AuctionOrder, with a specified number of bits for
+// an rsa key.
 func NewSolutionOrderFromOrder(aucOrder *AuctionOrder, rsaKeyBits uint64) (solOrder SolutionOrder, err error) {
 	if aucOrder == nil {
 		err = fmt.Errorf("Cannot create solution order from nil auction order")
