@@ -260,6 +260,7 @@ func (pz *PuzzleRSW) SolveCkXOR() (answer []byte, err error) {
 	} else {
 		answer = make([]byte, len(ansBytes))
 	}
+	copy(answer, ansBytes)
 	return
 }
 

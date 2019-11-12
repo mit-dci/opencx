@@ -46,11 +46,6 @@ func NewSolutionOrderFromOrder(rsaKeyBits uint64) (solOrder SolutionOrder, err e
 func (so *SolutionOrder) EncryptSolutionOrder(auctionOrder AuctionOrder, t uint64) (encSolOrder EncryptedSolutionOrder, err error) {
 	// Try serializing the solution order
 	var rawSolOrder []byte = auctionOrder.Serialize()
-	// if rawSolOrder, err = auctionOrder.Serialize(); err != nil {
-	// 	err = fmt.Errorf("Error serializing solution order for encryption: %s", err)
-	// 	return
-	// }
-
 	if encSolOrder.OrderCiphertext, encSolOrder.OrderPuzzle, err = timelockencoders.CreateRC5RSWPuzzleWithPrimes(uint64(2), t, rawSolOrder, so.p, so.q); err != nil {
 		err = fmt.Errorf("Error creating puzzle from auction order: %s", err)
 		return
