@@ -56,7 +56,8 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		return
 	}
 
-	// TODO: make map for puzzle inclusion (puzzle answer => bool)
+	// TODO: associate pubkeys with puzzled orders and verify sigs
+	var pubkeyMap map[*koblitz.PublicKey]EncryptedSolutionOrder = make(map[*koblitz.PublicKey]EncryptedSolutionOrder)
 	var bufForCommitment []byte
 	for _, pzOrder := range tr.puzzledOrders {
 		var pzBuf []byte
@@ -121,8 +122,10 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 			return
 		}
 
-		if !responseSig.Verify(e3, exchangePubKey) {
-			err = fmt.Errorf("Invalid user response signature: %s", err)
+		var userPubKey *koblitz.PublicKey
+		var userSigValid bool
+		if userPubKey, userSigValid, err = koblitz.RecoverCompact(koblitz.S256(), response.CommResponseSig[:], e3); err != nil {
+			err = fmt.Errorf("Error recovering user pubkey from signature: %s", err)
 			return
 		}
 	}
