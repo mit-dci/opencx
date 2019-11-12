@@ -204,6 +204,16 @@ func SolvePuzzleRC5(ciphertext []byte, puzzle crypto.Puzzle) (message []byte, er
 		return
 	}
 
+	if message, err = DecryptPuzzleRC5(ciphertext, key); err != nil {
+		err = fmt.Errorf("Error decrypting puzzle after solving: %s", err)
+		return
+	}
+
+	return
+}
+
+// DecryptPuzzleRC5 decrypts the ciphertext using RC5
+func DecryptPuzzleRC5(ciphertext []byte, key []byte) (message []byte, err error) {
 	var RC5Cipher cipher.Block
 	if RC5Cipher, err = rc5.New(key); err != nil {
 		err = fmt.Errorf("Could not create new rc5 cipher for puzzle: %s", err)
