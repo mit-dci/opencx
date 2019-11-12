@@ -9,10 +9,7 @@ func TestEmptyTranscripVerify(t *testing.T) {
 	emptyTranscript := Transcript{}
 
 	var valid bool
-	if valid, err = emptyTranscript.Verify(); err != nil {
-		t.Errorf("Error verifying empty transcript: %s", err)
-		return
-	}
+	valid, err = emptyTranscript.Verify()
 
 	if valid {
 		t.Errorf("Empty transcript should have been invalid, was valid")
