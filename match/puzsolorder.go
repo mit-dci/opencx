@@ -14,20 +14,14 @@ import (
 // SolutionOrder is an order and modulus that are together.
 // This includes an order, and the puzzle modulus factors.
 type SolutionOrder struct {
-	userOrder AuctionOrder `json:"userorder"`
-	p         *big.Int     `json:"p"`
-	q         *big.Int     `json:"q"`
+	p *big.Int `json:"p"`
+	q *big.Int `json:"q"`
 }
 
 // NewSolutionOrderFromOrder creates a new SolutionOrder from an
 // already existing AuctionOrder, with a specified number of bits for
 // an rsa key.
-func NewSolutionOrderFromOrder(aucOrder *AuctionOrder, rsaKeyBits uint64) (solOrder SolutionOrder, err error) {
-	if aucOrder == nil {
-		err = fmt.Errorf("Cannot create solution order from nil auction order")
-		return
-	}
-
+func NewSolutionOrderFromOrder(rsaKeyBits uint64) (solOrder SolutionOrder, err error) {
 	rsaKeyBitsInt := int(rsaKeyBits)
 
 	// generate primes p and q
@@ -44,19 +38,18 @@ func NewSolutionOrderFromOrder(aucOrder *AuctionOrder, rsaKeyBits uint64) (solOr
 	// finally set p, q, and the auction order.
 	solOrder.p = new(big.Int).SetBytes(rsaPrivKey.Primes[0].Bytes())
 	solOrder.q = new(big.Int).SetBytes(rsaPrivKey.Primes[1].Bytes())
-	solOrder.userOrder = *aucOrder
 	return
 }
 
 // EncryptSolutionOrder encrypts a solution order and creates a puzzle
 // along with the encrypted order
-func (so *SolutionOrder) EncryptSolutionOrder(t uint64) (encSolOrder EncryptedSolutionOrder, err error) {
+func (so *SolutionOrder) EncryptSolutionOrder(auctionOrder AuctionOrder, t uint64) (encSolOrder EncryptedSolutionOrder, err error) {
 	// Try serializing the solution order
-	var rawSolOrder []byte
-	if rawSolOrder, err = so.Serialize(); err != nil {
-		err = fmt.Errorf("Error serializing solution order for encryption: %s", err)
-		return
-	}
+	var rawSolOrder []byte = auctionOrder.Serialize()
+	// if rawSolOrder, err = auctionOrder.Serialize(); err != nil {
+	// 	err = fmt.Errorf("Error serializing solution order for encryption: %s", err)
+	// 	return
+	// }
 
 	if encSolOrder.OrderCiphertext, encSolOrder.OrderPuzzle, err = timelockencoders.CreateRC5RSWPuzzleWithPrimes(uint64(2), t, rawSolOrder, so.p, so.q); err != nil {
 		err = fmt.Errorf("Error creating puzzle from auction order: %s", err)
@@ -64,8 +57,8 @@ func (so *SolutionOrder) EncryptSolutionOrder(t uint64) (encSolOrder EncryptedSo
 	}
 
 	// make sure they match
-	encSolOrder.IntendedAuction = so.userOrder.AuctionID
-	encSolOrder.IntendedPair = so.userOrder.TradingPair
+	encSolOrder.IntendedAuction = auctionOrder.AuctionID
+	encSolOrder.IntendedPair = auctionOrder.TradingPair
 	return
 }
 
