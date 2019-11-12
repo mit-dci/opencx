@@ -68,8 +68,8 @@ func createRSWPuzzleWithPrimes(a uint64, t uint64, key []byte, p *big.Int, q *bi
 
 // CreateRC5RSWPuzzleWithPrimes creates a RSW timelock puzzle with
 // time t and encrypts the message using RC5, given some user-defined
-// primes.
-func CreateRC5RSWPuzzleWithPrimes(a uint64, t uint64, message []byte, p *big.Int, q *big.Int) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
+// primes. This returns a struct unlike the other methods here.
+func CreateRC5RSWPuzzleWithPrimes(a uint64, t uint64, message []byte, p *big.Int, q *big.Int) (ciphertext []byte, puzzle rsw.PuzzleRSW, err error) {
 	// Generate private key
 	var key []byte
 	if key, err = Generate16ByteKey(rand.Reader); err != nil {
@@ -77,8 +77,20 @@ func CreateRC5RSWPuzzleWithPrimes(a uint64, t uint64, message []byte, p *big.Int
 		return
 	}
 
-	if puzzle, key, err = createRSWPuzzleWithPrimes(a, t, key, p, q); err != nil {
+	var pzInterface crypto.Puzzle
+	if pzInterface, key, err = createRSWPuzzleWithPrimes(a, t, key, p, q); err != nil {
 		err = fmt.Errorf("Error creating rsw puzzle with primes before encrypting: %s", err)
+		return
+	}
+
+	var pzSerialized []byte
+	if pzSerialized, err = pzInterface.Serialize(); err != nil {
+		err = fmt.Errorf("Error serializing puzzle before encryption: %s", err)
+		return
+	}
+
+	if err = puzzle.Deserialize(pzSerialized); err != nil {
+		err = fmt.Errorf("Error deserializing puzzle before encryption: %s", err)
 		return
 	}
 
