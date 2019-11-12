@@ -8,18 +8,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/mit-dci/opencx/crypto"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
 )
-
-// EncryptedSolutionOrder represents an encrypted Solution Order, so a
-// ciphertext and a puzzle solution that is a key, and an intended auction.
-type EncryptedSolutionOrder struct {
-	OrderCiphertext []byte        `json:"orderciphertext"`
-	OrderPuzzle     crypto.Puzzle `json:"orderpuzzle"`
-	IntendedAuction AuctionID     `json:"intendedauction"`
-	IntendedPair    Pair          `json:"intendedpair"`
-}
 
 // SolutionOrder is an order and modulus that are together.
 // This includes an order, and the puzzle modulus factors.
