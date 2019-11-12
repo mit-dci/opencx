@@ -18,10 +18,10 @@ type SolutionOrder struct {
 	q *big.Int `json:"q"`
 }
 
-// NewSolutionOrderFromOrder creates a new SolutionOrder from an
-// already existing AuctionOrder, with a specified number of bits for
-// an rsa key.
-func NewSolutionOrderFromOrder(rsaKeyBits uint64) (solOrder SolutionOrder, err error) {
+// NewSolutionOrder creates a new SolutionOrder from an already
+// existing AuctionOrder, with a specified number of bits for an rsa
+// key.
+func NewSolutionOrder(rsaKeyBits uint64) (solOrder SolutionOrder, err error) {
 	rsaKeyBitsInt := int(rsaKeyBits)
 
 	// generate primes p and q
