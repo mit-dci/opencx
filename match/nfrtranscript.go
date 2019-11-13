@@ -8,6 +8,7 @@ import (
 	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/crypto/rsw"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
+	"github.com/mit-dci/opencx/logging"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -56,7 +57,6 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		return
 	}
 
-	// TODO: associate pubkeys with puzzled orders and verify sigs
 	var pubkeyMap map[koblitz.PublicKey]SignedEncSolOrder = make(map[koblitz.PublicKey]SignedEncSolOrder)
 	var bufForCommitment []byte
 	for _, pzOrder := range tr.puzzledOrders {
@@ -164,7 +164,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		}
 
 		// now we get the order and check that it was included. Also
-		// check that p * q = N in puzzle. TODO
+		// check that p * q = N in puzzle, but only log it
 		var ok bool
 		var currEnc SignedEncSolOrder
 		if currEnc, ok = pubkeyMap[*userPubKey]; !ok {
@@ -174,8 +174,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 
 		tempN := new(big.Int).Mul(response.PuzzleAnswerReveal.q, response.PuzzleAnswerReveal.p)
 		if tempN.Cmp(currEnc.EncSolOrder.OrderPuzzle.N) != 0 {
-			err = fmt.Errorf("User included incorrect factors in order")
-			return
+			logging.Warnf("User included incorrect factors in order, this order will require some solving")
 		}
 
 	}

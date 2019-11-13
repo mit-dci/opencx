@@ -11,11 +11,12 @@ import (
 // TestEmptyTranscripVerify tests an empty transcript and makes sure
 // that it is not valid
 func TestEmptyTranscripVerify(t *testing.T) {
-	var err error
 	emptyTranscript := Transcript{}
 
+	// this should error so valid being true would also mean err ==
+	// nil
 	var valid bool
-	valid, err = emptyTranscript.Verify()
+	valid, _ = emptyTranscript.Verify()
 
 	if valid {
 		t.Errorf("Empty transcript should have been invalid, was valid")
@@ -49,20 +50,55 @@ func TestOneOrderValidTranscripVerify(t *testing.T) {
 	// set time param
 	time := 100000
 
-	// NOTE: start of user stuff
-	// First create solution
-	var soln SolutionOrder
-	if soln, err = NewSolutionOrder(2048); err != nil {
-		t.Errorf("Error creating solution order of 2048 bits: %s", err)
-		return
-	}
+	// This maps private key to solution order so we can respond
+	// correctly later.
+	var privkeyOrderMap map[koblitz.PrivateKey]SolutionOrder = make(map[koblitz.PrivateKey]SolutionOrder)
+	for i := 0; i < 100; i++ {
+		// NOTE: start of user stuff
+		var userPrivKey *koblitz.PrivateKey
+		if userPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+			err = fmt.Errorf("Error creating new user private key for signing: %s", err)
+			return
+		}
 
-	// now create encrypted order NOTE: change t to be massive on
-	// larger tests
-	var encOrder EncryptedSolutionOrder
-	if encOrder, err = soln.EncryptSolutionOrder(origOrder, time); err != nil {
-		t.Errorf("Error encrypting solution order for test: %s", err)
-		return
+		// First create solution
+		var soln SolutionOrder
+		if soln, err = NewSolutionOrder(2048); err != nil {
+			t.Errorf("Error creating solution order of 2048 bits: %s", err)
+			return
+		}
+		privkeyOrderMap[*userPrivKey] = soln
+
+		// now create encrypted order NOTE: change t to be massive on
+		// larger tests
+		var encOrder EncryptedSolutionOrder
+		if encOrder, err = soln.EncryptSolutionOrder(*origOrder, uint64(time)); err != nil {
+			t.Errorf("Error encrypting solution order for test: %s", err)
+			return
+		}
+
+		var encOrderBuf []byte
+		if encOrderBuf, err = encOrder.Serialize(); err != nil {
+			err = fmt.Errorf("Error serializing encrypted order before signing: %s", err)
+			return
+		}
+
+		// now we have to sign the order
+		var solnOrderSig *koblitz.Signature
+		if solnOrderSig, err = userPrivKey.Sign(hash256(encOrderBuf)); err != nil {
+			err = fmt.Errorf("Error signing encrypted order for user: %s", err)
+			return
+		}
+
+		// now that we've created the solution order we add it to the
+		// transcript as being "submitted".
+		signedOrder := SignedEncSolOrder{
+			EncSolOrder: encOrder,
+		}
+
+		// NOTE: this is the most likely point of failure
+		copy(signedOrder.Signature[:], solnOrderSig.Serialize())
+		emptyTranscript.puzzledOrders = append(emptyTranscript.puzzledOrders, signedOrder)
 	}
 
 	var valid bool
