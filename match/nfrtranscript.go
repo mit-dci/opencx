@@ -15,13 +15,13 @@ import (
 // transcript. Puzzled orders are the "batch" and this should be able
 // to be verified quickly.
 type Transcript struct {
-	batchId       AuctionID                `json:batchid`
-	batchIdSig    []byte                   `json:"signature"`
-	puzzledOrders []EncryptedSolutionOrder `json:"puzzledorders"`
-	commitment    [32]byte                 `json:"commitment"`
-	commitSig     []byte                   `json:"commitsig"`
-	responses     []CommitResponse         `json:"responses"`
-	solutions     []AuctionOrder           `json:"solutions"`
+	batchId       AuctionID           `json:batchid`
+	batchIdSig    []byte              `json:"signature"`
+	puzzledOrders []SignedEncSolOrder `json:"puzzledorders"`
+	commitment    [32]byte            `json:"commitment"`
+	commitSig     []byte              `json:"commitsig"`
+	responses     []CommitResponse    `json:"responses"`
+	solutions     []AuctionOrder      `json:"solutions"`
 }
 
 // CommitResponse is the commitment response. The sig is the
@@ -57,7 +57,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	}
 
 	// TODO: associate pubkeys with puzzled orders and verify sigs
-	var pubkeyMap map[*koblitz.PublicKey]EncryptedSolutionOrder = make(map[*koblitz.PublicKey]EncryptedSolutionOrder)
+	var pubkeyMap map[koblitz.PublicKey]SignedEncSolOrder = make(map[koblitz.PublicKey]SignedEncSolOrder)
 	var bufForCommitment []byte
 	for _, pzOrder := range tr.puzzledOrders {
 		var pzBuf []byte
@@ -65,6 +65,40 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 			err = fmt.Errorf("Error serializing puzzle order for transcript verification: %s", err)
 			return
 		}
+
+		var notSignedPzBuf []byte
+		if notSignedPzBuf, err = pzOrder.EncSolOrder.Serialize(); err != nil {
+			err = fmt.Errorf("Error serializing unsigned part of puzzle order: %s", err)
+			return
+		}
+
+		hasher = sha3.New256()
+		if _, err = hasher.Write(notSignedPzBuf); err != nil {
+			err = fmt.Errorf("Error writing puzzle order to hasher: %s", err)
+			return
+		}
+		hashOrder := hasher.Sum(nil)
+
+		var firstUserPubKey *koblitz.PublicKey
+		var firstUserSigValid bool
+		if firstUserPubKey, firstUserSigValid, err = koblitz.RecoverCompact(koblitz.S256(), pzOrder.Signature, hashOrder); err != nil {
+			err = fmt.Errorf("Error recovering user pubkey from sig: %s", err)
+			return
+		}
+
+		// only add to map if the signature checks out -- otherwise,
+		// it could have been modified by some adversary on the way to
+		// the exchange. This is OK because the exchange is making a
+		// commitment hopefully before puzzles can be solved - and
+		// including signatures in the commitment, which is why we
+		// serialize the entire signed order.
+		if firstUserSigValid {
+			pubkeyMap[*firstUserPubKey] = pzOrder
+		} else {
+			err = fmt.Errorf("Invalid user signature means invalid transcript")
+			return
+		}
+
 		bufForCommitment = append(bufForCommitment, pzBuf...)
 	}
 
@@ -116,11 +150,6 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		}
 
 		e3 := responseHasher.Sum(nil)
-		var responseSig *koblitz.Signature
-		if responseSig, err = koblitz.ParseSignature(response.CommResponseSig[:], koblitz.S256()); err != nil {
-			err = fmt.Errorf("Error parsing signature in response: %s", err)
-			return
-		}
 
 		var userPubKey *koblitz.PublicKey
 		var userSigValid bool
@@ -128,6 +157,21 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 			err = fmt.Errorf("Error recovering user pubkey from signature: %s", err)
 			return
 		}
+
+		if !userSigValid {
+			err = fmt.Errorf("Error, user sig is not valid for response")
+			return
+		}
+
+		// now we get the order and check that it was included. Also
+		// check that p * q = N in puzzle. TODO
+		var ok bool
+		// var currEnc SignedEncSolOrder
+		if _, ok = pubkeyMap[*userPubKey]; !ok {
+			err = fmt.Errorf("Error, user pubkey not in previous map, so it's a signature without an order")
+			return
+		}
+
 	}
 
 	return
@@ -137,8 +181,10 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 // responses to partition the encrypted orders into those solvable by
 // responses and those that are unsolvable.
 func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []CommitResponse, err error) {
-	// this is a map from N to the order
-	var pzMap map[*big.Int]EncryptedSolutionOrder = make(map[*big.Int]EncryptedSolutionOrder)
+	// TODO: optimize for garbage collection by using a single [32]byte
+	// pool for hashing
+	// this is a map from hash(N) to the order
+	var pzMap map[[32]byte]EncryptedSolutionOrder = make(map[[32]byte]EncryptedSolutionOrder)
 	for _, pzOrder := range tr.puzzledOrders {
 		var pzBuf []byte
 		if pzBuf, err = pzOrder.Serialize(); err != nil {
@@ -152,7 +198,13 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 			return
 		}
 
-		pzMap[rswPz.N] = pzOrder
+		// hash of N's bytes
+		hasher := sha3.New256()
+		hasher.Write(rswPz.N.Bytes())
+		var tempNSum [32]byte = [32]byte{}
+		copy(tempNSum[:], hasher.Sum(nil))
+
+		pzMap[tempNSum] = pzOrder.EncSolOrder
 	}
 
 	var solutionMap map[CommitResponse]EncryptedSolutionOrder = make(map[CommitResponse]EncryptedSolutionOrder)
@@ -162,7 +214,14 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 		ok = false
 		tempN := new(big.Int)
 		tempN.Mul(answer.PuzzleAnswerReveal.p, answer.PuzzleAnswerReveal.q)
-		if currEnc, ok = pzMap[tempN]; ok {
+
+		// hash of N's bytes
+		hasher := sha3.New256()
+		hasher.Write(tempN.Bytes())
+		var tempNSum [32]byte = [32]byte{}
+		copy(tempNSum[:], hasher.Sum(nil))
+
+		if currEnc, ok = pzMap[tempNSum]; ok {
 			solutionMap[answer] = currEnc
 		} else {
 			invalidResponses = append(invalidResponses, answer)
