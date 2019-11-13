@@ -163,6 +163,7 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	valid, err = emptyTranscript.Verify()
 
 	if !valid {
+		logging.Errorf("Error from benchmark: %s", err)
 		b.Errorf("Empty transcript should have been valid, was invalid: %s", err)
 		return
 	}
@@ -170,15 +171,15 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 }
 
 func BenchmarkValidTranscript10_1(b *testing.B) {
-	runBenchTranscriptVerify(b, 100000, 10)
+	runBenchTranscriptVerify(b, 10000, 10)
 }
 
 func BenchmarkValidTranscript10_2(b *testing.B) {
-	runBenchTranscriptVerify(b, 100000, 100)
+	runBenchTranscriptVerify(b, 10000, 100)
 }
 
 func BenchmarkValidTranscript10_3(b *testing.B) {
-	runBenchTranscriptVerify(b, 100000, 1000)
+	runBenchTranscriptVerify(b, 10000, 1000)
 }
 
 func runValidTranscriptVerify(t *testing.T, time uint64, orders uint64) {
