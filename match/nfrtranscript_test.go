@@ -183,7 +183,7 @@ func BenchmarkValidTranscript(b *testing.B) {
 	for _, amt := range orderAmounts {
 		b.Run(fmt.Sprintf("BenchValidNFR%d", amt), func(g *testing.B) {
 			for i := 0; i < g.N; i++ {
-				runBenchTranscriptVerify(b, 10000, amt)
+				runBenchTranscriptVerify(g, 10000, amt)
 			}
 		})
 	}
