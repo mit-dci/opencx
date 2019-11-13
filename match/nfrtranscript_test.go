@@ -1,6 +1,7 @@
 package match
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -42,22 +43,25 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	}
 
 	// init empty transcript, the id from there is valid
-	emptyTranscript := Transcript{}
+	transcript := Transcript{}
 
 	// var idsig *koblitz.Signature
-	// if idsig, err = exprivkey.Sign(hash256(emptyTranscript.batchId[:])); err != nil {
+	// if idsig, err = exprivkey.Sign(hash256(transcript.batchId[:])); err != nil {
 	// 	err = fmb.Fatalf("Error with exchange signing batch id: %s", err)
 	// 	return
 	// }
-	// emptyTranscript.batchIdSig = idsig.Serialize()
+	// transcript.batchIdSig = idsig.Serialize()
+	hasher := sha3.New256()
+	hasher.Write(transcript.batchId[:])
 	var batchSig []byte
-	if batchSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, hash256(emptyTranscript.batchId[:]), false); err != nil {
+	if batchSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, hasher.Sum(nil), false); err != nil {
 		b.Fatalf("Error compact signing batch id sig: %s", err)
 		return
 	}
-	emptyTranscript.batchIdSig = make([]byte, len(batchSig))
-	copy(emptyTranscript.batchIdSig, batchSig)
+	transcript.batchIdSig = make([]byte, len(batchSig))
+	copy(transcript.batchIdSig, batchSig)
 
+	hasher.Reset()
 	// This maps private key to solution order so we can respond
 	// correctly later.
 	var privkeyOrderMap map[koblitz.PrivateKey]SolutionOrder = make(map[koblitz.PrivateKey]SolutionOrder)
@@ -91,8 +95,10 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 			return
 		}
 
+		hasher.Reset()
+		hasher.Write(encOrderBuf)
 		var userSigBuf []byte
-		if userSigBuf, err = koblitz.SignCompact(koblitz.S256(), userPrivKey, hash256(encOrderBuf), false); err != nil {
+		if userSigBuf, err = koblitz.SignCompact(koblitz.S256(), userPrivKey, hasher.Sum(nil), false); err != nil {
 			b.Fatalf("Error signing encrypted order for user: %s", err)
 			return
 		}
@@ -106,29 +112,30 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 
 		// NOTE: this is the most likely point of failure
 		copy(signedOrder.Signature, userSigBuf)
-		emptyTranscript.puzzledOrders = append(emptyTranscript.puzzledOrders, signedOrder)
+		transcript.puzzledOrders = append(transcript.puzzledOrders, signedOrder)
 	}
 
 	// now that we have a bunch of puzzled orders, we should create a
 	// commitment out of it.
-	var commitmentPreImg []byte
-	for _, encOrder := range emptyTranscript.puzzledOrders {
+	hasher.Reset()
+	for _, encOrder := range transcript.puzzledOrders {
 		var rawPuzzle []byte
 		if rawPuzzle, err = encOrder.Serialize(); err != nil {
 			b.Fatalf("Error serializing submitted order before hashing: %s", err)
 			return
 		}
-		commitmentPreImg = append(commitmentPreImg, rawPuzzle...)
+		hasher.Write(rawPuzzle)
 	}
-	copy(emptyTranscript.commitment[:], hash256(commitmentPreImg))
+	copy(transcript.commitment[:], hasher.Sum(nil))
 	var exchangeCommSig []byte
-	if exchangeCommSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, emptyTranscript.commitment[:], false); err != nil {
+	if exchangeCommSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, transcript.commitment[:], false); err != nil {
 		b.Fatalf("Error with exchange signing the commitment: %s", err)
 		return
 	}
-	emptyTranscript.commitSig = make([]byte, len(exchangeCommSig))
-	copy(emptyTranscript.commitSig, exchangeCommSig)
+	transcript.commitSig = make([]byte, len(exchangeCommSig))
+	copy(transcript.commitSig, exchangeCommSig)
 
+	hasher.Reset()
 	// users now create their signatures and reveal solutions
 	for userprivkey, solnorder := range privkeyOrderMap {
 		// because we're running a test we do not check the time -- in
@@ -136,17 +143,17 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		userCommitResponse := CommitResponse{}
 
 		// h(commit + sig + answer) = e
-		var responseBuf []byte
-		responseBuf = append(responseBuf, emptyTranscript.commitment[:]...)
-		responseBuf = append(responseBuf, emptyTranscript.commitSig...)
+		hasher.Reset()
+		hasher.Write(transcript.commitment[:])
+		hasher.Write(transcript.commitSig)
 		var solnOrderBuf []byte
 		if solnOrderBuf, err = solnorder.Serialize(); err != nil {
 			b.Fatalf("Error serializing solution order for response: %s", err)
 			return
 		}
-		responseBuf = append(responseBuf, solnOrderBuf...)
+		hasher.Write(solnOrderBuf)
 		var responseSigBuf []byte
-		if responseSigBuf, err = koblitz.SignCompact(koblitz.S256(), &userprivkey, hash256(responseBuf), false); err != nil {
+		if responseSigBuf, err = koblitz.SignCompact(koblitz.S256(), &userprivkey, hasher.Sum(nil), false); err != nil {
 			b.Fatalf("Error for user signing response: %s", err)
 			return
 		}
@@ -159,8 +166,9 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	}
 
 	b.StartTimer()
+	b.ResetTimer()
 	var valid bool
-	valid, err = emptyTranscript.Verify()
+	valid, err = transcript.Verify()
 
 	if !valid {
 		logging.Fatalf("Error from benchmark: %s", err)
@@ -170,21 +178,32 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	return
 }
 
-func BenchmarkValidTranscript10_0(b *testing.B) {
-	runBenchTranscriptVerify(b, 10000, 1)
+func BenchmarkValidTranscript(b *testing.B) {
+	orderAmounts := []uint64{1, 10, 100}
+	for _, amt := range orderAmounts {
+		b.Run(fmt.Sprintf("BenchValidNFR%d", amt), func(g *testing.B) {
+			for i := 0; i < g.N; i++ {
+				runBenchTranscriptVerify(b, 10000, amt)
+			}
+		})
+	}
 }
 
-func BenchmarkValidTranscript10_1(b *testing.B) {
-	runBenchTranscriptVerify(b, 10000, 10)
-}
+// func BenchmarkValidTranscript10_0(b *testing.B) {
+// 	runBenchTranscriptVerify(b, 10000, 1)
+// }
 
-func BenchmarkValidTranscript10_2(b *testing.B) {
-	runBenchTranscriptVerify(b, 10000, 100)
-}
+// func BenchmarkValidTranscript10_1(b *testing.B) {
+// 	runBenchTranscriptVerify(b, 10000, 10)
+// }
 
-func BenchmarkValidTranscript10_3(b *testing.B) {
-	runBenchTranscriptVerify(b, 10000, 1000)
-}
+// func BenchmarkValidTranscript10_2(b *testing.B) {
+// 	runBenchTranscriptVerify(b, 10000, 100)
+// }
+
+// func BenchmarkValidTranscript10_3(b *testing.B) {
+// 	runBenchTranscriptVerify(b, 10000, 1000)
+// }
 
 func runValidTranscriptVerify(t *testing.T, time uint64, orders uint64) {
 	var err error
