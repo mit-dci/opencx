@@ -1,6 +1,7 @@
 package match
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -183,7 +184,9 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 func BenchmarkValidTranscript(b *testing.B) {
 	orderAmounts := []uint64{1, 10, 100}
 	for _, amt := range orderAmounts {
-		runBenchTranscriptVerify(b, 10000, amt)
+		b.Run(fmt.Sprintf("NumTranscripts10_%d", amt), func(g *testing.B) {
+			runBenchTranscriptVerify(g, 10000, amt)
+		})
 	}
 }
 
