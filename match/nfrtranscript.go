@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	gmpbig "github.com/Rjected/gmp"
 	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/opencx/crypto/rsw"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
 	"github.com/mit-dci/opencx/logging"
 	"golang.org/x/crypto/sha3"
@@ -54,10 +54,14 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		return
 	}
 
-	var pubkeyMap map[koblitz.PublicKey]SignedEncSolOrder = make(map[koblitz.PublicKey]SignedEncSolOrder)
+	// map of PKH to PK
+	var pubkeyMap map[[32]byte]SignedEncSolOrder = make(map[[32]byte]SignedEncSolOrder)
+	var tempPKH [32]byte = [32]byte{}
+	var zeroBuf [32]byte = [32]byte{}
 	var bufForCommitment []byte
 	for _, pzOrder := range tr.puzzledOrders {
 		hasher.Reset()
+		copy(tempPKH[:], zeroBuf[:])
 		var pzBuf []byte
 		if pzBuf, err = pzOrder.Serialize(); err != nil {
 			err = fmt.Errorf("Error serializing puzzle order for transcript verification: %s", err)
@@ -81,6 +85,9 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 			err = fmt.Errorf("Error recovering user pubkey from sig: %s", err)
 			return
 		}
+		hasher.Reset()
+		hasher.Write(firstUserPubKey.SerializeCompressed())
+		copy(tempPKH[:], hasher.Sum(nil))
 
 		// only add to map if the signature checks out -- otherwise,
 		// it could have been modified by some adversary on the way to
@@ -88,7 +95,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		// commitment hopefully before puzzles can be solved - and
 		// including signatures in the commitment, which is why we
 		// serialize the entire signed order.
-		pubkeyMap[*firstUserPubKey] = pzOrder
+		pubkeyMap[tempPKH] = pzOrder
 		bufForCommitment = append(bufForCommitment, pzBuf...)
 	}
 
@@ -131,6 +138,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	var ok bool
 	for _, response := range tr.responses {
 		ok = false
+		copy(tempPKH[:], zeroBuf[:])
 		hasher.Reset()
 		// h(comm + sig + answer) = e
 		if _, err = hasher.Write(tr.commitment[:]); err != nil {
@@ -159,11 +167,14 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 			err = fmt.Errorf("Error recovering user pubkey from signature: %s", err)
 			return
 		}
+		hasher.Reset()
+		hasher.Write(userPubKey.SerializeCompressed())
+		copy(tempPKH[:], hasher.Sum(nil))
 
 		// now we get the order and check that it was included. Also
 		// check that p * q = N in puzzle, but only log it
 		var currEnc SignedEncSolOrder
-		if currEnc, ok = pubkeyMap[*userPubKey]; !ok {
+		if currEnc, ok = pubkeyMap[tempPKH]; !ok {
 			err = fmt.Errorf("Error, user pubkey not in previous map, so it's a signature without an order")
 			return
 		}
@@ -193,20 +204,9 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 	for _, pzOrder := range tr.puzzledOrders {
 		hasher.Reset()
 		copy(tempNSum[:], zeroBuf[:])
-		var pzBuf []byte
-		if pzBuf, err = pzOrder.Serialize(); err != nil {
-			err = fmt.Errorf("Error serializing puzzle order for transcript verification: %s", err)
-			return
-		}
-
-		var rswPz rsw.PuzzleRSW
-		if err = rswPz.Deserialize(pzBuf); err != nil {
-			err = fmt.Errorf("Error deserializing puzzle into rsw, ensure that the puzzle sent is valid: %s", err)
-			return
-		}
 
 		// hash of N's bytes
-		hasher.Write(rswPz.N.Bytes())
+		hasher.Write(pzOrder.EncSolOrder.OrderPuzzle.N.Bytes())
 		copy(tempNSum[:], hasher.Sum(nil))
 
 		pzMap[tempNSum] = pzOrder.EncSolOrder
@@ -247,18 +247,24 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 // calculate trapdoor to solve puzzle
 func trapdoor(p, q *big.Int, encOrder EncryptedSolutionOrder) (order AuctionOrder, err error) {
 	// calculate trapdoor e = 2^t mod phi(n) = 2^t mod (p-1)(q-1)
-	two := big.NewInt(2)
-	one := big.NewInt(1)
-	pminusone := new(big.Int).Sub(p, one)
-	qminusone := new(big.Int).Sub(q, one)
-	phi := new(big.Int).Mul(pminusone, qminusone)
-	e := new(big.Int).Exp(two, encOrder.OrderPuzzle.T, phi)
+	two := gmpbig.NewInt(2)
+	one := gmpbig.NewInt(1)
+	pgmp := new(gmpbig.Int).SetBytes(p.Bytes())
+	qgmp := new(gmpbig.Int).SetBytes(q.Bytes())
+	agmp := new(gmpbig.Int).SetBytes(encOrder.OrderPuzzle.A.Bytes())
+	tgmp := new(gmpbig.Int).SetBytes(encOrder.OrderPuzzle.T.Bytes())
+	ngmp := new(gmpbig.Int).SetBytes(encOrder.OrderPuzzle.N.Bytes())
+	ckgmp := new(gmpbig.Int).SetBytes(encOrder.OrderPuzzle.CK.Bytes())
+	pminusone := new(gmpbig.Int).Sub(pgmp, one)
+	qminusone := new(gmpbig.Int).Sub(qgmp, one)
+	phi := new(gmpbig.Int).Mul(pminusone, qminusone)
+	e := new(gmpbig.Int).Exp(two, tgmp, phi)
 
 	// calculate b = a^e mod N
-	b := new(big.Int).Exp(encOrder.OrderPuzzle.A, e, encOrder.OrderPuzzle.N)
+	b := new(gmpbig.Int).Exp(agmp, e, ngmp)
 
 	// now b xor c_k = k
-	k := new(big.Int).Xor(b, encOrder.OrderPuzzle.CK)
+	k := new(gmpbig.Int).Xor(b, ckgmp)
 	kBytes := k.Bytes()
 
 	var key []byte
