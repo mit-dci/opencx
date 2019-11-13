@@ -2,6 +2,8 @@ package match
 
 import (
 	"fmt"
+	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -38,6 +40,7 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	}
 
 	b.StopTimer()
+	b.ResetTimer()
 	logging.SetLogLevel(3)
 	// create exchange private key
 	var exprivkey *koblitz.PrivateKey
@@ -45,6 +48,9 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		b.Fatalf("Error creating exchange private key for signing: %s", err)
 		return
 	}
+
+	// NOTE: exchange stuff, start timer!!
+	b.StartTimer()
 
 	// init empty transcript, the id from there is valid
 	transcript := Transcript{}
@@ -65,11 +71,48 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	transcript.batchIdSig = make([]byte, len(batchSig))
 	copy(transcript.batchIdSig, batchSig)
 
+	b.StopTimer()
+	// NOTE: exchange stuff done, stop timer!!
+
 	hasher.Reset()
 	// This maps private key to solution order so we can respond
 	// correctly later.
 	var privkeyOrderMap map[koblitz.PrivateKey]SolutionOrder = make(map[koblitz.PrivateKey]SolutionOrder)
+	// var bufMtx sync.Mutex
+	var solnBuf []SolutionOrder = make([]SolutionOrder, orders)
+	var errBuf []error = make([]error, orders)
+	var wg sync.WaitGroup
+	wg.Add(int(orders))
 	for i := uint64(0); i < orders; i++ {
+		// First create solution
+		solnBuf[i].P = new(big.Int)
+		solnBuf[i].Q = new(big.Int)
+		go func(j int) {
+			var soln SolutionOrder
+			if soln, errBuf[j] = NewSolutionOrder(2048); errBuf[j] != nil {
+				errBuf[j] = fmt.Errorf("Error creating solution order of 2048 bits: %s", errBuf[j])
+				wg.Done()
+				return
+			}
+			solnBuf[j].P.Set(soln.P)
+			solnBuf[j].Q.Set(soln.Q)
+			wg.Done()
+		}(int(i))
+	}
+	wg.Wait()
+
+	didError := false
+	for j, creationErr := range errBuf {
+		if creationErr != nil {
+			didError = true
+			b.Errorf("Error: the %d'th goroutine failed with error: %s", j, creationErr)
+		}
+	}
+	if didError {
+		b.FailNow()
+	}
+
+	for _, soln := range solnBuf {
 		// NOTE: start of user stuff
 		var userPrivKey *koblitz.PrivateKey
 		if userPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
@@ -77,12 +120,6 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 			return
 		}
 
-		// First create solution
-		var soln SolutionOrder
-		if soln, err = NewSolutionOrder(2048); err != nil {
-			b.Fatalf("Error creating solution order of 2048 bits: %s", err)
-			return
-		}
 		privkeyOrderMap[*userPrivKey] = soln
 
 		// now create encrypted order NOTE: change t to be massive on
@@ -118,6 +155,9 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		transcript.puzzledOrders = append(transcript.puzzledOrders, signedOrder)
 	}
 
+	// NOTE: exchange stuff, start timer!!
+	b.StartTimer()
+
 	// now that we have a bunch of puzzled orders, we should create a
 	// commitment out of it.
 	hasher.Reset()
@@ -138,7 +178,11 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	transcript.commitSig = make([]byte, len(exchangeCommSig))
 	copy(transcript.commitSig, exchangeCommSig)
 
+	b.StopTimer()
+	// NOTE: exchange stuff done, stop timer!!
+
 	hasher.Reset()
+
 	// users now create their signatures and reveal solutions
 	for userprivkey, solnorder := range privkeyOrderMap {
 		// because we're running a test we do not check the time -- in
@@ -166,23 +210,32 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		}
 		copy(userCommitResponse.CommResponseSig[:], responseSigBuf)
 		userCommitResponse.PuzzleAnswerReveal = solnorder
+		transcript.responses = append(transcript.responses, userCommitResponse)
 	}
 
 	b.StartTimer()
-	b.ResetTimer()
 	var valid bool
 	valid, err = transcript.Verify()
 
 	if !valid {
-		logging.Fatalf("Error from benchmark: %s", err)
 		b.Fatalf("Empty transcript should have been valid, was invalid: %s", err)
+		return
+	}
+
+	var solved []AuctionOrder
+	if solved, _, err = transcript.Solve(); err != nil {
+		b.Fatalf("Transcript should have been easily solvable, errored instead: %s", err)
+		return
+	}
+	if len(solved) != int(orders) {
+		b.Fatalf("Exchange could not solve all orders, it should have been able to: %s", err)
 		return
 	}
 	return
 }
 
 func BenchmarkValidTranscript(b *testing.B) {
-	orderAmounts := []uint64{1, 10, 100}
+	orderAmounts := []uint64{1, 10, 100, 1000}
 	for _, amt := range orderAmounts {
 		b.Run(fmt.Sprintf("NumTranscripts10_%d", amt), func(g *testing.B) {
 			runBenchTranscriptVerify(g, 10000, amt)
