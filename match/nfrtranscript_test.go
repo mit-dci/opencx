@@ -53,7 +53,7 @@ func TestOneOrderValidTranscripVerify(t *testing.T) {
 	// This maps private key to solution order so we can respond
 	// correctly later.
 	var privkeyOrderMap map[koblitz.PrivateKey]SolutionOrder = make(map[koblitz.PrivateKey]SolutionOrder)
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1; i++ {
 		// NOTE: start of user stuff
 		var userPrivKey *koblitz.PrivateKey
 		if userPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
