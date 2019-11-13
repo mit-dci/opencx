@@ -1,7 +1,6 @@
 package match
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -26,7 +25,11 @@ func TestEmptyTranscripVerify(t *testing.T) {
 	return
 }
 
+// runBenchTranscriptVerify runs a benchmark which creates orders with
+// a time parameter specified by the user, and creates a valid
+// transcript.
 func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
+	// TODO: encrypt orders in parallel
 	var err error
 	if orders == 0 {
 		b.Fatalf("Cannot run test with no orders, please setup test correctly")
@@ -110,7 +113,6 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 			Signature:   make([]byte, len(userSigBuf)),
 		}
 
-		// NOTE: this is the most likely point of failure
 		copy(signedOrder.Signature, userSigBuf)
 		transcript.puzzledOrders = append(transcript.puzzledOrders, signedOrder)
 	}
@@ -181,11 +183,7 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 func BenchmarkValidTranscript(b *testing.B) {
 	orderAmounts := []uint64{1, 10, 100}
 	for _, amt := range orderAmounts {
-		b.Run(fmt.Sprintf("BenchValidNFR%d", amt), func(g *testing.B) {
-			for i := 0; i < g.N; i++ {
-				runBenchTranscriptVerify(g, 10000, amt)
-			}
-		})
+		runBenchTranscriptVerify(b, 10000, amt)
 	}
 }
 
