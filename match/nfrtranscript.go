@@ -166,9 +166,15 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		// now we get the order and check that it was included. Also
 		// check that p * q = N in puzzle. TODO
 		var ok bool
-		// var currEnc SignedEncSolOrder
-		if _, ok = pubkeyMap[*userPubKey]; !ok {
+		var currEnc SignedEncSolOrder
+		if currEnc, ok = pubkeyMap[*userPubKey]; !ok {
 			err = fmt.Errorf("Error, user pubkey not in previous map, so it's a signature without an order")
+			return
+		}
+
+		tempN := new(big.Int).Mul(response.PuzzleAnswerReveal.q, response.PuzzleAnswerReveal.p)
+		if tempN.Cmp(currEnc.EncSolOrder.OrderPuzzle.N) != 0 {
+			err = fmt.Errorf("User included incorrect factors in order")
 			return
 		}
 
