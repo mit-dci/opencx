@@ -233,6 +233,7 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 		}
 	}
 
+	// TODO: parallelize this
 	var currAuctionOrder AuctionOrder
 	for response, encOrder := range solutionMap {
 		if currAuctionOrder, err = trapdoor(response.PuzzleAnswerReveal.P, response.PuzzleAnswerReveal.Q, encOrder); err != nil {
