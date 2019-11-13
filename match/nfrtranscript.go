@@ -28,12 +28,14 @@ type Transcript struct {
 // CommitResponse is the commitment response. The sig is the
 // puzzleanswerreveal + the commitment + the commitsig
 type CommitResponse struct {
-	CommResponseSig    [71]byte      `json:"commresponse"`
+	CommResponseSig    [65]byte      `json:"commresponse"`
 	PuzzleAnswerReveal SolutionOrder `json:"puzzleanswer"`
 }
 
 // Verify verifies the signatures in the transcript and ensures
-// that the batch was carried out correctly.
+// that the batch was carried out correctly. In this implementation,
+// the exchange is signing the set of all orders in plaintext, so the
+// 'e' value in the signature is the hash of all of the orders.
 func (tr *Transcript) Verify() (valid bool, err error) {
 	// First verify batch ID
 	hasher := sha3.New256()
@@ -46,14 +48,8 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	e := hasher.Sum(nil)
 
 	var exchangePubKey *koblitz.PublicKey
-	var batchSigValid bool
-	if exchangePubKey, batchSigValid, err = koblitz.RecoverCompact(koblitz.S256(), tr.batchIdSig, e); err != nil {
+	if exchangePubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), tr.batchIdSig, e); err != nil {
 		err = fmt.Errorf("Error recovering pubkey from batch sig: %s", err)
-		return
-	}
-
-	if !batchSigValid {
-		err = fmt.Errorf("Batch id signature invalid: %s", err)
 		return
 	}
 
@@ -80,8 +76,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		hashOrder := hasher.Sum(nil)
 
 		var firstUserPubKey *koblitz.PublicKey
-		var firstUserSigValid bool
-		if firstUserPubKey, firstUserSigValid, err = koblitz.RecoverCompact(koblitz.S256(), pzOrder.Signature, hashOrder); err != nil {
+		if firstUserPubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), pzOrder.Signature, hashOrder); err != nil {
 			err = fmt.Errorf("Error recovering user pubkey from sig: %s", err)
 			return
 		}
@@ -92,13 +87,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		// commitment hopefully before puzzles can be solved - and
 		// including signatures in the commitment, which is why we
 		// serialize the entire signed order.
-		if firstUserSigValid {
-			pubkeyMap[*firstUserPubKey] = pzOrder
-		} else {
-			err = fmt.Errorf("Invalid user signature means invalid transcript")
-			return
-		}
-
+		pubkeyMap[*firstUserPubKey] = pzOrder
 		bufForCommitment = append(bufForCommitment, pzBuf...)
 	}
 
@@ -111,16 +100,26 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	// hash of the puzzled orders
 	e2 := hasher.Sum(nil)
 
-	var exsig *koblitz.Signature
-	if exsig, err = koblitz.ParseSignature(tr.commitSig, koblitz.S256()); err != nil {
-		err = fmt.Errorf("Error parsing commitment signature: %s", err)
+	var otherExchangePubkey *koblitz.PublicKey
+	if otherExchangePubkey, _, err = koblitz.RecoverCompact(koblitz.S256(), tr.commitSig, tr.commitment[:]); err != nil {
+		err = fmt.Errorf("Error recovering pubkey for commit signature: %s", err)
 		return
 	}
 
-	if !exsig.Verify(e2, exchangePubKey) {
-		err = fmt.Errorf("Invalid commitment signature from exchange")
+	if !otherExchangePubkey.IsEqual(exchangePubKey) {
+		err = fmt.Errorf("Exchange used different pubkey for signing commitment versus batchid")
 		return
 	}
+	// var exsig *koblitz.Signature
+	// if exsig, err = koblitz.ParseSignature(tr.commitSig, koblitz.S256()); err != nil {
+	// 	err = fmt.Errorf("Error parsing commitment signature: %s", err)
+	// 	return
+	// }
+
+	// if !exsig.Verify(e2, exchangePubKey) {
+	// 	err = fmt.Errorf("Invalid commitment signature from exchange")
+	// 	return
+	// }
 
 	if bytes.Compare(e2, tr.commitment[:]) != 0 {
 		err = fmt.Errorf("Commitment is not equal to hash of orders - invalid transcript")
@@ -128,7 +127,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	}
 
 	for _, response := range tr.responses {
-		// comm + sig + answer = e
+		// h(comm + sig + answer) = e
 		responseHasher := sha3.New256()
 		if _, err = responseHasher.Write(tr.commitment[:]); err != nil {
 			err = fmt.Errorf("Error writing commitment to hasher: %s", err)
@@ -152,14 +151,8 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		e3 := responseHasher.Sum(nil)
 
 		var userPubKey *koblitz.PublicKey
-		var userSigValid bool
-		if userPubKey, userSigValid, err = koblitz.RecoverCompact(koblitz.S256(), response.CommResponseSig[:], e3); err != nil {
+		if userPubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), response.CommResponseSig[:], e3); err != nil {
 			err = fmt.Errorf("Error recovering user pubkey from signature: %s", err)
-			return
-		}
-
-		if !userSigValid {
-			err = fmt.Errorf("Error, user sig is not valid for response")
 			return
 		}
 
@@ -172,13 +165,14 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 			return
 		}
 
-		tempN := new(big.Int).Mul(response.PuzzleAnswerReveal.q, response.PuzzleAnswerReveal.p)
+		tempN := new(big.Int).Mul(response.PuzzleAnswerReveal.Q, response.PuzzleAnswerReveal.P)
 		if tempN.Cmp(currEnc.EncSolOrder.OrderPuzzle.N) != 0 {
 			logging.Warnf("User included incorrect factors in order, this order will require some solving")
 		}
 
 	}
 
+	valid = true
 	return
 }
 
@@ -218,7 +212,7 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 	for _, answer := range tr.responses {
 		ok = false
 		tempN := new(big.Int)
-		tempN.Mul(answer.PuzzleAnswerReveal.p, answer.PuzzleAnswerReveal.q)
+		tempN.Mul(answer.PuzzleAnswerReveal.P, answer.PuzzleAnswerReveal.Q)
 
 		// hash of N's bytes
 		hasher := sha3.New256()
@@ -235,7 +229,7 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 
 	for response, encOrder := range solutionMap {
 		var currAuctionOrder AuctionOrder
-		if currAuctionOrder, err = trapdoor(response.PuzzleAnswerReveal.p, response.PuzzleAnswerReveal.q, encOrder); err != nil {
+		if currAuctionOrder, err = trapdoor(response.PuzzleAnswerReveal.P, response.PuzzleAnswerReveal.Q, encOrder); err != nil {
 			err = fmt.Errorf("Error running trapdoor for revealed answer: %s", err)
 			return
 		}
