@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"sync"
 
 	gmpbig "github.com/Rjected/gmp"
 	"github.com/mit-dci/lit/crypto/koblitz"
@@ -11,6 +12,8 @@ import (
 	"github.com/mit-dci/opencx/logging"
 	"golang.org/x/crypto/sha3"
 )
+
+// TODO: CLEAN UP THIS CODE!!!
 
 // Transcript is the representation of a non front running proof
 // transcript. Puzzled orders are the "batch" and this should be able
@@ -135,6 +138,50 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		return
 	}
 
+	var e3Buf [][32]byte = make([][32]byte, len(tr.responses))
+	var errChan chan error = make(chan error, len(tr.responses))
+	var hashCommWg sync.WaitGroup
+	hashCommWg.Add(len(tr.responses))
+
+	for i, response := range tr.responses {
+		go func(j int, comm [32]byte, commSig []byte, res CommitResponse) {
+			var cErr error
+			e3Buf[j] = [32]byte{}
+			currHasher := sha3.New256()
+			if _, cErr = currHasher.Write(comm[:]); cErr != nil {
+				errChan <- fmt.Errorf("Error writing commitment to hasher: %s", cErr)
+				hashCommWg.Done()
+				return
+			}
+			if _, cErr = currHasher.Write(commSig); cErr != nil {
+				errChan <- fmt.Errorf("Error writing commitment sig to hasher: %s", cErr)
+				hashCommWg.Done()
+				return
+			}
+			var answerBytes []byte
+			if answerBytes, cErr = res.PuzzleAnswerReveal.Serialize(); cErr != nil {
+				errChan <- fmt.Errorf("Error serializing answer: %s", cErr)
+				hashCommWg.Done()
+				return
+			}
+			if _, cErr = currHasher.Write(answerBytes); cErr != nil {
+				errChan <- fmt.Errorf("Error writing answerBytes to hasher: %s", cErr)
+				hashCommWg.Done()
+				return
+			}
+			copy(e3Buf[j][:], currHasher.Sum(nil))
+			hashCommWg.Done()
+		}(i, tr.commitment, tr.commitSig, response)
+	}
+	hashCommWg.Wait()
+
+	select {
+	case nonNilErr := <-errChan:
+		err = fmt.Errorf("Error with goroutine for hashing: %s", nonNilErr)
+		return
+	default:
+	}
+
 	var ok bool
 	for _, response := range tr.responses {
 		ok = false
@@ -212,18 +259,30 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 		pzMap[tempNSum] = pzOrder.EncSolOrder
 	}
 
+	NBuf := make([][]byte, len(tr.responses))
+	// precompute N values for i
+	var groupComputeN sync.WaitGroup
+	groupComputeN.Add(len(tr.responses))
+	for i, ans := range tr.responses {
+		go func(j int, answer CommitResponse) {
+			pgmp := new(gmpbig.Int).SetBytes(answer.PuzzleAnswerReveal.P.Bytes())
+			qgmp := new(gmpbig.Int).SetBytes(answer.PuzzleAnswerReveal.Q.Bytes())
+			NBuf[j] = new(gmpbig.Int).Mul(pgmp, qgmp).Bytes()
+			groupComputeN.Done()
+		}(i, ans)
+	}
+	groupComputeN.Wait()
+
 	var solutionMap map[CommitResponse]EncryptedSolutionOrder = make(map[CommitResponse]EncryptedSolutionOrder)
 	var currEnc EncryptedSolutionOrder
 	var ok bool
-	for _, answer := range tr.responses {
+	for j, answer := range tr.responses {
 		ok = false
 		hasher.Reset()
 		copy(tempNSum[:], zeroBuf[:])
-		tempN := new(big.Int)
-		tempN.Mul(answer.PuzzleAnswerReveal.P, answer.PuzzleAnswerReveal.Q)
 
 		// hash of N's bytes
-		hasher.Write(tempN.Bytes())
+		hasher.Write(NBuf[j])
 		copy(tempNSum[:], hasher.Sum(nil))
 
 		if currEnc, ok = pzMap[tempNSum]; ok {
@@ -233,15 +292,35 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 		}
 	}
 
+	solvedOrders = make([]AuctionOrder, len(solutionMap))
+	errChan := make(chan error, len(solutionMap))
+
 	// TODO: parallelize this
-	var currAuctionOrder AuctionOrder
+	var solveWg sync.WaitGroup
+	solveWg.Add(len(solutionMap))
+	i := 0
 	for response, encOrder := range solutionMap {
-		if currAuctionOrder, err = trapdoor(response.PuzzleAnswerReveal.P, response.PuzzleAnswerReveal.Q, encOrder); err != nil {
-			err = fmt.Errorf("Error running trapdoor for revealed answer: %s", err)
-			return
-		}
-		solvedOrders = append(solvedOrders, currAuctionOrder)
+		go func(j int, p, q *big.Int, currEncOrder EncryptedSolutionOrder) {
+			var currAuctionOrder AuctionOrder
+			var currErr error
+			if currAuctionOrder, currErr = trapdoor(p, q, currEncOrder); currErr != nil {
+				errChan <- fmt.Errorf("Error running %dth trapdoor for revealed answer: %s", j, currErr)
+			}
+			solvedOrders[j] = currAuctionOrder
+			solveWg.Done()
+		}(i, response.PuzzleAnswerReveal.P, response.PuzzleAnswerReveal.Q, encOrder)
+		i++
 	}
+	solveWg.Wait()
+
+	// if there is an error, catch it and return
+	select {
+	case nonNilErr := <-errChan:
+		err = fmt.Errorf("Error with parallel trapdoor: %s", nonNilErr)
+		return
+	default:
+	}
+
 	return
 }
 
