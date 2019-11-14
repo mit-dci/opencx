@@ -89,8 +89,8 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		solnBuf[i].Q = new(big.Int)
 		go func(j int) {
 			var soln SolutionOrder
-			if soln, errBuf[j] = NewSolutionOrder(2048); errBuf[j] != nil {
-				errBuf[j] = fmt.Errorf("Error creating solution order of 2048 bits: %s", errBuf[j])
+			if soln, errBuf[j] = NewSolutionOrder(1024); errBuf[j] != nil {
+				errBuf[j] = fmt.Errorf("Error creating solution order of 1024 bits: %s", errBuf[j])
 				wg.Done()
 				return
 			}
@@ -122,8 +122,7 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 
 		privkeyOrderMap[*userPrivKey] = soln
 
-		// now create encrypted order NOTE: change t to be massive on
-		// larger tests
+		// now create encrypted order
 		var encOrder EncryptedSolutionOrder
 		if encOrder, err = soln.EncryptSolutionOrder(*origOrder, time); err != nil {
 			b.Fatalf("Error encrypting solution order for test: %s", err)
@@ -234,29 +233,41 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	return
 }
 
-func BenchmarkValidTranscript10K(b *testing.B) {
-	orderAmounts := []uint64{1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000}
-	for _, amt := range orderAmounts {
-		b.Run(fmt.Sprintf("NumTranscripts_%d", amt), func(g *testing.B) {
-			runBenchTranscriptVerify(g, 10000, amt)
-		})
-	}
-}
+// TODO: Create benchmark which re-uses SolutionOrders, verify
+// completely in parallel
 
-func BenchmarkValidTranscript100K(b *testing.B) {
-	orderAmounts := []uint64{1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000}
+// func BenchmarkValidTranscript10K(b *testing.B) {
+// 	orderAmounts := []uint64{1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000}
+// 	for _, amt := range orderAmounts {
+// 		b.Run(fmt.Sprintf("NumTranscripts_%d", amt), func(g *testing.B) {
+// 			runBenchTranscriptVerify(g, 10000, amt)
+// 		})
+// 	}
+// }
+
+func BenchmarkValidTranscript100M(b *testing.B) {
+	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000}
 	for _, amt := range orderAmounts {
 		b.Run(fmt.Sprintf("NumTranscripts_%d", amt), func(g *testing.B) {
-			runBenchTranscriptVerify(g, 100000, amt)
+			runBenchTranscriptVerify(g, 100000000, amt)
 		})
 	}
 }
 
 func BenchmarkValidTranscript1M(b *testing.B) {
-	orderAmounts := []uint64{1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 1000}
+	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000}
 	for _, amt := range orderAmounts {
 		b.Run(fmt.Sprintf("NumTranscripts_%d", amt), func(g *testing.B) {
 			runBenchTranscriptVerify(g, 1000000, amt)
+		})
+	}
+}
+
+func BenchmarkValidTranscript10K(b *testing.B) {
+	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000}
+	for _, amt := range orderAmounts {
+		b.Run(fmt.Sprintf("NumTranscripts_%d", amt), func(g *testing.B) {
+			runBenchTranscriptVerify(g, 10000, amt)
 		})
 	}
 }
@@ -322,8 +333,8 @@ func runValidTranscriptVerify(t *testing.T, time uint64, orders uint64) {
 
 		// First create solution
 		var soln SolutionOrder
-		if soln, err = NewSolutionOrder(2048); err != nil {
-			t.Errorf("Error creating solution order of 2048 bits: %s", err)
+		if soln, err = NewSolutionOrder(1024); err != nil {
+			t.Errorf("Error creating solution order of 1024 bits: %s", err)
 			return
 		}
 		privkeyOrderMap[*userPrivKey] = soln
