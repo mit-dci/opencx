@@ -246,7 +246,7 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 // }
 
 func BenchmarkValidTranscript100M(b *testing.B) {
-	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000}
+	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000, 1500, 2000}
 	for _, amt := range orderAmounts {
 		b.Run(fmt.Sprintf("NumTranscripts_%d", amt), func(g *testing.B) {
 			runBenchTranscriptVerify(g, 100000000, amt)
@@ -255,7 +255,7 @@ func BenchmarkValidTranscript100M(b *testing.B) {
 }
 
 func BenchmarkValidTranscript1M(b *testing.B) {
-	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000}
+	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000, 1500, 2000}
 	for _, amt := range orderAmounts {
 		b.Run(fmt.Sprintf("NumTranscripts_%d", amt), func(g *testing.B) {
 			runBenchTranscriptVerify(g, 1000000, amt)
@@ -264,7 +264,7 @@ func BenchmarkValidTranscript1M(b *testing.B) {
 }
 
 func BenchmarkValidTranscript10K(b *testing.B) {
-	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000}
+	orderAmounts := []uint64{1, 10, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000, 1500, 2000}
 	for _, amt := range orderAmounts {
 		b.Run(fmt.Sprintf("NumTranscripts_%d", amt), func(g *testing.B) {
 			runBenchTranscriptVerify(g, 10000, amt)
