@@ -221,6 +221,16 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		b.Fatalf("Empty transcript should have been valid, was invalid: %s", err)
 		return
 	}
+
+	var fullTScript []byte
+	if fullTScript, err = transcript.Serialize(); err != nil {
+		b.Fatalf("Error serializing transcript: %s", err)
+		return
+	}
+
+	b.Logf("Transcript bytes: %d", len(fullTScript))
+	b.Logf("Orders processed: %d", orders)
+	b.Logf("Transcript bytes per user: %f", float(len(fullTScript))/float(orders))
 	return
 }
 
@@ -606,6 +616,16 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 		b.Fatalf("Exchange could not solve all orders, it should have been able to: %s", err)
 		return
 	}
+
+	var fullTScript []byte
+	if fullTScript, err = transcript.Serialize(); err != nil {
+		b.Fatalf("Error serializing transcript: %s", err)
+		return
+	}
+
+	b.Logf("Transcript bytes: %d", len(fullTScript))
+	b.Logf("Orders processed: %d", orders)
+	b.Logf("Transcript bytes per user: %f", float(len(fullTScript))/float(orders))
 	return
 }
 

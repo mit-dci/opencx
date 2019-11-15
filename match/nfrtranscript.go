@@ -2,6 +2,7 @@ package match
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"math/big"
 	"sync"
@@ -26,13 +27,6 @@ type Transcript struct {
 	commitSig     []byte              `json:"commitsig"`
 	responses     []CommitResponse    `json:"responses"`
 	solutions     []AuctionOrder      `json:"solutions"`
-}
-
-// CommitResponse is the commitment response. The sig is the
-// puzzleanswerreveal + the commitment + the commitsig
-type CommitResponse struct {
-	CommResponseSig    [65]byte      `json:"commresponse"`
-	PuzzleAnswerReveal SolutionOrder `json:"puzzleanswer"`
 }
 
 // Verify verifies the signatures in the transcript and ensures
@@ -365,5 +359,47 @@ func trapdoor(p, q *big.Int, encOrder EncryptedSolutionOrder) (order AuctionOrde
 		err = fmt.Errorf("Error deserializing order for trapdoor into struct: %s", err)
 		return
 	}
+	return
+}
+
+// Serialize uses gob encoding to turn the transcript into bytes.
+func (tr *Transcript) Serialize() (raw []byte, err error) {
+	var b bytes.Buffer
+
+	// register Transcript interface
+	gob.Register(Transcript{})
+
+	// create a new encoder writing to the buffer
+	enc := gob.NewEncoder(&b)
+
+	// encode the transcript in the buffer
+	if err = enc.Encode(tr); err != nil {
+		err = fmt.Errorf("Error encoding transcript: %s", err)
+		return
+	}
+
+	// Get the bytes from the buffer
+	raw = b.Bytes()
+	return
+}
+
+// Deserialize turns the transcript from bytes into a usable
+// struct.
+func (tr *Transcript) Deserialize(raw []byte) (err error) {
+	var b *bytes.Buffer
+	b = bytes.NewBuffer(raw)
+
+	// register Transcript
+	gob.Register(Transcript{})
+
+	// create a new decoder writing to the buffer
+	dec := gob.NewDecoder(b)
+
+	// decode the transcript in the buffer
+	if err = dec.Decode(tr); err != nil {
+		err = fmt.Errorf("Error decoding transcript: %s", err)
+		return
+	}
+
 	return
 }
