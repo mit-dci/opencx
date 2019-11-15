@@ -20,13 +20,13 @@ import (
 // transcript. Puzzled orders are the "batch" and this should be able
 // to be verified quickly.
 type Transcript struct {
-	batchId       AuctionID           `json:batchid`
-	batchIdSig    []byte              `json:"signature"`
-	puzzledOrders []SignedEncSolOrder `json:"puzzledorders"`
-	commitment    [32]byte            `json:"commitment"`
-	commitSig     []byte              `json:"commitsig"`
-	responses     []CommitResponse    `json:"responses"`
-	solutions     []AuctionOrder      `json:"solutions"`
+	BatchId       AuctionID           `json:batchid`
+	BatchIdSig    []byte              `json:"signature"`
+	PuzzledOrders []SignedEncSolOrder `json:"puzzledorders"`
+	Commitment    [32]byte            `json:"commitment"`
+	CommitSig     []byte              `json:"commitsig"`
+	Responses     []CommitResponse    `json:"responses"`
+	Solutions     []AuctionOrder      `json:"solutions"`
 }
 
 // Verify verifies the signatures in the transcript and ensures
@@ -36,7 +36,7 @@ type Transcript struct {
 func (tr *Transcript) Verify() (valid bool, err error) {
 	// First verify batch ID
 	hasher := sha3.New256()
-	if _, err = hasher.Write(tr.batchId[:]); err != nil {
+	if _, err = hasher.Write(tr.BatchId[:]); err != nil {
 		err = fmt.Errorf("Error writing batch id to hasher: %s", err)
 		return
 	}
@@ -46,7 +46,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	hasher.Reset()
 
 	var exchangePubKey *koblitz.PublicKey
-	if exchangePubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), tr.batchIdSig, e); err != nil {
+	if exchangePubKey, _, err = koblitz.RecoverCompact(koblitz.S256(), tr.BatchIdSig, e); err != nil {
 		err = fmt.Errorf("Error recovering pubkey from batch sig: %s", err)
 		return
 	}
@@ -56,7 +56,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	var tempPKH [32]byte = [32]byte{}
 	var zeroBuf [32]byte = [32]byte{}
 	var bufForCommitment []byte
-	for _, pzOrder := range tr.puzzledOrders {
+	for _, pzOrder := range tr.PuzzledOrders {
 		hasher.Reset()
 		copy(tempPKH[:], zeroBuf[:])
 		var pzBuf []byte
@@ -107,7 +107,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	hasher.Reset()
 
 	var otherExchangePubkey *koblitz.PublicKey
-	if otherExchangePubkey, _, err = koblitz.RecoverCompact(koblitz.S256(), tr.commitSig, tr.commitment[:]); err != nil {
+	if otherExchangePubkey, _, err = koblitz.RecoverCompact(koblitz.S256(), tr.CommitSig, tr.Commitment[:]); err != nil {
 		err = fmt.Errorf("Error recovering pubkey for commit signature: %s", err)
 		return
 	}
@@ -117,7 +117,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 		return
 	}
 	// var exsig *koblitz.Signature
-	// if exsig, err = koblitz.ParseSignature(tr.commitSig, koblitz.S256()); err != nil {
+	// if exsig, err = koblitz.ParseSignature(tr.CommitSig, koblitz.S256()); err != nil {
 	// 	err = fmt.Errorf("Error parsing commitment signature: %s", err)
 	// 	return
 	// }
@@ -127,17 +127,17 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	// 	return
 	// }
 
-	if bytes.Compare(e2, tr.commitment[:]) != 0 {
+	if bytes.Compare(e2, tr.Commitment[:]) != 0 {
 		err = fmt.Errorf("Commitment is not equal to hash of orders - invalid transcript")
 		return
 	}
 
-	var e3Buf [][32]byte = make([][32]byte, len(tr.responses))
-	var errChan chan error = make(chan error, len(tr.responses))
+	var e3Buf [][32]byte = make([][32]byte, len(tr.Responses))
+	var errChan chan error = make(chan error, len(tr.Responses))
 	var hashCommWg sync.WaitGroup
-	hashCommWg.Add(len(tr.responses))
+	hashCommWg.Add(len(tr.Responses))
 
-	for i, response := range tr.responses {
+	for i, response := range tr.Responses {
 		go func(j int, comm [32]byte, commSig []byte, res CommitResponse) {
 			var cErr error
 			e3Buf[j] = [32]byte{}
@@ -165,7 +165,7 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 			}
 			copy(e3Buf[j][:], currHasher.Sum(nil))
 			hashCommWg.Done()
-		}(i, tr.commitment, tr.commitSig, response)
+		}(i, tr.Commitment, tr.CommitSig, response)
 	}
 	hashCommWg.Wait()
 
@@ -177,16 +177,16 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 	}
 
 	var ok bool
-	for _, response := range tr.responses {
+	for _, response := range tr.Responses {
 		ok = false
 		copy(tempPKH[:], zeroBuf[:])
 		hasher.Reset()
 		// h(comm + sig + answer) = e
-		if _, err = hasher.Write(tr.commitment[:]); err != nil {
+		if _, err = hasher.Write(tr.Commitment[:]); err != nil {
 			err = fmt.Errorf("Error writing commitment to hasher: %s", err)
 			return
 		}
-		if _, err = hasher.Write(tr.commitSig); err != nil {
+		if _, err = hasher.Write(tr.CommitSig); err != nil {
 			err = fmt.Errorf("Error writing commit sig to hasher: %s", err)
 			return
 		}
@@ -232,8 +232,8 @@ func (tr *Transcript) Verify() (valid bool, err error) {
 }
 
 // Solve processes the encrypted solution orders and the commitment
-// responses to partition the encrypted orders into those solvable by
-// responses and those that are unsolvable.
+// Responses to partition the encrypted orders into those solvable by
+// Responses and those that are unsolvable.
 func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []CommitResponse, err error) {
 	// TODO: optimize for garbage collection by using a single [32]byte
 	// pool for hashing
@@ -242,7 +242,7 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 	var pzMap map[[32]byte]EncryptedSolutionOrder = make(map[[32]byte]EncryptedSolutionOrder)
 	var tempNSum [32]byte = [32]byte{}
 	var zeroBuf [32]byte = [32]byte{}
-	for _, pzOrder := range tr.puzzledOrders {
+	for _, pzOrder := range tr.PuzzledOrders {
 		hasher.Reset()
 		copy(tempNSum[:], zeroBuf[:])
 
@@ -253,11 +253,11 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 		pzMap[tempNSum] = pzOrder.EncSolOrder
 	}
 
-	NBuf := make([][]byte, len(tr.responses))
+	NBuf := make([][]byte, len(tr.Responses))
 	// precompute N values for i
 	var groupComputeN sync.WaitGroup
-	groupComputeN.Add(len(tr.responses))
-	for i, ans := range tr.responses {
+	groupComputeN.Add(len(tr.Responses))
+	for i, ans := range tr.Responses {
 		go func(j int, answer CommitResponse) {
 			pgmp := new(gmpbig.Int).SetBytes(answer.PuzzleAnswerReveal.P.Bytes())
 			qgmp := new(gmpbig.Int).SetBytes(answer.PuzzleAnswerReveal.Q.Bytes())
@@ -270,7 +270,7 @@ func (tr *Transcript) Solve() (solvedOrders []AuctionOrder, invalidResponses []C
 	var solutionMap map[CommitResponse]EncryptedSolutionOrder = make(map[CommitResponse]EncryptedSolutionOrder)
 	var currEnc EncryptedSolutionOrder
 	var ok bool
-	for j, answer := range tr.responses {
+	for j, answer := range tr.Responses {
 		ok = false
 		hasher.Reset()
 		copy(tempNSum[:], zeroBuf[:])

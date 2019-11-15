@@ -56,20 +56,20 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	transcript := Transcript{}
 
 	// var idsig *koblitz.Signature
-	// if idsig, err = exprivkey.Sign(hash256(transcript.batchId[:])); err != nil {
+	// if idsig, err = exprivkey.Sign(hash256(transcript.BatchId[:])); err != nil {
 	// 	err = fmb.Fatalf("Error with exchange signing batch id: %s", err)
 	// 	return
 	// }
-	// transcript.batchIdSig = idsig.Serialize()
+	// transcript.BatchIdSig = idsig.Serialize()
 	hasher := sha3.New256()
-	hasher.Write(transcript.batchId[:])
+	hasher.Write(transcript.BatchId[:])
 	var batchSig []byte
 	if batchSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, hasher.Sum(nil), false); err != nil {
 		b.Fatalf("Error compact signing batch id sig: %s", err)
 		return
 	}
-	transcript.batchIdSig = make([]byte, len(batchSig))
-	copy(transcript.batchIdSig, batchSig)
+	transcript.BatchIdSig = make([]byte, len(batchSig))
+	copy(transcript.BatchIdSig, batchSig)
 
 	b.StopTimer()
 	// NOTE: exchange stuff done, stop timer!!
@@ -151,7 +151,7 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		}
 
 		copy(signedOrder.Signature, userSigBuf)
-		transcript.puzzledOrders = append(transcript.puzzledOrders, signedOrder)
+		transcript.PuzzledOrders = append(transcript.PuzzledOrders, signedOrder)
 	}
 
 	// NOTE: exchange stuff, start timer!!
@@ -160,7 +160,7 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	// now that we have a bunch of puzzled orders, we should create a
 	// commitment out of it.
 	hasher.Reset()
-	for _, encOrder := range transcript.puzzledOrders {
+	for _, encOrder := range transcript.PuzzledOrders {
 		var rawPuzzle []byte
 		if rawPuzzle, err = encOrder.Serialize(); err != nil {
 			b.Fatalf("Error serializing submitted order before hashing: %s", err)
@@ -168,14 +168,14 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		}
 		hasher.Write(rawPuzzle)
 	}
-	copy(transcript.commitment[:], hasher.Sum(nil))
+	copy(transcript.Commitment[:], hasher.Sum(nil))
 	var exchangeCommSig []byte
-	if exchangeCommSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, transcript.commitment[:], false); err != nil {
+	if exchangeCommSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, transcript.Commitment[:], false); err != nil {
 		b.Fatalf("Error with exchange signing the commitment: %s", err)
 		return
 	}
-	transcript.commitSig = make([]byte, len(exchangeCommSig))
-	copy(transcript.commitSig, exchangeCommSig)
+	transcript.CommitSig = make([]byte, len(exchangeCommSig))
+	copy(transcript.CommitSig, exchangeCommSig)
 
 	b.StopTimer()
 	// NOTE: exchange stuff done, stop timer!!
@@ -190,26 +190,26 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 
 		// h(commit + sig + answer) = e
 		hasher.Reset()
-		hasher.Write(transcript.commitment[:])
-		hasher.Write(transcript.commitSig)
+		hasher.Write(transcript.Commitment[:])
+		hasher.Write(transcript.CommitSig)
 		var solnOrderBuf []byte
 		if solnOrderBuf, err = solnorder.Serialize(); err != nil {
 			b.Fatalf("Error serializing solution order for response: %s", err)
 			return
 		}
 		hasher.Write(solnOrderBuf)
-		var responseSigBuf []byte
-		if responseSigBuf, err = koblitz.SignCompact(koblitz.S256(), &userprivkey, hasher.Sum(nil), false); err != nil {
+		var ResponseSigBuf []byte
+		if ResponseSigBuf, err = koblitz.SignCompact(koblitz.S256(), &userprivkey, hasher.Sum(nil), false); err != nil {
 			b.Fatalf("Error for user signing response: %s", err)
 			return
 		}
-		if len(responseSigBuf) != 65 {
+		if len(ResponseSigBuf) != 65 {
 			b.Fatalf("Error in test: response signature is not 65 bytes")
 			return
 		}
-		copy(userCommitResponse.CommResponseSig[:], responseSigBuf)
+		copy(userCommitResponse.CommResponseSig[:], ResponseSigBuf)
 		userCommitResponse.PuzzleAnswerReveal = solnorder
-		transcript.responses = append(transcript.responses, userCommitResponse)
+		transcript.Responses = append(transcript.Responses, userCommitResponse)
 	}
 
 	// NOTE: we are ONLY benchmarking verification time
@@ -230,7 +230,7 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 
 	b.Logf("Transcript bytes: %d", len(fullTScript))
 	b.Logf("Orders processed: %d", orders)
-	b.Logf("Transcript bytes per user: %f", float(len(fullTScript))/float(orders))
+	b.Logf("Transcript bytes per user: %f", float64(len(fullTScript))/float64(orders))
 	return
 }
 
@@ -294,18 +294,18 @@ func runValidTranscriptVerify(t *testing.T, time uint64, orders uint64) {
 	emptyTranscript := Transcript{}
 
 	// var idsig *koblitz.Signature
-	// if idsig, err = exprivkey.Sign(hash256(emptyTranscript.batchId[:])); err != nil {
+	// if idsig, err = exprivkey.Sign(hash256(emptyTranscript.BatchId[:])); err != nil {
 	// 	err = fmt.Errorf("Error with exchange signing batch id: %s", err)
 	// 	return
 	// }
-	// emptyTranscript.batchIdSig = idsig.Serialize()
+	// emptyTranscript.BatchIdSig = idsig.Serialize()
 	var batchSig []byte
-	if batchSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, hash256(emptyTranscript.batchId[:]), false); err != nil {
+	if batchSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, hash256(emptyTranscript.BatchId[:]), false); err != nil {
 		t.Errorf("Error compact signing batch id sig: %s", err)
 		return
 	}
-	emptyTranscript.batchIdSig = make([]byte, len(batchSig))
-	copy(emptyTranscript.batchIdSig, batchSig)
+	emptyTranscript.BatchIdSig = make([]byte, len(batchSig))
+	copy(emptyTranscript.BatchIdSig, batchSig)
 
 	// This maps private key to solution order so we can respond
 	// correctly later.
@@ -355,28 +355,28 @@ func runValidTranscriptVerify(t *testing.T, time uint64, orders uint64) {
 
 		// NOTE: this is the most likely point of failure
 		copy(signedOrder.Signature, userSigBuf)
-		emptyTranscript.puzzledOrders = append(emptyTranscript.puzzledOrders, signedOrder)
+		emptyTranscript.PuzzledOrders = append(emptyTranscript.PuzzledOrders, signedOrder)
 	}
 
 	// now that we have a bunch of puzzled orders, we should create a
 	// commitment out of it.
-	var commitmentPreImg []byte
-	for _, encOrder := range emptyTranscript.puzzledOrders {
+	var CommitmentPreImg []byte
+	for _, encOrder := range emptyTranscript.PuzzledOrders {
 		var rawPuzzle []byte
 		if rawPuzzle, err = encOrder.Serialize(); err != nil {
 			t.Errorf("Error serializing submitted order before hashing: %s", err)
 			return
 		}
-		commitmentPreImg = append(commitmentPreImg, rawPuzzle...)
+		CommitmentPreImg = append(CommitmentPreImg, rawPuzzle...)
 	}
-	copy(emptyTranscript.commitment[:], hash256(commitmentPreImg))
+	copy(emptyTranscript.Commitment[:], hash256(CommitmentPreImg))
 	var exchangeCommSig []byte
-	if exchangeCommSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, emptyTranscript.commitment[:], false); err != nil {
+	if exchangeCommSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, emptyTranscript.Commitment[:], false); err != nil {
 		t.Errorf("Error with exchange signing the commitment: %s", err)
 		return
 	}
-	emptyTranscript.commitSig = make([]byte, len(exchangeCommSig))
-	copy(emptyTranscript.commitSig, exchangeCommSig)
+	emptyTranscript.CommitSig = make([]byte, len(exchangeCommSig))
+	copy(emptyTranscript.CommitSig, exchangeCommSig)
 
 	// users now create their signatures and reveal solutions
 	for userprivkey, solnorder := range privkeyOrderMap {
@@ -386,24 +386,24 @@ func runValidTranscriptVerify(t *testing.T, time uint64, orders uint64) {
 
 		// h(commit + sig + answer) = e
 		var responseBuf []byte
-		responseBuf = append(responseBuf, emptyTranscript.commitment[:]...)
-		responseBuf = append(responseBuf, emptyTranscript.commitSig...)
+		responseBuf = append(responseBuf, emptyTranscript.Commitment[:]...)
+		responseBuf = append(responseBuf, emptyTranscript.CommitSig...)
 		var solnOrderBuf []byte
 		if solnOrderBuf, err = solnorder.Serialize(); err != nil {
 			t.Errorf("Error serializing solution order for response: %s", err)
 			return
 		}
 		responseBuf = append(responseBuf, solnOrderBuf...)
-		var responseSigBuf []byte
-		if responseSigBuf, err = koblitz.SignCompact(koblitz.S256(), &userprivkey, hash256(responseBuf), false); err != nil {
+		var ResponseSigBuf []byte
+		if ResponseSigBuf, err = koblitz.SignCompact(koblitz.S256(), &userprivkey, hash256(responseBuf), false); err != nil {
 			t.Errorf("Error for user signing response: %s", err)
 			return
 		}
-		if len(responseSigBuf) != 65 {
+		if len(ResponseSigBuf) != 65 {
 			t.Errorf("Error in test: response signature is not 65 bytes")
 			return
 		}
-		copy(userCommitResponse.CommResponseSig[:], responseSigBuf)
+		copy(userCommitResponse.CommResponseSig[:], ResponseSigBuf)
 		userCommitResponse.PuzzleAnswerReveal = solnorder
 	}
 
@@ -449,20 +449,20 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 	transcript := Transcript{}
 
 	// var idsig *koblitz.Signature
-	// if idsig, err = exprivkey.Sign(hash256(transcript.batchId[:])); err != nil {
+	// if idsig, err = exprivkey.Sign(hash256(transcript.BatchId[:])); err != nil {
 	// 	err = fmb.Fatalf("Error with exchange signing batch id: %s", err)
 	// 	return
 	// }
-	// transcript.batchIdSig = idsig.Serialize()
+	// transcript.BatchIdSig = idsig.Serialize()
 	hasher := sha3.New256()
-	hasher.Write(transcript.batchId[:])
+	hasher.Write(transcript.BatchId[:])
 	var batchSig []byte
 	if batchSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, hasher.Sum(nil), false); err != nil {
 		b.Fatalf("Error compact signing batch id sig: %s", err)
 		return
 	}
-	transcript.batchIdSig = make([]byte, len(batchSig))
-	copy(transcript.batchIdSig, batchSig)
+	transcript.BatchIdSig = make([]byte, len(batchSig))
+	copy(transcript.BatchIdSig, batchSig)
 
 	hasher.Reset()
 	// This maps private key to solution order so we can respond
@@ -541,13 +541,13 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 		}
 
 		copy(signedOrder.Signature, userSigBuf)
-		transcript.puzzledOrders = append(transcript.puzzledOrders, signedOrder)
+		transcript.PuzzledOrders = append(transcript.PuzzledOrders, signedOrder)
 	}
 
 	// now that we have a bunch of puzzled orders, we should create a
 	// commitment out of it.
 	hasher.Reset()
-	for _, encOrder := range transcript.puzzledOrders {
+	for _, encOrder := range transcript.PuzzledOrders {
 		var rawPuzzle []byte
 		if rawPuzzle, err = encOrder.Serialize(); err != nil {
 			b.Fatalf("Error serializing submitted order before hashing: %s", err)
@@ -555,14 +555,14 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 		}
 		hasher.Write(rawPuzzle)
 	}
-	copy(transcript.commitment[:], hasher.Sum(nil))
+	copy(transcript.Commitment[:], hasher.Sum(nil))
 	var exchangeCommSig []byte
-	if exchangeCommSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, transcript.commitment[:], false); err != nil {
+	if exchangeCommSig, err = koblitz.SignCompact(koblitz.S256(), exprivkey, transcript.Commitment[:], false); err != nil {
 		b.Fatalf("Error with exchange signing the commitment: %s", err)
 		return
 	}
-	transcript.commitSig = make([]byte, len(exchangeCommSig))
-	copy(transcript.commitSig, exchangeCommSig)
+	transcript.CommitSig = make([]byte, len(exchangeCommSig))
+	copy(transcript.CommitSig, exchangeCommSig)
 
 	hasher.Reset()
 
@@ -574,26 +574,26 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 
 		// h(commit + sig + answer) = e
 		hasher.Reset()
-		hasher.Write(transcript.commitment[:])
-		hasher.Write(transcript.commitSig)
+		hasher.Write(transcript.Commitment[:])
+		hasher.Write(transcript.CommitSig)
 		var solnOrderBuf []byte
 		if solnOrderBuf, err = solnorder.Serialize(); err != nil {
 			b.Fatalf("Error serializing solution order for response: %s", err)
 			return
 		}
 		hasher.Write(solnOrderBuf)
-		var responseSigBuf []byte
-		if responseSigBuf, err = koblitz.SignCompact(koblitz.S256(), &userprivkey, hasher.Sum(nil), false); err != nil {
+		var ResponseSigBuf []byte
+		if ResponseSigBuf, err = koblitz.SignCompact(koblitz.S256(), &userprivkey, hasher.Sum(nil), false); err != nil {
 			b.Fatalf("Error for user signing response: %s", err)
 			return
 		}
-		if len(responseSigBuf) != 65 {
+		if len(ResponseSigBuf) != 65 {
 			b.Fatalf("Error in test: response signature is not 65 bytes")
 			return
 		}
-		copy(userCommitResponse.CommResponseSig[:], responseSigBuf)
+		copy(userCommitResponse.CommResponseSig[:], ResponseSigBuf)
 		userCommitResponse.PuzzleAnswerReveal = solnorder
-		transcript.responses = append(transcript.responses, userCommitResponse)
+		transcript.Responses = append(transcript.Responses, userCommitResponse)
 	}
 
 	var valid bool
@@ -623,9 +623,11 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 		return
 	}
 
-	b.Logf("Transcript bytes: %d", len(fullTScript))
-	b.Logf("Orders processed: %d", orders)
-	b.Logf("Transcript bytes per user: %f", float(len(fullTScript))/float(orders))
+	if orders >= 1000 {
+		b.Logf("Transcript bytes: %d", len(fullTScript))
+		b.Logf("Orders processed: %d", orders)
+		b.Logf("Transcript bytes per user: %f", float64(len(fullTScript))/float64(orders))
+	}
 	return
 }
 
