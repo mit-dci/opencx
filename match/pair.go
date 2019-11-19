@@ -64,7 +64,9 @@ func GenerateAssetPairs(coinList []*coinparam.Params) (pairList []*Pair, err err
 
 // Size returns the size of the pair
 func (p *Pair) Size() int {
-	return len([]byte{byte(p.AssetWant)}) + len([]byte{byte(p.AssetHave)})
+	// NOTE: the pair is two bytes in size: the AssetWant (1 byte) and
+	// the AssetHave (1 byte)
+	return 2
 }
 
 // Delim is essentially a constant for this struct, I'm sure there are better ways of doing it.
