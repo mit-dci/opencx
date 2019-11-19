@@ -1,4 +1,4 @@
-package util
+package chainutils
 
 // ScriptType takes in a script and returns "P2PKH", "P2WPKH", "P2SH", "P2WSH", "P2PK", "INVALID" denoting the type of transaction it is, and the relevant non opcode data
 func ScriptType(pkScript []byte) (string, []byte) {

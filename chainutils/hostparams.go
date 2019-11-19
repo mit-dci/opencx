@@ -1,4 +1,4 @@
-package util
+package chainutils
 
 import (
 	"github.com/mit-dci/lit/coinparam"
