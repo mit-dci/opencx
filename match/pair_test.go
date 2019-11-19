@@ -172,7 +172,6 @@ func TestPairBothSideDeserialize(t *testing.T) {
 
 // BenchmarkPairSerialize benchmarks the serialization of a Pair
 func BenchmarkPairSerialize(b *testing.B) {
-	b.StopTimer()
 	var err error
 	b.SetBytes(2)
 	pairToSerialize := &Pair{
@@ -180,7 +179,7 @@ func BenchmarkPairSerialize(b *testing.B) {
 		AssetWant: Asset(0x00),
 	}
 	randBuf := [2]byte{0x00, 0x00}
-	b.StartTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Create random bytes
 		b.StopTimer()
@@ -197,14 +196,13 @@ func BenchmarkPairSerialize(b *testing.B) {
 
 // BenchmarkPairDeserialize benchmarks the serialization of a Pair
 func BenchmarkPairDeserialize(b *testing.B) {
-	b.StopTimer()
 	var err error
 	b.SetBytes(2)
 	pairToDeserialize := new(Pair)
 	pairToDeserialize.AssetWant = Asset(0x00)
 	pairToDeserialize.AssetHave = Asset(0x00)
 	randBuf := [2]byte{0x00, 0x00}
-	b.StartTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Create random bytes
 		b.StopTimer()
