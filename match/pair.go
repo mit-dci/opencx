@@ -94,7 +94,8 @@ func (p *Pair) FromString(pairString string) (err error) {
 
 // Serialize serializes the pair into a byte array
 func (p *Pair) Serialize() []byte {
-	return []byte{byte(p.AssetWant), byte(p.AssetHave)}
+	pbuf := [2]byte{byte(p.AssetWant), byte(p.AssetHave)}
+	return pbuf[:]
 }
 
 // Deserialize deserializes a byte array into a pair
