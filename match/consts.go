@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mit-dci/lit/coinparam"
-	util "github.com/mit-dci/opencx/chainutils"
+	"github.com/mit-dci/opencx/chainutils"
 )
 
 const (
@@ -95,7 +95,7 @@ func AssetFromString(name string) (a Asset, err error) {
 	// the main reason they're separated is that I want the coin params to have their own unique byte so the client only sends a byte to indicate which asset
 	// they want. Like an asset ID. TODO: Change this to HDCoinType, or magic bytes in the future. We need an asset id.
 	var cpm *coinparam.Params
-	if cpm, err = util.GetParamFromName(name); err != nil {
+	if cpm, err = chainutils.GetParamFromName(name); err != nil {
 		return
 	}
 
