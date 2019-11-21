@@ -39,8 +39,6 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		return
 	}
 
-	b.StopTimer()
-	b.ResetTimer()
 	logging.SetLogLevel(3)
 	// create exchange private key
 	var exprivkey *koblitz.PrivateKey
@@ -48,9 +46,6 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		b.Fatalf("Error creating exchange private key for signing: %s", err)
 		return
 	}
-
-	// NOTE: exchange stuff, start timer!!
-	b.StartTimer()
 
 	// init empty transcript, the id from there is valid
 	transcript := Transcript{}
@@ -70,9 +65,6 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	}
 	transcript.BatchIdSig = make([]byte, len(batchSig))
 	copy(transcript.BatchIdSig, batchSig)
-
-	b.StopTimer()
-	// NOTE: exchange stuff done, stop timer!!
 
 	hasher.Reset()
 	// This maps private key to solution order so we can respond
@@ -154,9 +146,6 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		transcript.PuzzledOrders = append(transcript.PuzzledOrders, signedOrder)
 	}
 
-	// NOTE: exchange stuff, start timer!!
-	b.StartTimer()
-
 	// now that we have a bunch of puzzled orders, we should create a
 	// commitment out of it.
 	hasher.Reset()
@@ -176,9 +165,6 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 	}
 	transcript.CommitSig = make([]byte, len(exchangeCommSig))
 	copy(transcript.CommitSig, exchangeCommSig)
-
-	b.StopTimer()
-	// NOTE: exchange stuff done, stop timer!!
 
 	hasher.Reset()
 
@@ -212,25 +198,32 @@ func runBenchTranscriptVerify(b *testing.B, time uint64, orders uint64) {
 		transcript.Responses = append(transcript.Responses, userCommitResponse)
 	}
 
-	// NOTE: we are ONLY benchmarking verification time
-	b.StartTimer()
-	var valid bool
-	valid, err = transcript.Verify()
-
-	if !valid {
-		b.Fatalf("Empty transcript should have been valid, was invalid: %s", err)
-		return
-	}
-
 	var fullTScript []byte
 	if fullTScript, err = transcript.Serialize(); err != nil {
 		b.Fatalf("Error serializing transcript: %s", err)
 		return
 	}
 
-	b.Logf("Transcript bytes: %d", len(fullTScript))
-	b.Logf("Orders processed: %d", orders)
-	b.Logf("Transcript bytes per user: %f", float64(len(fullTScript))/float64(orders))
+	b.SetBytes(int64(len(fullTScript)))
+	b.StopTimer()
+	b.ResetTimer()
+
+	// NOTE: we are ONLY benchmarking verification time
+	var valid bool
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		valid, err = transcript.Verify()
+		b.StopTimer()
+
+		if !valid {
+			b.Fatalf("Empty transcript should have been valid, was invalid: %s", err)
+			return
+		}
+	}
+
+	// b.Logf("Transcript bytes: %d", len(fullTScript))
+	// b.Logf("Orders processed: %d", orders)
+	// b.Logf("Transcript bytes per user: %f", float64(len(fullTScript))/float64(orders))
 	return
 }
 
@@ -435,8 +428,6 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 	}
 
 	// NOTE: we only care about how long it takes to solve
-	b.StopTimer()
-	b.ResetTimer()
 	logging.SetLogLevel(3)
 	// create exchange private key
 	var exprivkey *koblitz.PrivateKey
@@ -605,9 +596,28 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 	}
 
 	// NOTE: this is ALL we are tracking!
-	b.StartTimer()
+	var fullTScript []byte
+	if fullTScript, err = transcript.Serialize(); err != nil {
+		b.Fatalf("Error serializing transcript: %s", err)
+		return
+	}
+
+	// set the bytes we are processing
+	b.SetBytes(int64(len(fullTScript)))
+
+	b.StopTimer()
+	b.ResetTimer()
 
 	var solved []AuctionOrder
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		if _, _, err = transcript.Solve(); err != nil {
+			b.Fatalf("Transcript should have been easily solvable, errored instead: %s", err)
+			return
+		}
+		b.StopTimer()
+	}
+
 	if solved, _, err = transcript.Solve(); err != nil {
 		b.Fatalf("Transcript should have been easily solvable, errored instead: %s", err)
 		return
@@ -617,17 +627,11 @@ func runBenchTranscriptSolve(b *testing.B, time uint64, orders uint64) {
 		return
 	}
 
-	var fullTScript []byte
-	if fullTScript, err = transcript.Serialize(); err != nil {
-		b.Fatalf("Error serializing transcript: %s", err)
-		return
-	}
-
-	if orders >= 1000 {
-		b.Logf("Transcript bytes: %d", len(fullTScript))
-		b.Logf("Orders processed: %d", orders)
-		b.Logf("Transcript bytes per user: %f", float64(len(fullTScript))/float64(orders))
-	}
+	// if orders >= 1000 {
+	// 	b.Logf("Transcript bytes: %d", len(fullTScript))
+	// 	b.Logf("Orders processed: %d", orders)
+	// 	b.Logf("Transcript bytes per user: %f", float64(len(fullTScript))/float64(orders))
+	// }
 	return
 }
 

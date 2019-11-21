@@ -170,49 +170,127 @@ func TestPairBothSideDeserialize(t *testing.T) {
 	return
 }
 
+// TestPairDeserializeWrongSize3 tests whether or not we get an error
+// when we input an array of size 3
+func TestPairDeserializeWrongSize3(t *testing.T) {
+	var err error
+	wrongSizeArray := [3]byte{0x00, 0x01, 0x02}
+	sPair := new(Pair)
+	if err = sPair.Deserialize(wrongSizeArray[:]); err == nil {
+		t.Errorf("The deserialization for Pair should return an error with raw data with length not equal to 2")
+		return
+	}
+	return
+}
+
+// TestPairDeserializeWrongSize4 tests whether or not we get an error
+// when we input an array of size 4
+func TestPairDeserializeWrongSize4(t *testing.T) {
+	var err error
+	wrongSizeArray := [4]byte{0x00, 0x01, 0x02, 0x03}
+	sPair := new(Pair)
+	if err = sPair.Deserialize(wrongSizeArray[:]); err == nil {
+		t.Errorf("The deserialization for Pair should return an error with raw data with length not equal to 2")
+		return
+	}
+	return
+}
+
+// TestPairDeserializeWrongSize5 tests whether or not we get an error
+// when we input an array of size 5
+func TestPairDeserializeWrongSize5(t *testing.T) {
+	var err error
+	wrongSizeArray := [5]byte{0x00, 0x01, 0x02, 0x03, 0xff}
+	sPair := new(Pair)
+	if err = sPair.Deserialize(wrongSizeArray[:]); err == nil {
+		t.Errorf("The deserialization for Pair should return an error with raw data with length not equal to 2")
+		return
+	}
+	return
+}
+
+// TestPairDeserializeWrongSize6 tests whether or not we get an error
+// when we input an array of size 6
+func TestPairDeserializeWrongSize6(t *testing.T) {
+	var err error
+	wrongSizeArray := [6]byte{0x00, 0x01, 0x02, 0x03, 0xff, 0xfe}
+	sPair := new(Pair)
+	if err = sPair.Deserialize(wrongSizeArray[:]); err == nil {
+		t.Errorf("The deserialization for Pair should return an error with raw data with length not equal to 2")
+		return
+	}
+	return
+}
+
 // BenchmarkPairSerialize benchmarks the serialization of a Pair
 func BenchmarkPairSerialize(b *testing.B) {
+	// to prevent compiler optimizations
 	var err error
-	b.SetBytes(2)
 	pairToSerialize := &Pair{
 		AssetHave: Asset(0x00),
 		AssetWant: Asset(0x00),
 	}
 	randBuf := [2]byte{0x00, 0x00}
+
+	// stop and reset timer so the loop is accurate
+	b.StopTimer()
 	b.ResetTimer()
+
+	// set the number of bytes we're dealing with
+	b.SetBytes(2)
+
+	// Create random bytes
+	if _, err = rand.Read(randBuf[:]); err != nil {
+		b.Fatalf("Could not read from random for BenchmarkPairSerialize: %s", err)
+		return
+	}
+
+	// set values for pair
+	pairToSerialize.AssetHave = Asset(randBuf[0])
+	pairToSerialize.AssetHave = Asset(randBuf[1])
+
 	for i := 0; i < b.N; i++ {
-		// Create random bytes
-		b.StopTimer()
-		if _, err = rand.Read(randBuf[:]); err != nil {
-			b.Fatalf("Could not read from random for BenchmarkPairSerialize: %s", err)
-			return
-		}
-		pairToSerialize.AssetHave = Asset(randBuf[0])
-		pairToSerialize.AssetHave = Asset(randBuf[1])
+		// actually measure time
 		b.StartTimer()
 		pairToSerialize.Serialize()
+		b.StopTimer()
 	}
+
+	return
 }
 
 // BenchmarkPairDeserialize benchmarks the serialization of a Pair
 func BenchmarkPairDeserialize(b *testing.B) {
 	var err error
-	b.SetBytes(2)
 	pairToDeserialize := new(Pair)
 	pairToDeserialize.AssetWant = Asset(0x00)
 	pairToDeserialize.AssetHave = Asset(0x00)
 	randBuf := [2]byte{0x00, 0x00}
+
+	// set number of bytes processed and clear timer
+	b.StopTimer()
 	b.ResetTimer()
+	b.SetBytes(2)
+
+	// Create random bytes
+	if _, err = rand.Read(randBuf[:]); err != nil {
+		b.Fatalf("Could not read from random for BenchmarkPairDeserialize: %s", err)
+		return
+	}
+
 	for i := 0; i < b.N; i++ {
-		// Create random bytes
-		b.StopTimer()
-		if _, err = rand.Read(randBuf[:]); err != nil {
-			b.Fatalf("Could not read from random for BenchmarkPairDeserialize: %s", err)
-			return
-		}
+		// zero the members
 		pairToDeserialize.AssetWant = Asset(0x00)
 		pairToDeserialize.AssetHave = Asset(0x00)
+
+		// measure the time
 		b.StartTimer()
-		pairToDeserialize.Deserialize(randBuf[:])
+		err = pairToDeserialize.Deserialize(randBuf[:])
+		b.StopTimer()
 	}
+	if err != nil {
+		b.Errorf("Error deserializing last call: %s", err)
+		return
+	}
+	return
 }

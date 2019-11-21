@@ -62,21 +62,9 @@ func GenerateAssetPairs(coinList []*coinparam.Params) (pairList []*Pair, err err
 	return
 }
 
-// Size returns the size of the pair
-func (p *Pair) Size() int {
-	// NOTE: the pair is two bytes in size: the AssetWant (1 byte) and
-	// the AssetHave (1 byte)
-	return 2
-}
-
-// Delim is essentially a constant for this struct, I'm sure there are better ways of doing it.
-func (p *Pair) Delim() string {
-	return "_"
-}
-
 // String is the tostring function for a pair
 func (p *Pair) String() string {
-	return p.AssetWant.String() + p.Delim() + p.AssetHave.String()
+	return p.AssetWant.String() + "_" + p.AssetHave.String()
 }
 
 // FromString creates a pair object from a string. This is for user input only, hence the slash
@@ -103,7 +91,8 @@ func (p *Pair) Serialize() []byte {
 // Deserialize deserializes a byte array into a pair
 func (p *Pair) Deserialize(buf []byte) (err error) {
 	if len(buf) != 2 {
-		err = fmt.Errorf("Tried to deserialize, byte array length should be 2 but isn't")
+		err = fmt.Errorf("Tried to deserialize, byte array length should be 2")
+		return
 	}
 	p.AssetWant = Asset(buf[0])
 	p.AssetHave = Asset(buf[1])
