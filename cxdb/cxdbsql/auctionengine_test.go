@@ -21,7 +21,7 @@ var (
 		AuctionID:  [32]byte{0xde, 0xad, 0xbe, 0xef},
 		AmountWant: 100000,
 		AmountHave: 10000,
-		Side:       "buy",
+		Side:       match.Buy,
 		TradingPair: match.Pair{
 			AssetWant: btcreg,
 			AssetHave: litereg,
@@ -348,9 +348,9 @@ func fuzzManyOrders(howMany uint64, pair match.Pair) (orders []*match.AuctionOrd
 			return
 		}
 		if r.Int63n(2) == 0 {
-			currOrder.Side = "buy"
+			currOrder.Side = match.Buy
 		} else {
-			currOrder.Side = "sell"
+			currOrder.Side = match.Sell
 		}
 		currOrder.AuctionID = [32]byte{0xde, 0xad, 0xbe, 0xef}
 		currOrder.TradingPair = match.Pair{

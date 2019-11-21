@@ -19,7 +19,7 @@ type OrderPuzzleResult struct {
 // AuctionOrder represents a batch order
 type AuctionOrder struct {
 	Pubkey      [33]byte `json:"pubkey"`
-	Side        string   `json:"side"`
+	Side        Side     `json:"side"`
 	TradingPair Pair     `json:"pair"`
 	// amount of assetHave the user would like to trade
 	AmountHave uint64 `json:"amounthave"`
@@ -52,20 +52,20 @@ func (a *AuctionOrder) TurnIntoEncryptedOrder(t uint64) (encrypted *EncryptedAuc
 
 // IsBuySide returns true if the limit order is buying
 func (a *AuctionOrder) IsBuySide() bool {
-	return a.Side == "buy"
+	return a.Side == Buy
 }
 
 // IsSellSide returns true if the limit order is selling
 func (a *AuctionOrder) IsSellSide() bool {
-	return a.Side == "sell"
+	return a.Side == Sell
 }
 
 // OppositeSide is a helper to get the opposite side of the order
-func (a *AuctionOrder) OppositeSide() (sideStr string) {
+func (a *AuctionOrder) OppositeSide() (sideStr Side) {
 	if a.IsBuySide() {
-		sideStr = "sell"
+		sideStr = Sell
 	} else if a.IsSellSide() {
-		sideStr = "buy"
+		sideStr = Buy
 	}
 	return
 }
@@ -106,7 +106,7 @@ func (a *AuctionOrder) GenerateOrderFill(orderID *OrderID, execPrice float64) (o
 		debitAsset = a.TradingPair.AssetHave
 		creditAsset = a.TradingPair.AssetWant
 	} else {
-		err = fmt.Errorf("Error generating order fill from price, order is not buy or sell side, it's %s side", a.Side)
+		err = fmt.Errorf("Error generating order fill from price, order is not buy or sell side, it's %s side", a.Side.String())
 		return
 	}
 	amountToDebit = uint64(float64(a.AmountHave) * execPrice)
@@ -161,7 +161,7 @@ func (a *AuctionOrder) GenerateExecutionFromPrice(orderID *OrderID, execPrice fl
 		debitAsset = a.TradingPair.AssetWant
 		creditAsset = a.TradingPair.AssetHave
 	} else {
-		err = fmt.Errorf("Error generating execution from price, order is not buy or sell side, it's %s side", a.Side)
+		err = fmt.Errorf("Error generating execution from price, order is not buy or sell side, it's %s side", a.Side.String())
 		return
 	}
 	amountWantToFill = uint64(float64(amountToFill) * execPrice)
@@ -232,11 +232,11 @@ func (a *AuctionOrder) Serialize() (buf []byte) {
 	binary.LittleEndian.PutUint64(amountWantBytes, a.AmountWant)
 	buf = append(buf, amountWantBytes[:]...)
 
-	lenSideBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(lenSideBytes, uint64(len(a.Side)))
-	buf = append(buf, lenSideBytes[:]...)
-
-	buf = append(buf, []byte(a.Side)...)
+	var sideByte byte = 0x00
+	if a.Side == Buy {
+		sideByte = 0x01
+	}
+	buf = append(buf, sideByte)
 	buf = append(buf, a.AuctionID[:]...)
 	buf = append(buf, a.Nonce[:]...)
 
@@ -271,11 +271,11 @@ func (a *AuctionOrder) SerializeSignable() (buf []byte) {
 	binary.LittleEndian.PutUint64(amountWantBytes, a.AmountWant)
 	buf = append(buf, amountWantBytes[:]...)
 
-	lenSideBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(lenSideBytes, uint64(len(a.Side)))
-	buf = append(buf, lenSideBytes[:]...)
-
-	buf = append(buf, []byte(a.Side)...)
+	var sideByte byte = 0x00
+	if a.Side == Buy {
+		sideByte = 0x01
+	}
+	buf = append(buf, sideByte)
 	buf = append(buf, a.AuctionID[:]...)
 	buf = append(buf, a.Nonce[:]...)
 	return
@@ -311,10 +311,14 @@ func (a *AuctionOrder) Deserialize(data []byte) (err error) {
 	data = data[8:]
 	a.AmountWant = binary.LittleEndian.Uint64(data[:8])
 	data = data[8:]
-	sideLen := binary.LittleEndian.Uint64(data[:8])
-	data = data[8:]
-	a.Side = string(data[:sideLen])
-	data = data[sideLen:]
+
+	// Side is a single byte so at this point we just get the next bit
+	var sideByte byte = data[0]
+	// If the byte is a zero value then it stays false, otherwise true
+	a.Side = Side(sideByte != 0x00)
+
+	// shift data one bit to the left
+	data = data[1:]
 	copy(a.AuctionID[:], data[:32])
 	data = data[32:]
 	copy(a.Nonce[:], data[:2])

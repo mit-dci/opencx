@@ -203,17 +203,18 @@ func (cl *BenchClient) AuctionOrderAsync(pubkey *koblitz.PublicKey, side string,
 	}
 
 	errChan <- func() (err error) {
-		// TODO: this can be refactored to look more like the rest of the code, it's just using channels and works really well so I don't want to mess with it rn
+		// TODO: this can be refactored to look more like the rest of
+		// the code, it's just using channels and works really well so
+		// I don't want to mess with it rn
+
+		// also, this can be done much cleaner
 		orderArgs := new(cxauctionrpc.SubmitPuzzledOrderArgs)
 		orderReply := new(cxauctionrpc.SubmitPuzzledOrderReply)
 
 		var newAuctionOrder match.AuctionOrder
 		copy(newAuctionOrder.Pubkey[:], pubkey.SerializeCompressed())
-		newAuctionOrder.Side = side
-
-		// check that the sides are correct
-		if newAuctionOrder.Side != "buy" && newAuctionOrder.Side != "sell" {
-			err = fmt.Errorf("AuctionOrder's side isn't buy or sell, try again")
+		if err = newAuctionOrder.Side.FromString(side); err != nil {
+			err = fmt.Errorf("Error getting correct side from string while placing order: %s", err)
 			return
 		}
 

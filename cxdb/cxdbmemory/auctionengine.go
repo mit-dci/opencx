@@ -100,11 +100,8 @@ func (me *MemoryAuctionEngine) CancelAuctionOrder(id *match.OrderID) (cancelled 
 	// Get side from string rip
 	var orderSide *match.Side
 	orderSide = new(match.Side)
-	if err = orderSide.FromString(deletedOrder.Order.Side); err != nil {
-		err = fmt.Errorf("Error getting order side from string for CancelOrder: %s", err)
-		me.auctionMtx.Unlock()
-		return
-	}
+	// because we just init the pointer we can get the value and set
+	*orderSide = deletedOrder.Order.Side
 
 	var debitAsset match.Asset
 	if *orderSide == match.Buy {

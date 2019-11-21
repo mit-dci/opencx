@@ -1,7 +1,12 @@
 package match
 
 import (
+	"crypto/rand"
+	mathrand "math/rand"
 	"testing"
+
+	"github.com/mit-dci/lit/crypto/koblitz"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -10,9 +15,11 @@ var (
 		AssetHave: VTC,
 	}
 
+	emptyOrder = &AuctionOrder{}
+
 	origOrderID = OrderID([32]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07})
 	origOrder   = &AuctionOrder{
-		Side:        "buy",
+		Side:        Buy,
 		TradingPair: orderPair,
 		AmountHave:  100000000,
 		AmountWant:  100000000,
@@ -22,7 +29,7 @@ var (
 
 	origOrderCounterID = OrderID([32]byte{0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f})
 	origOrderCounter   = &AuctionOrder{
-		Side:        "sell",
+		Side:        Sell,
 		TradingPair: orderPair,
 		AmountHave:  100000000,
 		AmountWant:  100000000,
@@ -69,8 +76,9 @@ var (
 
 func TestIsBuySide(t *testing.T) {
 
+	// TODO: split into two tests
 	buyAuction := &AuctionOrder{
-		Side: "buy",
+		Side: Buy,
 	}
 
 	var res bool
@@ -79,19 +87,11 @@ func TestIsBuySide(t *testing.T) {
 	}
 
 	sellAuction := &AuctionOrder{
-		Side: "sell",
+		Side: Sell,
 	}
 
 	if res = sellAuction.IsBuySide(); res {
 		t.Errorf("Sell auction should have returned false, instead returned %t", res)
-	}
-
-	idkAuction := &AuctionOrder{
-		Side: "idk",
-	}
-
-	if res = idkAuction.IsBuySide(); res {
-		t.Errorf("Nonsense auction should have returned false, instead returned %t", res)
 	}
 
 	return
@@ -99,8 +99,9 @@ func TestIsBuySide(t *testing.T) {
 
 func TestIsSellSide(t *testing.T) {
 
+	// TODO: split into two tests
 	sellAuction := &AuctionOrder{
-		Side: "sell",
+		Side: Sell,
 	}
 
 	var res bool
@@ -109,19 +110,11 @@ func TestIsSellSide(t *testing.T) {
 	}
 
 	buyAuction := &AuctionOrder{
-		Side: "buy",
+		Side: Buy,
 	}
 
 	if res = buyAuction.IsSellSide(); res {
 		t.Errorf("Buy auction should have returned false, instead returned %t", res)
-	}
-
-	idkAuction := &AuctionOrder{
-		Side: "idk",
-	}
-
-	if res = idkAuction.IsSellSide(); res {
-		t.Errorf("Nonsense auction should have returned false, instead returned %t", res)
 	}
 
 	return
@@ -256,37 +249,6 @@ func TestGenerateEasyFillFromPrice(t *testing.T) {
 	return
 }
 
-// Test some fill generation based on a bad side that should error out
-func TestGenerateBadSideFill(t *testing.T) {
-	var err error
-
-	// Create a new order that looks like origOrder
-	badOrder := new(AuctionOrder)
-	*badOrder = *origOrder
-	badOrder.Side = "bad"
-
-	// this should just error
-	var resExec OrderExecution
-	var setExecs []*SettlementExecution
-	if resExec, setExecs, err = badOrder.GenerateOrderFill(&origOrderID, float64(1)); err == nil {
-		t.Errorf("There was no error trying to generate an order fill for an order with a bad side")
-		return
-	}
-
-	emptyExec := &OrderExecution{}
-	if !(&resExec).Equal(emptyExec) {
-		t.Errorf("GenerateBadSideFill created part of an order execution on failure, this should not happen")
-		return
-	}
-
-	if len(setExecs) != 0 {
-		t.Errorf("GenerateBadSideFill created a settlement execution on failure, this should not happen")
-		return
-	}
-
-	return
-}
-
 // Test some fill generation based on a zero price that should error out
 func TestGenerateBadPriceFill(t *testing.T) {
 	var err error
@@ -414,7 +376,7 @@ var (
 	// So if the price is assetWant / assetHave, then this will be a price of 2 BTC/LTC. Simple enough.
 	// That price is formatted so well you could do dimensional analysis on it. Unlike on Binance.
 	priceTwoBuy = &AuctionOrder{
-		Side:        "buy",
+		Side:        Buy,
 		TradingPair: orderPair,
 		AmountWant:  200000000, // BTC - This user wants this asset
 		AmountHave:  100000000, // LTC - This user has this asset
@@ -423,7 +385,7 @@ var (
 	}
 	// So if the price is assetWant / assetHave (To get the ratio BTC/LTC), then this will be a price of 2 BTC/LTC.
 	priceTwoSell = &AuctionOrder{
-		Side:        "sell",
+		Side:        Sell,
 		TradingPair: orderPair,
 		AmountWant:  200000000, // BTC - This user has this asset
 		AmountHave:  100000000, // LTC - This user wants this asset
@@ -432,7 +394,7 @@ var (
 	}
 	// This should error on price because AmountWant = 0
 	priceErrorWant = &AuctionOrder{
-		Side:        "sell",
+		Side:        Sell,
 		TradingPair: orderPair,
 		AmountWant:  0,         // BTC - This user has this asset
 		AmountHave:  100000000, // LTC - This user wants this asset
@@ -441,7 +403,7 @@ var (
 	}
 	// This should error on price because AmountHave = 0
 	priceErrorHave = &AuctionOrder{
-		Side:        "buy",
+		Side:        Buy,
 		TradingPair: orderPair,
 		AmountWant:  200000000, // BTC - This user has this asset
 		AmountHave:  0,         // LTC - This user wants this asset
@@ -450,7 +412,7 @@ var (
 	}
 	// This should error on price because both are = 0
 	priceErrorBoth = &AuctionOrder{
-		Side:        "buy",
+		Side:        Buy,
 		TradingPair: orderPair,
 		AmountWant:  0, // BTC - This user has this asset
 		AmountHave:  0, // LTC - This user wants this asset
@@ -517,6 +479,94 @@ func TestErrorWant(t *testing.T) {
 
 func TestErrorBoth(t *testing.T) {
 	errorPriceTest(priceErrorBoth, t)
+	return
+}
+
+func TestAuctionOrderSerializeEmpty(t *testing.T) {
+	// so empty order should be:
+	// 33 + 2 + 8 + 8 + 1 + 32 + 2 + 8 + 0 = 94
+	emptyExpectedBuf := [94]byte{}
+	emptyActualBuf := emptyOrder.Serialize()
+	if len(emptyActualBuf) != 94 {
+		t.Errorf("Empty order does not serialize to correct size, it instead serializes to a size of %d", len(emptyActualBuf))
+		return
+	}
+	emptyActualArr := [94]byte{}
+	copy(emptyActualArr[:], emptyActualBuf[:])
+	if emptyActualArr != emptyExpectedBuf {
+		t.Errorf("Empty order actual serialization does not serialize to correct value: \nExpected serialization: %8x\nActual serialization: %8x", emptyExpectedBuf, emptyActualArr[:])
+		return
+	}
+	return
+}
+
+func BenchmarkAuctionOrderSerialize(b *testing.B) {
+	var err error
+	var testPrivKey *koblitz.PrivateKey
+	if testPrivKey, err = koblitz.NewPrivateKey(koblitz.S256()); err != nil {
+		b.Fatalf("Error creating private key for test: %s", err)
+		return
+	}
+
+	// What we're doing here is creating an order that has random data
+	// in it, it's not necessary but it's a good example for how to
+	// generate a random order
+	currOrder := AuctionOrder{}
+
+	var testPubKey *koblitz.PublicKey = testPrivKey.PubKey()
+	var pubkeyBytes [33]byte
+	if len(testPubKey.SerializeCompressed()) != 33 {
+		b.Fatalf("Pubkey for test is wrong length even when compressed, can't continue")
+		return
+	}
+	copy(pubkeyBytes[:], testPubKey.SerializeCompressed())
+
+	// start hasher for signing
+	hasher := sha3.New256()
+	var sigBytes []byte
+
+	// this doesn't really matter
+	currOrder.Side = Buy
+	var pairBuf [2]byte
+	if _, err = rand.Read(pairBuf[:]); err != nil {
+		b.Fatalf("Error reading random into pair buffer in auctionorder bench: %s", err)
+		return
+	}
+	currOrder.TradingPair.AssetHave = Asset(pairBuf[0])
+	currOrder.TradingPair.AssetWant = Asset(pairBuf[1])
+	// read directly into struct for byte array members
+	// which are nonce, auctionid
+	if _, err = rand.Read(currOrder.AuctionID[:]); err != nil {
+		b.Fatalf("Error readin random into auction id in auctionorder bench: %s", err)
+		return
+	}
+	if _, err = rand.Read(currOrder.Nonce[:]); err != nil {
+		b.Fatalf("Error reading random into nonce in auctionorder bench: %s", err)
+		return
+	}
+	// random amountwant, amountwant, both uint64
+	currOrder.AmountWant = mathrand.Uint64()
+	currOrder.AmountHave = mathrand.Uint64()
+
+	// we can just copy over the pubkey
+	copy(currOrder.Pubkey[:], pubkeyBytes[:])
+
+	// now hash and sign
+	hasher.Reset()
+	hasher.Write(currOrder.SerializeSignable())
+	if sigBytes, err = koblitz.SignCompact(koblitz.S256(), testPrivKey, hasher.Sum(nil), false); err != nil {
+		b.Fatalf("Error signing in auction order serialize benchmark: %s", err)
+		return
+	}
+
+	// allocate space for the signature and copy it over
+	currOrder.Signature = make([]byte, len(sigBytes))
+	copy(currOrder.Signature, sigBytes)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		currOrder.Serialize()
+	}
 	return
 }
 

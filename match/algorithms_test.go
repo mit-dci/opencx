@@ -35,25 +35,25 @@ var (
 		AssetHave: litereg,
 	}
 	onePriceSell = &AuctionOrder{
-		Side:        "sell",
+		Side:        Sell,
 		TradingPair: *BTC_LTC,
 		AmountWant:  1000,
 		AmountHave:  1000,
 	}
 	onePriceBuy = &AuctionOrder{
-		Side:        "buy",
+		Side:        Buy,
 		TradingPair: *BTC_LTC,
 		AmountWant:  1000,
 		AmountHave:  1000,
 	}
 	trivialQuarterBuy = &AuctionOrder{
-		Side:        "buy",
+		Side:        Buy,
 		TradingPair: *BTC_LTC,
 		AmountWant:  1000,
 		AmountHave:  5000,
 	}
 	trivialQuarterSell = &AuctionOrder{
-		Side:        "sell",
+		Side:        Sell,
 		TradingPair: *BTC_LTC,
 		AmountWant:  1000,
 		AmountHave:  3000,
@@ -76,12 +76,15 @@ func generateLargeClearingBook(midpoint float64, radius uint64) (book map[float6
 			AmountWant:  uint64(float64(100000000) * float64(i) * floatIncrement),
 			AmountHave:  100000000,
 		}
-		// Lower end of the price range for buy means it's more competitive. The least competitive buy order still matches.
+		// Lower end of the price range for buy means it's more
+		// competitive. The least competitive buy order still matches.
 		if i < radius {
-			thisOrder.Side = "buy"
-			// Higher end of the price range for sell means it's more competitive. The least competitive sell order still matches.
+			thisOrder.Side = Buy
+			// Higher end of the price range for sell means it's more
+			// competitive. The least competitive sell order still
+			// matches.
 		} else {
-			thisOrder.Side = "sell"
+			thisOrder.Side = Sell
 		}
 		orders = append(orders, thisOrder)
 	}

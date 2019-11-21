@@ -18,7 +18,7 @@ var (
 		AuctionID:  [32]byte{0xde, 0xad, 0xbe, 0xef},
 		AmountWant: 100000,
 		AmountHave: 10000,
-		Side:       "buy",
+		Side:       match.Buy,
 		TradingPair: match.Pair{
 			AssetWant: match.Asset(6),
 			AssetHave: match.Asset(8),
