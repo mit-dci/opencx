@@ -34,9 +34,18 @@ func (p *Price) ToFloat() (price float64, err error) {
 //   +1 if x >  y
 //
 func (p *Price) Cmp(otherPrice *Price) (compIndicator int) {
-	// Just use math/big's comparison, they already wrote it
-	price1 := new(big.Float).Quo(new(big.Float).SetUint64(p.AmountWant), new(big.Float).SetUint64(p.AmountHave))
-	price2 := new(big.Float).Quo(new(big.Float).SetUint64(otherPrice.AmountWant), new(big.Float).SetUint64(otherPrice.AmountHave))
-	compIndicator = price1.Cmp(price2)
+	// If we want to compare a/b and c/d, then we can just compare a*d
+	// and b*c
+	numeratorOne := new(big.Int).SetUint64(p.AmountWant)
+	numeratorTwo := new(big.Int).SetUint64(otherPrice.AmountWant)
+	denominatorOne := new(big.Int).SetUint64(p.AmountHave)
+	denominatorTwo := new(big.Int).SetUint64(otherPrice.AmountHave)
+
+	// because this actually sets, we don't need to assign
+	numeratorOne.Mul(numeratorOne, denominatorTwo)
+	numeratorTwo.Mul(numeratorTwo, denominatorOne)
+
+	// a/b ?= c/d <=> ad ?= bc
+	compIndicator = numeratorOne.Cmp(numeratorTwo)
 	return
 }
