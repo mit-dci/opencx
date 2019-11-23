@@ -245,11 +245,11 @@ func BenchmarkPriceCompare(b *testing.B) {
 	}
 
 	var compValue int
+	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		b.StartTimer()
 		compValue = firstPrice.Cmp(secondPrice)
-		b.StopTimer()
 	}
+	b.StopTimer()
 	if compValue == 0 {
 		b.Fatalf("The two prices %v and %v are not equal, benchmark failed", firstPrice, secondPrice)
 		return
