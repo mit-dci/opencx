@@ -225,3 +225,34 @@ func TestPriceFloatAlmostOne(t *testing.T) {
 	}
 	return
 }
+
+// BenchmarkPriceCompare tests the speed of comparing two prices
+func BenchmarkPriceCompare(b *testing.B) {
+	// stop & reset because setup
+	b.StopTimer()
+	b.ResetTimer()
+
+	// this one is near the uint64 limit
+	firstPrice := &Price{
+		AmountWant: uint64(184467435833),
+		AmountHave: uint64(184467435563),
+	}
+
+	// so is this one
+	secondPrice := &Price{
+		AmountWant: uint64(184467439067),
+		AmountHave: uint64(184467437269),
+	}
+
+	var compValue int
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		compValue = firstPrice.Cmp(secondPrice)
+		b.StopTimer()
+	}
+	if compValue == 0 {
+		b.Fatalf("The two prices %v and %v are not equal, benchmark failed", firstPrice, secondPrice)
+		return
+	}
+	return
+}
