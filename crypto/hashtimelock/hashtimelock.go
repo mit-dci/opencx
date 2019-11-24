@@ -12,15 +12,15 @@ import (
 // HashTimelock is a struct that holds all data necessary to implement a timelock
 type HashTimelock struct {
 	// timelockSeed is the initial data that then gets hashed by a hash function
-	timelockSeed []byte
+	TimelockSeed []byte
 	// hashFunction is the hash function to be used by this hash timelock
 	hashFunction hash.Hash
 	// timeToRun is the amount of iterations needed to run
-	timeToRun uint64
+	TimeToRun uint64
 }
 
 func (ht *HashTimelock) setupHashPuzzle(seed []byte, hashFunction hash.Hash) {
-	ht.timelockSeed = seed
+	ht.TimelockSeed = seed
 	ht.hashFunction = hashFunction
 	return
 }
@@ -35,12 +35,12 @@ func New(seed []byte, hashFunction hash.Hash) (hashTimelock crypto.Timelock) {
 
 // SetupTimelockPuzzle sends key k to the future in time t, returning a puzzle based on sequential hashing and an answer
 func (ht *HashTimelock) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answer []byte, err error) {
-	ht.timeToRun = t
+	ht.TimeToRun = t
 	answer = make([]byte, ht.hashFunction.Size())
 
-	copy(answer[:], ht.timelockSeed)
+	copy(answer[:], ht.TimelockSeed)
 
-	for i := uint64(0); i < ht.timeToRun; i++ {
+	for i := uint64(0); i < ht.TimeToRun; i++ {
 		ht.hashFunction.Reset()
 		ht.hashFunction.Write(answer[:])
 		copy(answer[:], ht.hashFunction.Sum(nil))
@@ -53,8 +53,8 @@ func (ht *HashTimelock) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, ans
 // Solve solves the hash puzzle and returns the answer, or fails
 func (ht *HashTimelock) Solve() (answer []byte, err error) {
 	answer = make([]byte, ht.hashFunction.Size())
-	copy(answer[:], ht.timelockSeed)
-	for i := uint64(0); i < ht.timeToRun; i++ {
+	copy(answer[:], ht.TimelockSeed)
+	for i := uint64(0); i < ht.TimeToRun; i++ {
 		ht.hashFunction.Reset()
 		ht.hashFunction.Write(answer[:])
 		copy(answer[:], ht.hashFunction.Sum(nil))

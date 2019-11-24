@@ -340,15 +340,3 @@ func BenchmarkConcurrentManyMillions2048A2(b *testing.B) {
 	createSolveConcurrentNBench(10000000, runtime.NumCPU(), b)
 	return
 }
-
-// 4748 0975 4727 2012 8661 7503 4130 6167 7388 5051 2607 4492 0056 4448 6710
-// 6196 3607 1042 4558 1476 5425 2707 6049 4101 2311 7758 9201 2567 5790 6462
-// ...
-// 0642 1926 9454 1125 0658 7397 7
-// func Benchmark2019CheckPoint(b *testing.B) {
-// 	puzzle := PuzzleRSW{
-// 		N: new(big.Int).SetString("474809754727201286617503413061677388505126074492005644486710", 10),
-// 	}
-
-// 	return
-// }
