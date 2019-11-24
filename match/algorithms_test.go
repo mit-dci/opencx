@@ -114,7 +114,6 @@ func createBookFromOrders(orders []*AuctionOrder) (book map[float64][]*AuctionOr
 }
 
 func runLargeClearingBookTest(midpoint float64, orderRadius uint64, t *testing.T) {
-
 	var err error
 
 	var fakeNeutralBook map[float64][]*AuctionOrderIDPair
@@ -267,5 +266,40 @@ func TestClearingPrice1000_25Clear(t *testing.T) {
 
 func TestClearingPrice10000_1Clear(t *testing.T) {
 	runLargeClearingBookTest(float64(1), 10000, t)
+	return
+}
+
+// BenchmarkAlgorithmsClearingPrice benchmarks the clearing price
+// matching algorithm
+func BenchmarkAlgorithmsClearingPrice(b *testing.B) {
+	var err error
+	b.StopTimer()
+	b.ResetTimer()
+
+	midpointForClearingBook := float64(150)
+	orderRadiusForBook := uint64(10000)
+
+	var fakeNeutralBook map[float64][]*AuctionOrderIDPair
+	if fakeNeutralBook, err = generateLargeClearingBook(midpointForClearingBook, orderRadiusForBook); err != nil {
+		b.Fatalf("Error creating book from orders for test: %s", err)
+		return
+	}
+
+	b.StartTimer()
+	// Test execs at clearing price
+	for i := 0; i < b.N; i++ {
+		_, _, err = MatchClearingAlgorithm(fakeNeutralBook)
+	}
+	b.StopTimer()
+
+	// We check errors at the end with a fixed input because we don't
+	// really want to waste time error checking (even if it's fast)
+	// during the testing, it's the same input and the regular unit
+	// tests should be covering cases where this would break
+	if err != nil {
+		b.Fatalf("Error running clearing matching algorithm for test: %s", err)
+		return
+	}
+
 	return
 }
