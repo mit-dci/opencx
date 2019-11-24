@@ -19,7 +19,10 @@ import (
 func createSHAPuzzle(t uint64, key []byte) (puzzle crypto.Puzzle, anskey []byte, err error) {
 	// Set up what the puzzle will encrypt
 	var timelock crypto.Timelock
-	timelock = hashtimelock.New(key, sha256.New())
+	if timelock, err = hashtimelock.New(key, sha256.New()); err != nil {
+		err = fmt.Errorf("Error creating new hash timelock for SHA256 puzzle: %s", err)
+		return
+	}
 
 	// Set up the puzzle to send
 	if puzzle, anskey, err = timelock.SetupTimelockPuzzle(t); err != nil {

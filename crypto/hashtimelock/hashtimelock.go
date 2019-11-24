@@ -19,22 +19,43 @@ type HashTimelock struct {
 	TimeToRun uint64
 }
 
-func (ht *HashTimelock) setupHashPuzzle(seed []byte, hashFunction hash.Hash) {
+func (ht *HashTimelock) setupHashPuzzle(seed []byte, hashFunction hash.Hash) (err error) {
+	if hashFunction == nil {
+		err = fmt.Errorf("Error, annot create new timelock puzzle with nil hash function")
+		return
+	}
 	ht.TimelockSeed = seed
 	ht.hashFunction = hashFunction
 	return
 }
 
 // New creates a new hash timelock with seed bytes and a hash function
-func New(seed []byte, hashFunction hash.Hash) (hashTimelock crypto.Timelock) {
+func New(seed []byte, hashFunction hash.Hash) (hashTimelock crypto.Timelock, err error) {
+	if hashFunction == nil {
+		err = fmt.Errorf("Error, annot create new timelock puzzle with nil hash function")
+		return
+	}
 	ht := &HashTimelock{}
-	ht.setupHashPuzzle(seed, hashFunction)
+	if err = ht.setupHashPuzzle(seed, hashFunction); err != nil {
+		err = fmt.Errorf("Error setting up hash puzzle while creating a timelock: %s", err)
+		return
+	}
 	hashTimelock = ht
+	return
+}
+
+// SetHashFunction sets the hash function for the timelock puzzle
+func (ht *HashTimelock) SetHashFunction(hashFunction hash.Hash) {
+	ht.hashFunction = hashFunction
 	return
 }
 
 // SetupTimelockPuzzle sends key k to the future in time t, returning a puzzle based on sequential hashing and an answer
 func (ht *HashTimelock) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, answer []byte, err error) {
+	if ht.hashFunction == nil {
+		err = fmt.Errorf("Error, hash function is nil, cannot setup timelock puzzle")
+		return
+	}
 	ht.TimeToRun = t
 	answer = make([]byte, ht.hashFunction.Size())
 
@@ -52,6 +73,10 @@ func (ht *HashTimelock) SetupTimelockPuzzle(t uint64) (puzzle crypto.Puzzle, ans
 
 // Solve solves the hash puzzle and returns the answer, or fails
 func (ht *HashTimelock) Solve() (answer []byte, err error) {
+	if ht.hashFunction == nil {
+		err = fmt.Errorf("Error, hash function is nil, cannot setup timelock puzzle")
+		return
+	}
 	answer = make([]byte, ht.hashFunction.Size())
 	copy(answer[:], ht.TimelockSeed)
 	for i := uint64(0); i < ht.TimeToRun; i++ {

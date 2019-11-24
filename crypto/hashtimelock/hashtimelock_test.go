@@ -2,6 +2,7 @@ package hashtimelock
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/dchest/siphash"
 	"github.com/minio/highwayhash"
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/sha3"
 )
 
 // TestZeroTimeSHA256 is a very useful test
@@ -17,7 +19,7 @@ func TestZeroTimeSHA256(t *testing.T) {
 	copy(seed[:], []byte("opencxzero"))
 	hashFunction := sha256.New()
 	// eh this whole New thing looks bad but really it'll look like hashtimelock.New(seed, hfunc) anyways which is a really nice way to do it so this will be good actually
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(0)
 	// throw away the answer because we already know what it's supposed to be: the seed
 	puzzle, _, err := hashPuzzle.SetupTimelockPuzzle(time)
@@ -39,7 +41,7 @@ func TestOneTimeSHA256(t *testing.T) {
 	copy(seed[:], []byte("opencxone"))
 	hashFunction := sha256.New()
 	// eh this whole New thing looks bad but really it'll look like hashtimelock.New(seed, hfunc) anyways which is a really nice way to do it so this will be good actually
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(1)
 	// throw away the answer because we already know what it's supposed to be: the seed
 	puzzle, _, err := hashPuzzle.SetupTimelockPuzzle(time)
@@ -71,7 +73,7 @@ func TestTenTimeSHA256(t *testing.T) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxten"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(10)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -90,7 +92,7 @@ func TestHundredTimeSHA256(t *testing.T) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxhundred"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(100)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -109,7 +111,7 @@ func TestThousandTimeSHA256(t *testing.T) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxthousand"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(1000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -127,7 +129,7 @@ func TestTenThousandTimeSHA256(t *testing.T) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxtenthousand"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(10000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -146,7 +148,7 @@ func TestHundredThousandTimeSHA256(t *testing.T) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxhundredthousand"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(100000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -166,7 +168,7 @@ func TestMillionTimeSHA256(t *testing.T) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxmillion"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(1000000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -185,7 +187,7 @@ func TestTenMillionTimeSHA256(t *testing.T) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxtenmillion"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(10000000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -204,7 +206,7 @@ func BenchmarkHundredMillionTimeSHA256(b *testing.B) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxhundredmillion"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(100000000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -224,7 +226,7 @@ func BenchmarkHundredMillionTimeFastSHA256(b *testing.B) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxhundredmillion"))
 	hashFunction := fastsha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(100000000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -249,7 +251,7 @@ func BenchmarkHundredMillionTimeBlake2B(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Could not set up blake2b: %s\n", err)
 	}
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(100000000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -269,7 +271,7 @@ func BenchmarkHundredMillionTimeSipHash(b *testing.B) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxhundredmillion"))
 	hashFunction := siphash.New(seed)
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(100000000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -292,7 +294,7 @@ func BenchmarkHundredMillionTimeHighwayHash(b *testing.B) {
 	if err != nil {
 		b.Fatalf("Could not create highwayhash: %s\n", err)
 	}
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(100000000)
 	puzzle, expectedAns, err := hashPuzzle.SetupTimelockPuzzle(time)
 	if err != nil {
@@ -312,7 +314,7 @@ func BenchmarkBillionTimeSHA256(b *testing.B) {
 	seed := make([]byte, 32)
 	copy(seed[:], []byte("opencxbillion"))
 	hashFunction := sha256.New()
-	hashPuzzle := New(seed, hashFunction)
+	hashPuzzle, _ := New(seed, hashFunction)
 	time := uint64(1000000000)
 
 	// so we solve it once here, this can take some time
@@ -329,4 +331,43 @@ func BenchmarkBillionTimeSHA256(b *testing.B) {
 	if !bytes.Equal(puzzleAns, expectedAns) {
 		b.Fatalf("Answer did not equal puzzle for time = 0. Expected %x, got %x\n", expectedAns, puzzleAns)
 	}
+}
+
+// TestHashTimelockSerialize tests that a hash timelock, when
+// serialized and deserialized with gob, doesn't change
+func TestHashTimelockSerialize(t *testing.T) {
+	var err error
+	tlSeed := [32]byte{}
+	if _, err = rand.Read(tlSeed[:]); err != nil {
+		t.Errorf("Error reading bytes to seed for hashtimelock serialize: %s", err)
+		return
+	}
+	htl := &HashTimelock{
+		TimelockSeed: tlSeed[:],
+		TimeToRun:    uint64(10000),
+	}
+	htl.SetHashFunction(sha3.New256())
+	var timelockBytes []byte
+	if timelockBytes, err = htl.Serialize(); err != nil {
+		t.Errorf("Error, this is a valid hashtimelock, serialize should not return an error: %s", err)
+		return
+	}
+
+	finalHtlPtr := new(HashTimelock)
+	if err = finalHtlPtr.Deserialize(timelockBytes); err != nil {
+		t.Errorf("Error, deserialization should work for bytes that were just serialized: %s", err)
+		return
+	}
+
+	if finalHtlPtr.TimeToRun != htl.TimeToRun {
+		t.Errorf("TimeToRun for resulting struct is %d but should have been %d", finalHtlPtr.TimeToRun, htl.TimeToRun)
+		return
+	}
+
+	if bytes.Compare(finalHtlPtr.TimelockSeed, htl.TimelockSeed) != 0 {
+		t.Errorf("TimelockSeed for resulting struct is %8x but should be %8x", finalHtlPtr.TimelockSeed, htl.TimelockSeed)
+		return
+	}
+
+	return
 }
