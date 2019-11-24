@@ -15,9 +15,8 @@ type AuctionID [32]byte
 // MarshalBinary encodes the receiver into a binary form and returns
 // the result. This conforms to the BinaryMarshaler interface
 func (a *AuctionID) MarshalBinary() (data []byte, err error) {
-	dataBacking := [32]byte{}
-	copy(dataBacking[:], a[:])
-	data = dataBacking[:]
+	data = make([]byte, 32)
+	copy(data[:], a[:])
 	return
 }
 

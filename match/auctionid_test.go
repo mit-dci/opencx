@@ -148,3 +148,25 @@ func TestAuctionIDUnmarshalBinaryInvalid(t *testing.T) {
 	}
 	return
 }
+
+// BenchmarkAuctionIDMarshalBinary benchmarks the performance of
+// marshalling an Auction ID into bytes
+func BenchmarkAuctionIDMarshalBinary(b *testing.B) {
+	var err error
+	b.StopTimer()
+	b.ResetTimer()
+
+	idToSerialize := new(AuctionID)
+	*idToSerialize = AuctionID([32]byte{0xde, 0xad, 0xde, 0xad, 0xbe, 0xef, 0xbe, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00})
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		_, err = idToSerialize.MarshalBinary()
+	}
+	b.StopTimer()
+	if err != nil {
+		b.Fatalf("Error when running MarshalBinary on an AuctionID for benchmark: %s", err)
+		return
+	}
+	return
+}
