@@ -4,25 +4,9 @@ import (
 	"fmt"
 )
 
-// MatchPTPAlgorithm runs matching on an orderbook that is unsorted or unprioritized.
-// These get sorted then matched efficiently.
-// TODO: Implement PrioritizeOrderbookPTP and then uncomment this method, write tests
-// func MatchPTPAlgorithm(book map[float64][]*LimitOrderIDPair) (orderExecs []*OrderExecution, settlementExecs []*SettlementExecution, err error) {
-
-// 	var buyOrders []*LimitOrderIDPair
-// 	var sellOrders []*LimitOrderIDPair
-// 	if buyOrders, sellOrders, err = PrioritizeOrderbookPTP(book); err != nil {
-// 		err = fmt.Errorf("Error prioritizing orders for MatchPTPAlgorithm: %s", err)
-// 		return
-// 	}
-
-// 	if orderExecs, settlementExecs, err = MatchPrioritizedOrders(buyOrders, sellOrders); err != nil {
-// 		err = fmt.Errorf("Error matching prioritized orders for MatchPTPAlgorithm: %s", err)
-// 		return
-// 	}
-
-// 	return
-// }
+// TODO: rather than writing this algorithm functionally (with
+// preconditions and postconditions whether or not the orders are
+// sorted etc., write these with state so they aren't horribly slow
 
 // MatchPrioritizedOrders matches separated buy and sell orders that are properly sorted in price-time priority.
 // These are the orders that should match.

@@ -13,9 +13,8 @@ type OrderID [32]byte
 // MarshalBinary encodes the receiver into a binary form and returns the result. This conforms to the BinaryMarshaler interface
 func (o *OrderID) MarshalBinary() (data []byte, err error) {
 	// size array, then copy
-	oSlice := o[:]
-	data = make([]byte, len(oSlice))
-	copy(data, oSlice)
+	data = make([]byte, 32)
+	copy(data, o[:])
 	return
 }
 
