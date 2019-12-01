@@ -3,13 +3,13 @@ package cxserver
 import (
 	"fmt"
 
-	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/lit/qln"
+	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/Rjected/lit/qln"
 
-	"github.com/mit-dci/lit/btcutil"
+	"github.com/Rjected/lit/btcutil"
 
-	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/wire"
+	"github.com/Rjected/lit/coinparam"
+	"github.com/Rjected/lit/wire"
 	util "github.com/mit-dci/opencx/chainutils"
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"

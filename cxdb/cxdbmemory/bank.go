@@ -3,8 +3,8 @@ package cxdbmemory
 import (
 	"fmt"
 
-	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/Rjected/lit/coinparam"
+	"github.com/Rjected/lit/crypto/koblitz"
 )
 
 // RegisterUser takes in a pubkey, and a map of asset to addresses for the pubkey. It inserts the necessary information in databases to register the pubkey.

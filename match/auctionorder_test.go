@@ -5,7 +5,7 @@ import (
 	mathrand "math/rand"
 	"testing"
 
-	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/Rjected/lit/crypto/koblitz"
 	"golang.org/x/crypto/sha3"
 )
 

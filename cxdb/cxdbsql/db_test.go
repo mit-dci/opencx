@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/mit-dci/lit/coinparam"
+	"github.com/Rjected/lit/coinparam"
 )
 
 var (

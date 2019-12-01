@@ -3,7 +3,7 @@ package cxdbmemory
 import (
 	"sync"
 
-	"github.com/mit-dci/lit/coinparam"
+	"github.com/Rjected/lit/coinparam"
 	"github.com/mit-dci/opencx/match"
 )
 

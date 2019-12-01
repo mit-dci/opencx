@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/Rjected/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/match"
 )
 

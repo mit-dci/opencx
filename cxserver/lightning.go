@@ -8,15 +8,15 @@ import (
 	"time"
 
 	"github.com/btcsuite/fastsha256"
-	"github.com/mit-dci/lit/lncore"
-	"github.com/mit-dci/lit/lnutil"
-	"github.com/mit-dci/lit/portxo"
+	"github.com/Rjected/lit/lncore"
+	"github.com/Rjected/lit/lnutil"
+	"github.com/Rjected/lit/portxo"
 
-	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/consts"
-	"github.com/mit-dci/lit/crypto/koblitz"
-	"github.com/mit-dci/lit/litrpc"
-	"github.com/mit-dci/lit/qln"
+	"github.com/Rjected/lit/coinparam"
+	"github.com/Rjected/lit/consts"
+	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/Rjected/lit/litrpc"
+	"github.com/Rjected/lit/qln"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )

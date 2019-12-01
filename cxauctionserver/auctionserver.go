@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mit-dci/lit/coinparam"
+	"github.com/Rjected/lit/coinparam"
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/cxdb/cxdbmemory"
 	"github.com/mit-dci/opencx/cxdb/cxdbsql"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mit-dci/lit/coinparam"
+	"github.com/Rjected/lit/coinparam"
 	"golang.org/x/crypto/sha3"
 )
 

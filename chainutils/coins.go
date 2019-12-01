@@ -3,7 +3,7 @@ package chainutils
 import (
 	"fmt"
 
-	"github.com/mit-dci/lit/coinparam"
+	"github.com/Rjected/lit/coinparam"
 )
 
 // GetParamFromName gets coin params from a name

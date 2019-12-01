@@ -13,7 +13,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 
-	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/Rjected/lit/crypto/koblitz"
 )
 
 const (

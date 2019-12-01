@@ -5,7 +5,7 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/mit-dci/lit/lnutil"
+	"github.com/Rjected/lit/lnutil"
 
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/logging"

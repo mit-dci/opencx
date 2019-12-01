@@ -3,9 +3,9 @@ package cxserver
 import (
 	"fmt"
 
-	"github.com/mit-dci/lit/btcutil/base58"
-	"github.com/mit-dci/lit/coinparam"
-	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/Rjected/lit/btcutil/base58"
+	"github.com/Rjected/lit/coinparam"
+	"github.com/Rjected/lit/crypto/koblitz"
 )
 
 // GetAddrForCoin gets an address based on a wallet and pubkey

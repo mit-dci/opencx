@@ -3,7 +3,7 @@ package cxdbmemory
 import (
 	"fmt"
 
-	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/Rjected/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 )

@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/rpc"
 
-	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/Rjected/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/cxnoise"
 	"github.com/mit-dci/opencx/cxserver"
 	"github.com/mit-dci/opencx/logging"

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/Rjected/lit/crypto/koblitz"
 )
 
 // defaultHandshakes is the maximum number of handshakes that can be done in
