@@ -50,7 +50,7 @@ file to get started with contributing!
 #### Debian
 
 ```sh
-sudo apt-get install gmp
+sudo apt-get install libgmp3-dev
 ```
 
 #### macOS
