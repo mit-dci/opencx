@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,15 +16,16 @@ import (
 
 	"github.com/mit-dci/opencx/benchclient"
 
-	flags "github.com/jessevdk/go-flags"
 	"github.com/Rjected/lit/lnutil"
+	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/logging"
 )
 
 type ocxClient struct {
-	KeyPath   string
-	RPCClient *benchclient.BenchClient
-	unlocked  bool
+	KeyPath     string
+	KeyPassword string
+	RPCClient   *benchclient.BenchClient
+	unlocked    bool
 }
 
 type ocxConfig struct {
@@ -40,6 +42,13 @@ type ocxConfig struct {
 
 	// filename for key
 	KeyFileName string `long:"keyfilename" short:"k" description:"Filename for private key within root opencx directory used to send transactions"`
+	// password for the encrypted key file
+	// NOTE: This is NOT SECURE! It saves the password in a string and strings
+	// are very difficult to zero out since they are immutable, so expect this
+	// to remain in memory after being garbage collected.
+	// TODO: Figure out a way to have secure non-interactive key encryption /
+	// decryption - maybe use memguard and allow things to be piped in.
+	KeyPassword string `long:"keypass" description:"Password for encrypted private key file"`
 
 	// logging and debug parameters
 	LogLevel []bool `short:"v" description:"Set verbosity level to verbose (-v), very verbose (-vv) or very very verbose (-vvv)"`
@@ -97,6 +106,13 @@ func main() {
 		}
 		return
 	}
+
+	if len(conf.KeyPassword) > 0 {
+		// TODO: move the password and key loading to this function rather than
+		// UnlockKey
+		client.KeyPassword = conf.KeyPassword
+	}
+
 	client.KeyPath = filepath.Join(conf.KeyFileName)
 	client.RPCClient = new(benchclient.BenchClient)
 	if !conf.AuthenticatedRPC {
@@ -128,9 +144,58 @@ func (cl *ocxClient) UnlockKey() (err error) {
 	if !cl.unlocked || cl.RPCClient.PrivKey == nil {
 		var keyFromFile *[32]byte
 		logging.Infof("Client keypath: %s", cl.KeyPath)
-		if keyFromFile, err = lnutil.ReadKeyFile(cl.KeyPath); err != nil {
-			logging.Errorf("Error reading key from file: \n%s", err)
-			return
+
+		// START OF SURGERY
+		if len(cl.KeyPassword) > 0 {
+			var zeroArray []byte = make([]byte, len(cl.KeyPassword))
+			var keyPasswordBytes []byte = make([]byte, len(cl.KeyPassword))
+			copy(keyPasswordBytes, []byte(cl.KeyPassword))
+
+			zero32 := [32]byte{}
+			key32 := new([32]byte)
+			_, err = os.Stat(cl.KeyPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					// no key found, generate and save one
+					logging.Infof("No file %s, generating.\n", cl.KeyPath)
+
+					_, err = rand.Read(key32[:])
+					if err != nil {
+						logging.Errorf("Error reading from rand into key: %s", err)
+						return
+					}
+
+					err = lnutil.SaveKeyToFileArg(cl.KeyPath, key32, keyPasswordBytes)
+					if err != nil {
+						logging.Errorf("Error saving key to file: %s", err)
+						return
+					}
+				} else {
+					// unknown error, crash
+					err = fmt.Errorf("Unknown error reading keyfile")
+					logging.Errorf("Client UnlockKey Error: %s", err)
+					return
+				}
+			}
+			// zero it out
+			copy(key32[:], zero32[:])
+
+			// now load from file
+			keyFromFile, err = lnutil.LoadKeyFromFileArg(cl.KeyPath, keyPasswordBytes)
+			if err != nil {
+				logging.Errorf("Error reading key from file with password arg: \n%s", err)
+				return
+			}
+
+			// Zero array - the string isn't going to be zeroed but this array will,
+			// so at least the password is in one less place
+			copy(keyPasswordBytes, zeroArray)
+		} else {
+			keyFromFile, err = lnutil.ReadKeyFile(cl.KeyPath)
+			if err != nil {
+				logging.Errorf("Error reading key from file: \n%s", err)
+				return
+			}
 		}
 
 		// We use TestNet3Params because that's what qln uses

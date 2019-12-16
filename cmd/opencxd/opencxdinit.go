@@ -2,15 +2,16 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
 	"os"
 	"path/filepath"
 
 	"github.com/Rjected/lit/coinparam"
 	util "github.com/mit-dci/opencx/chainutils"
 
-	flags "github.com/jessevdk/go-flags"
 	"github.com/Rjected/lit/lnutil"
 	litLogging "github.com/Rjected/lit/logging"
+	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/logging"
 )
 
@@ -123,9 +124,51 @@ func opencxSetup(conf *opencxConfig) *[32]byte {
 	litLogging.SetLogLevel(litLogLevel) // defaults to defaultLitLogLevel
 
 	keyPath := filepath.Join(conf.OpencxHomeDir, defaultKeyFileName)
-	privkey, err := lnutil.ReadKeyFile(keyPath)
-	if err != nil {
-		logging.Fatalf("Error reading key from file: \n%s", err)
+	var privkey *[32]byte
+	if len(conf.KeyPassword) > 0 {
+		var zeroArray []byte = make([]byte, len(conf.KeyPassword))
+		var keyPasswordBytes []byte = make([]byte, len(conf.KeyPassword))
+		copy(keyPasswordBytes, []byte(conf.KeyPassword))
+
+		zero32 := [32]byte{}
+		key32 := new([32]byte)
+		_, err := os.Stat(keyPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// no key found, generate and save one
+				logging.Infof("No file %s, generating.\n", keyPath)
+
+				_, err := rand.Read(key32[:])
+				if err != nil {
+					logging.Fatalf("Error reading from rand into key: %s", err)
+				}
+
+				err = lnutil.SaveKeyToFileArg(keyPath, key32, keyPasswordBytes)
+				if err != nil {
+					logging.Fatalf("Error saving key to file: %s", err)
+				}
+			} else {
+				// unknown error, crash
+				logging.Fatalf("unknown error reading keyfile\n")
+			}
+		}
+		// zero it out
+		copy(key32[:], zero32[:])
+
+		// now load from file
+		privkey, err = lnutil.LoadKeyFromFileArg(keyPath, keyPasswordBytes)
+		if err != nil {
+			logging.Fatalf("Error reading key from file with password arg: \n%s", err)
+		}
+
+		// Zero array - the string isn't going to be zeroed but this array will,
+		// so at least the password is in one less place
+		copy(keyPasswordBytes, zeroArray)
+	} else {
+		privkey, err = lnutil.ReadKeyFile(keyPath)
+		if err != nil {
+			logging.Fatalf("Error reading key from file: \n%s", err)
+		}
 	}
 
 	return privkey

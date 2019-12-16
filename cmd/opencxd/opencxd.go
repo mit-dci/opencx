@@ -60,6 +60,13 @@ type opencxConfig struct {
 
 	// filename for key
 	KeyFileName string `long:"keyfilename" short:"k" description:"Filename for private key within root opencx directory used to send transactions"`
+	// password for the encrypted key file
+	// NOTE: This is NOT SECURE! It saves the password in a string and strings
+	// are very difficult to zero out since they are immutable, so expect this
+	// to remain in memory after being garbage collected.
+	// TODO: Figure out a way to have secure non-interactive key encryption /
+	// decryption - maybe use memguard and allow things to be piped in.
+	KeyPassword string `long:"keypass" description:"Password for encrypted private key file"`
 
 	// auth or unauth rpc?
 	AuthenticatedRPC bool `long:"authrpc" description:"Whether or not to use authenticated RPC"`
