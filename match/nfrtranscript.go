@@ -350,7 +350,7 @@ func trapdoor(p, q *big.Int, encOrder EncryptedSolutionOrder) (order AuctionOrde
 	copy(key, kBytes)
 
 	var orderBytes []byte
-	if orderBytes, err = timelockencoders.DecryptPuzzleRC5(encOrder.OrderCiphertext, key); err != nil {
+	if orderBytes, err = timelockencoders.DecryptPuzzleAES(encOrder.OrderCiphertext, key); err != nil {
 		err = fmt.Errorf("Error decrypting rc5 puzzle from trapdoor key: %s", err)
 		return
 	}

@@ -135,6 +135,72 @@ func CreateRC5RSWPuzzleWithPrimes(a uint64, t uint64, message []byte, p *big.Int
 	return
 }
 
+// CreateAESRSWPuzzleWithPrimes creates a RSW timelock puzzle with
+// time t and encrypts the message using AES, given some user-defined
+// primes. This returns a struct unlike the other methods here.
+func CreateAESRSWPuzzleWithPrimes(a uint64, t uint64, message []byte, p *big.Int, q *big.Int) (ciphertext []byte, puzzle rsw.PuzzleRSW, err error) {
+	// Generate private key
+	var key []byte
+	if key, err = Generate16ByteKey(rand.Reader); err != nil {
+		err = fmt.Errorf("Could not generate aes key for puzzle: %s", err)
+		return
+	}
+
+	var pzInterface crypto.Puzzle
+	if pzInterface, key, err = createRSWPuzzleWithPrimes(a, t, key, p, q); err != nil {
+		err = fmt.Errorf("Error creating rsw puzzle with primes before encrypting: %s", err)
+		return
+	}
+
+	var pzSerialized []byte
+	if pzSerialized, err = pzInterface.Serialize(); err != nil {
+		err = fmt.Errorf("Error serializing puzzle before encryption: %s", err)
+		return
+	}
+
+	if err = puzzle.Deserialize(pzSerialized); err != nil {
+		err = fmt.Errorf("Error deserializing puzzle before encryption: %s", err)
+		return
+	}
+
+	if len(key) != 16 {
+		err = fmt.Errorf("Error with key size")
+		return
+	}
+
+	// Create the cipher
+	var aesCipher cipher.Block
+	if aesCipher, err = aes.NewCipher(key); err != nil {
+		err = fmt.Errorf("Error creating cipher for encryption in aes puzzle: %s", err)
+		return
+	}
+
+	// check to make sure we're going to succeed when encrypting
+	if len(message) < aesCipher.BlockSize() {
+		err = fmt.Errorf("ciphertext less than blocksize, make a bigger ciphertext")
+		return
+	}
+
+	// Generate random initialization vector
+	var iv []byte
+	ciphertext = make([]byte, aesCipher.BlockSize()+len(message))
+
+	// The IV needs to be unique, but not secure. Therefore it's common to
+	// include it at the beginning of the ciphertext.
+	iv = ciphertext[:aesCipher.BlockSize()]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		err = fmt.Errorf("Error reading random reader for iv: %s", err)
+	}
+
+	// Create encrypter
+	var cfbEncrypter cipher.Stream
+	cfbEncrypter = cipher.NewCFBEncrypter(aesCipher, iv)
+
+	// Actually encrypt
+	cfbEncrypter.XORKeyStream(ciphertext[aesCipher.BlockSize():], message)
+	return
+}
+
 // CreateRSW2048A2PuzzleRC5 creates a RSW timelock puzzle with time t and encrypts the message using RC5. This is consistent with the scheme described in RSW96.
 func CreateRSW2048A2PuzzleRC5(t uint64, message []byte) (ciphertext []byte, puzzle crypto.Puzzle, err error) {
 	return CreatePuzzleRC5(t, message, createRSWPuzzle)
@@ -239,6 +305,39 @@ func DecryptPuzzleRC5(ciphertext []byte, key []byte) (message []byte, err error)
 	// Make decrypter
 	var cfbDecrypter cipher.Stream
 	cfbDecrypter = cipher.NewCFBDecrypter(RC5Cipher, iv)
+
+	// make message and then decrypt
+	message = make([]byte, len(ciphertext))
+
+	cfbDecrypter.XORKeyStream(message, ciphertext)
+
+	return
+}
+
+// DecryptPuzzleAES decrypts the ciphertext using AES
+func DecryptPuzzleAES(ciphertext []byte, key []byte) (message []byte, err error) {
+	var aesCipher cipher.Block
+	if aesCipher, err = aes.NewCipher(key); err != nil {
+		err = fmt.Errorf("Could not create new aes cipher for puzzle: %s", err)
+		return
+	}
+
+	// check to make sure we're going to succeed when decrypting
+	if len(ciphertext) < aesCipher.BlockSize() {
+		err = fmt.Errorf("ciphertext less than blocksize, make a bigger ciphertext")
+		return
+	}
+
+	// Split up IV into ciphertext and IV
+	var iv []byte
+	iv = ciphertext[:aesCipher.BlockSize()]
+
+	// Don't decrypt the IV
+	ciphertext = ciphertext[aesCipher.BlockSize():]
+
+	// Make decrypter
+	var cfbDecrypter cipher.Stream
+	cfbDecrypter = cipher.NewCFBDecrypter(aesCipher, iv)
 
 	// make message and then decrypt
 	message = make([]byte, len(ciphertext))
