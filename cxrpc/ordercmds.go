@@ -3,7 +3,7 @@ package cxrpc
 import (
 	"fmt"
 
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/logging"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"

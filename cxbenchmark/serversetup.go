@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Rjected/lit/coinparam"
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	util "github.com/mit-dci/opencx/chainutils"
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxauctionserver"

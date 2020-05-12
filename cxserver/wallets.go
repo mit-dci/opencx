@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Rjected/lit/btcutil"
-	"github.com/Rjected/lit/coinparam"
-	"github.com/Rjected/lit/wallit"
+	"github.com/mit-dci/lit/btcutil"
+	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/wallit"
 	util "github.com/mit-dci/opencx/chainutils"
 
 	"github.com/mit-dci/opencx/logging"

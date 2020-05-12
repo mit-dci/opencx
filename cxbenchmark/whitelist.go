@@ -1,8 +1,8 @@
 package cxbenchmark
 
 import (
-	"github.com/Rjected/lit/coinparam"
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/crypto/koblitz"
 )
 
 // createWhitelistMap creates a map from each coin provided to the list of pukeys, in the correct format to be passed into a PinkySwear settlement engine

@@ -1,7 +1,7 @@
 package chainutils
 
 import (
-	"github.com/Rjected/lit/coinparam"
+	"github.com/mit-dci/lit/coinparam"
 )
 
 // HostParams are a struct that hold a param and a host, so we can automate the creation of wallets and chainhooks,

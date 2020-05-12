@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Rjected/lit/coinparam"
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/crypto/koblitz"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/cxauctionrpc"

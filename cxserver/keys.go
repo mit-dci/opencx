@@ -3,8 +3,8 @@ package cxserver
 import (
 	"fmt"
 
-	"github.com/Rjected/lit/btcutil/hdkeychain"
-	"github.com/Rjected/lit/coinparam"
+	"github.com/mit-dci/lit/btcutil/hdkeychain"
+	"github.com/mit-dci/lit/coinparam"
 )
 
 // SetupServerKeys just loads a private key from a file wallet

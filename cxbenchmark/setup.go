@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/golangcrypto/sha3"
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/benchclient"
 	"github.com/mit-dci/opencx/cxauctionrpc"
 	"github.com/mit-dci/opencx/cxrpc"

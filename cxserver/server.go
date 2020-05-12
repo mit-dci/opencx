@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/crypto/koblitz"
 
 	"golang.org/x/crypto/sha3"
 
-	"github.com/Rjected/lit/uspv"
+	"github.com/mit-dci/lit/uspv"
 
-	"github.com/Rjected/lit/btcutil/hdkeychain"
-	"github.com/Rjected/lit/coinparam"
-	"github.com/Rjected/lit/lnutil"
-	"github.com/Rjected/lit/qln"
-	"github.com/Rjected/lit/wallit"
-	"github.com/Rjected/lit/wire"
+	"github.com/mit-dci/lit/btcutil/hdkeychain"
+	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/lnutil"
+	"github.com/mit-dci/lit/qln"
+	"github.com/mit-dci/lit/wallit"
+	"github.com/mit-dci/lit/wire"
 
 	"github.com/mit-dci/opencx/cxdb"
 	"github.com/mit-dci/opencx/logging"

@@ -3,9 +3,9 @@ package match
 import (
 	"fmt"
 
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/crypto/koblitz"
 
-	"github.com/Rjected/lit/coinparam"
+	"github.com/mit-dci/lit/coinparam"
 )
 
 // Deposit is a struct that represents a deposit on chain

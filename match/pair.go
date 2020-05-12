@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Rjected/lit/coinparam"
+	"github.com/mit-dci/lit/coinparam"
 )
 
 // AssetAmount represents an asset and amount pair.

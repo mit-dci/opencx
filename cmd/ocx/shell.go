@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/fatih/color"
-	"github.com/Rjected/lit/lnutil"
+	"github.com/mit-dci/lit/lnutil"
 
 	"fmt"
 )

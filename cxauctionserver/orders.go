@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/golangcrypto/sha3"
-	"github.com/Rjected/lit/coinparam"
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/crypto/rsw"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
 	"github.com/mit-dci/opencx/cxdb"

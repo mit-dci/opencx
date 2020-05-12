@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	gmpbig "github.com/Rjected/gmp"
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/crypto/timelockencoders"
 	"github.com/mit-dci/opencx/logging"
 	"golang.org/x/crypto/sha3"

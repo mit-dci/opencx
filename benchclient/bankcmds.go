@@ -3,7 +3,7 @@ package benchclient
 import (
 	"fmt"
 
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/crypto/koblitz"
 	"github.com/mit-dci/opencx/cxrpc"
 	"github.com/mit-dci/opencx/match"
 	"golang.org/x/crypto/sha3"

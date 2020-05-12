@@ -6,11 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Rjected/lit/coinparam"
+	"github.com/mit-dci/lit/coinparam"
 	util "github.com/mit-dci/opencx/chainutils"
 
-	"github.com/Rjected/lit/lnutil"
-	litLogging "github.com/Rjected/lit/logging"
+	"github.com/mit-dci/lit/lnutil"
+	litLogging "github.com/mit-dci/lit/logging"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/logging"
 )

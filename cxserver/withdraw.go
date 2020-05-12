@@ -4,22 +4,22 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/Rjected/lit/consts"
-	"github.com/Rjected/lit/lnp2p"
-	"github.com/Rjected/lit/qln"
+	"github.com/mit-dci/lit/consts"
+	"github.com/mit-dci/lit/lnp2p"
+	"github.com/mit-dci/lit/qln"
 	"github.com/mit-dci/opencx/logging"
 
-	"github.com/Rjected/lit/lnutil"
+	"github.com/mit-dci/lit/lnutil"
 
-	"github.com/Rjected/lit/coinparam"
-	"github.com/Rjected/lit/crypto/koblitz"
-	"github.com/Rjected/lit/portxo"
+	"github.com/mit-dci/lit/coinparam"
+	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/portxo"
 
-	"github.com/Rjected/lit/wire"
+	"github.com/mit-dci/lit/wire"
 
-	"github.com/Rjected/lit/btcutil/txscript"
+	"github.com/mit-dci/lit/btcutil/txscript"
 
-	"github.com/Rjected/lit/btcutil"
+	"github.com/mit-dci/lit/btcutil"
 )
 
 // TODO: refactor entire database, match, and asset stuff to support our new automated way of hooks and wallets

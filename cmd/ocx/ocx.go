@@ -6,17 +6,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Rjected/lit/btcutil/hdkeychain"
-	"github.com/Rjected/lit/coinparam"
+	"github.com/mit-dci/lit/btcutil/hdkeychain"
+	"github.com/mit-dci/lit/coinparam"
 
 	"golang.org/x/crypto/sha3"
 
-	"github.com/Rjected/lit/crypto/koblitz"
-	"github.com/Rjected/lit/portxo"
+	"github.com/mit-dci/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/portxo"
 
 	"github.com/mit-dci/opencx/benchclient"
 
-	"github.com/Rjected/lit/lnutil"
+	"github.com/mit-dci/lit/lnutil"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/mit-dci/opencx/logging"
 )

@@ -1,7 +1,7 @@
 package match
 
 import (
-	"github.com/Rjected/lit/crypto/koblitz"
+	"github.com/mit-dci/lit/crypto/koblitz"
 )
 
 // LimitOrderbook is the interface for a limit order book.
