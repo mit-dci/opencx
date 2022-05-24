@@ -10,7 +10,7 @@ require (
 	github.com/dchest/siphash v1.2.1
 	github.com/dgryski/go-rc5 v0.0.0-20181025211356-a14dd155920a
 	github.com/dgryski/go-rc6 v0.0.0-20181026001059-5073bcd24073
-	github.com/ethereum/go-ethereum v1.10.10
+	github.com/ethereum/go-ethereum v1.10.17
 	github.com/fatih/color v1.9.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/jackpal/gateway v1.0.6 // indirect
@@ -20,5 +20,5 @@ require (
 	github.com/mit-dci/zksigma v0.0.0-20190313133734-a6a19e83b9cc
 	github.com/olekukonko/tablewriter v0.0.5
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
-	golang.org/x/text v0.3.6
+	golang.org/x/text v0.3.7
 )
