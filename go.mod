@@ -19,6 +19,6 @@ require (
 	github.com/mit-dci/lit v0.0.0-20200512190823-511d703a128d
 	github.com/mit-dci/zksigma v0.0.0-20190313133734-a6a19e83b9cc
 	github.com/olekukonko/tablewriter v0.0.5
-	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
-	golang.org/x/text v0.3.7
+	golang.org/x/crypto v0.1.0
+	golang.org/x/text v0.4.0
 )
